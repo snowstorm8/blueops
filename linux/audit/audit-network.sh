@@ -202,7 +202,10 @@ _net_dns_check() {
   hosts="$(bo_path /etc/hosts)"
   if [[ -r "${hosts}" ]]; then
     local -a ev=()
-    while IFS= read -r extra; do ev+=("file|/etc/hosts|${extra}"); done < <(awk '!/^[[:space:]]*#/ && NF >= 2 && $1 !~ /^(127\.|::1$|fe00::|ff0[0-9]::)/ {print}' "${hosts}" | tr -s ' \t' ' ')
+    local self
+    self="$(bo_hostname)"
+    # Container runtimes and installers add an entry for the host's own name; ignore those.
+    while IFS= read -r extra; do ev+=("file|/etc/hosts|${extra}"); done < <(awk -v self="${self}" '!/^[[:space:]]*#/ && NF >= 2 && $1 !~ /^(127\.|::1$|fe00::|ff0[0-9]::)/ { own = 0; for (i = 2; i <= NF; i++) if ($i == self) own = 1; if (!own) print }' "${hosts}" | tr -s ' \t' ' ')
     ((${#ev[@]} > 0)) && bo_finding NET-HOSTS-001 low medium network "Non-loopback entries in /etc/hosts" \
       "Static host entries override DNS and can redirect update or authentication domains." "Verify each entry is intended." "T1565.001" "${ev[@]}"
     mode="$(bo_mode "${hosts}" || true)"

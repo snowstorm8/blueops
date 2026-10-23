@@ -90,7 +90,7 @@ mod_system() {
 
   taint="$(_sys_first_line /proc/sys/kernel/tainted)"
   if [[ "${taint}" =~ ^[0-9]+$ ]] && (((taint & 12288) != 0)); then
-    bo_finding SYS-KERN-001 medium low system "Kernel tainted by out-of-tree or unsigned module" \
+    bo_finding SYS-KERN-001 low low system "Kernel tainted by out-of-tree or unsigned module" \
       "Taint mask ${taint} includes out-of-tree (4096) or unsigned (8192) module bits. Legitimate for some drivers; also seen with rootkit modules." \
       "Review loaded modules (lsmod) against expected drivers." "T1547.006" "file|/proc/sys/kernel/tainted"
   fi

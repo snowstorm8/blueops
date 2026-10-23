@@ -277,3 +277,10 @@ setup() {
   has_error NO_INIT_SYSTEM
   [ "${status}" -eq 6 ]
 }
+
+@test "network: an /etc/hosts entry for the host's own name is not reported" {
+  echo "172.17.0.2 fixture-host" >>"${ROOT}/etc/hosts"
+  run_audit --modules network
+  refute evidence_has NET-HOSTS-001 "172.17.0.2"
+  evidence_has NET-HOSTS-001 "updates.example.test"
+}

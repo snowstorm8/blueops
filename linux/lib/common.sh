@@ -31,11 +31,15 @@ bo_now_utc() { date -u +%Y-%m-%dT%H:%M:%SZ; }
 bo_stamp() { date -u +%Y%m%dT%H%M%SZ; }
 
 # Map an absolute path into the (optional) fixture root.
-bo_path() { printf '%s%s' "${BO_ROOT%/}" "$1"; }
+bo_root() {
+  local r="${BO_ROOT:-}"
+  printf '%s' "${r%/}"
+}
+bo_path() { printf '%s%s' "$(bo_root)" "$1"; }
 # Strip the fixture root prefix for display.
 bo_unroot() {
   local p="$1"
-  if [[ -n "${BO_ROOT:-}" ]]; then p="${p#"${BO_ROOT%/}"}"; fi
+  if [[ -n "${BO_ROOT:-}" ]]; then p="${p#"$(bo_root)"}"; fi
   printf '%s' "${p:-/}"
 }
 
@@ -90,7 +94,12 @@ bo_suspicious_reasons() {
   if [[ "${s}" =~ (curl|wget)[^|]*\|[[:space:]]*(sudo[[:space:]]+)?(ba|z|da|k)?sh ]]; then r+="download piped to shell; "; fi
   if [[ "${s}" =~ base64[[:space:]]+(-d|--decode).*\|[[:space:]]*(ba|z|da)?sh ]]; then r+="decoded payload piped to shell; "; fi
   if [[ "${s}" =~ (python[0-9.]*|perl|ruby|php)[[:space:]]+-[ecr][[:space:]].*(socket|fsockopen) ]]; then r+="scripted socket shell; "; fi
-  if [[ "${s}" =~ (^|[[:space:]=\"\'])(/tmp|/var/tmp|/dev/shm)/ ]]; then r+="references world-writable directory; "; fi
+  if [[ "${s}" =~ (/tmp|/var/tmp|/dev/shm)/ ]]; then
+    # Housekeeping commands (rm, find, ls ...) legitimately name these directories.
+    local t
+    t="$(printf '%s' "${s}" | sed -E 's/(^|[^[:alnum:]_.-])(rm|rmdir|find|ls|cat|mv|cp|mkdir|touch|du|echo|tail|head|grep|stat|chmod|chown|tar|test|tmpreaper|tmpwatch|systemd-tmpfiles)[[:space:]][^;&|]*//g')"
+    if [[ "${t}" =~ (^|[[:space:]=\"\'])(/tmp|/var/tmp|/dev/shm)/ ]]; then r+="references world-writable directory; "; fi
+  fi
   if [[ "${s}" =~ chmod[[:space:]]+([ugoa]*\+s|[0-7]*[4267][0-7]{3}) ]]; then r+="sets setuid/setgid bit; "; fi
   if [[ "${s}" =~ alias[[:space:]]+(sudo|su|ssh|passwd)= ]]; then r+="aliases a privileged command; "; fi
   if [[ "${s}" =~ (^|[[:space:];])(export[[:space:]]+)?LD_PRELOAD= ]]; then r+="sets LD_PRELOAD; "; fi
@@ -266,7 +275,7 @@ bo_homes() {
   local pw
   pw="$(bo_path /etc/passwd)"
   [[ -r "${pw}" ]] || return 0
-  awk -F: -v root="${BO_ROOT%/}" '$6 != "" && $6 != "/" && $6 != "/nonexistent" { print $1 "\t" $3 "\t" root $6 }' "${pw}" \
+  awk -F: -v root="$(bo_root)" '$6 != "" && $6 != "/" && $6 != "/nonexistent" { print $1 "\t" $3 "\t" root $6 }' "${pw}" \
     | while IFS=$'\t' read -r u uid h; do
       [[ -d "${h}" ]] && printf '%s\t%s\t%s\n' "${u}" "${uid}" "${h}"
     done

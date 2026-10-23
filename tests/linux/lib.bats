@@ -48,6 +48,8 @@ setup() {
     'python3 -c "import socket;s=socket.socket()"' \
     '/tmp/.x/agent --daemon' \
     'chmod u+s /bin/bash' \
+    'bash /tmp/x.sh' \
+    'rm /tmp/a; /tmp/.x/agent' \
     "alias sudo='/tmp/steal'" \
     'export LD_PRELOAD=/lib/x.so'; do
     run bo_suspicious_reasons "${line}"
@@ -65,7 +67,10 @@ setup() {
     '17 * * * * root cd / && run-parts /etc/cron.hourly' \
     'ExecStart=/usr/bin/python3 /usr/lib/app/main.py' \
     'curl -fsSL https://example.test/file -o /var/lib/app/file' \
-    'nc -z localhost 22'; do
+    'nc -z localhost 22' \
+    '0 3 * * * root find /tmp -type f -mtime +7 -delete' \
+    '*/10 * * * * root rm -rf /tmp/cache/* /tmp/old' \
+    '@daily root /usr/sbin/tmpreaper 7d /tmp/'; do
     run bo_suspicious_reasons "${line}"
     [ -z "${output}" ] || {
       echo "false positive: ${line} -> ${output}"

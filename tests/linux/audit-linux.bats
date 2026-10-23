@@ -196,3 +196,18 @@ CRASH
   run "${REPO_ROOT}/linux/audit/audit-system.sh" --modules system
   [ "${status}" -eq 2 ]
 }
+
+@test "helpers work under set -u with BO_ROOT unset (live-host mode)" {
+  run bash -c "set -Eeuo pipefail; unset BO_ROOT; source '${REPO_ROOT}/linux/lib/common.sh'; bo_path /etc/passwd; echo; bo_unroot /etc/passwd"
+  [ "${status}" -eq 0 ]
+  [ "${lines[0]}" = "/etc/passwd" ]
+}
+
+@test "live run on a real Linux host completes without shell errors" {
+  [ "$(uname -s)" = "Linux" ] || skip "needs a Linux host"
+  unset BO_ROOT
+  run_audit --modules system,users,processes,network,services,persistence --fs-path "${BATS_TEST_TMPDIR}"
+  [ "${status}" -eq 0 ] || [ "${status}" -eq 4 ] || [ "${status}" -eq 6 ]
+  json_py "1" >/dev/null
+  refute grep -E "unbound variable|syntax error|command not found" "${ERR}"
+}

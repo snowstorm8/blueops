@@ -178,3 +178,20 @@ setup() {
   has_finding FS-SUID-001
   [ "$(json_py "[f['id'] for f in d['findings'] if f['severity'] != 'info' and f['id'] != 'FS-RECENT-002']")" = "[]" ]
 }
+
+@test "filesystem: library changes are low severity; bytecode caches are ignored" {
+  mkdir -p "${ROOT}/usr/lib/x/__pycache__"
+  echo x >"${ROOT}/usr/lib/x/libfoo.so"
+  echo x >"${ROOT}/usr/lib/x/__pycache__/m.cpython-310.pyc"
+  run_audit --modules filesystem
+  [ "$(finding_sev FS-RECENT-004)" = "low" ]
+  evidence_has FS-RECENT-004 libfoo.so
+  refute evidence_has FS-RECENT-004 .pyc
+  refute evidence_has FS-RECENT-001 libfoo.so
+}
+
+@test "persistence: housekeeping cron jobs touching /tmp are not flagged" {
+  echo '0 3 * * * root find /tmp -type f -mtime +7 -delete' >"${ROOT}/etc/cron.d/tmpclean"
+  run_audit --modules persistence
+  refute evidence_has PER-CRON-002 tmpclean
+}

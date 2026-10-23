@@ -44,7 +44,7 @@ _fs_dangerous_suid() {
 _fs_local_mounts() {
   local mt line fs
   if [[ -n "${BO_ROOT:-}" ]]; then
-    printf '%s\n' "${BO_ROOT%/}/"
+    printf '%s/\n' "$(bo_root)"
     return 0
   fi
   mt="/proc/mounts"
@@ -99,7 +99,7 @@ _fs_suid() {
 }
 
 _fs_recent() {
-  local -a roots=() sysbin=() etc=() other=()
+  local -a roots=() sysbin=() syslib=() etc=() other=()
   local r f rel
   while IFS= read -r r; do roots+=("${r}"); done < <(_fs_roots /etc /bin /sbin /usr/bin /usr/sbin /usr/local /lib /lib64 /usr/lib /opt /root /home /var/spool /var/www /srv /tmp /var/tmp /dev/shm /boot)
   if ((${#roots[@]} == 0)); then
@@ -111,15 +111,19 @@ _fs_recent() {
     [[ -n "${f}" ]] || continue
     rel="$(bo_unroot "${f}")"
     case "${rel}" in
-      */ld.so.cache | /etc/resolv.conf | /etc/mtab | /etc/adjtime | */random-seed | /etc/machine-id | /etc/hosts.* | /etc/.updated) continue ;;
-      /bin/* | /sbin/* | /usr/bin/* | /usr/sbin/* | /usr/local/bin/* | /usr/local/sbin/* | /lib/* | /lib64/* | /usr/lib/* | /boot/*) sysbin+=("file|${rel}") ;;
+      */__pycache__/* | *.pyc | */ld.so.cache | /etc/resolv.conf | /etc/mtab | /etc/adjtime | */random-seed | /etc/machine-id | /etc/hosts.* | /etc/.updated) continue ;;
+      /bin/* | /sbin/* | /usr/bin/* | /usr/sbin/* | /usr/local/bin/* | /usr/local/sbin/*) sysbin+=("file|${rel}") ;;
+      /lib/* | /lib64/* | /usr/lib/* | /boot/*) syslib+=("file|${rel}") ;;
       /etc/*) etc+=("file|${rel}") ;;
       *) other+=("file|${rel}") ;;
     esac
   done <"${BO_SCRATCH}/recent.txt"
-  ((${#sysbin[@]} > 0)) && bo_finding FS-RECENT-001 medium low filesystem "System binaries or libraries modified in the last ${BO_RECENT_DAYS} day(s)" \
-    "Expected after package updates; otherwise a sign of trojanized binaries." \
+  ((${#sysbin[@]} > 0)) && bo_finding FS-RECENT-001 medium low filesystem "Executables modified in the last ${BO_RECENT_DAYS} day(s)" \
+    "Files in bin/sbin directories. Expected after package updates; otherwise a sign of trojanized binaries." \
     "Verify against package manager checksums (debsums -c / rpm -Va)." "T1554" "${sysbin[@]}"
+  ((${#syslib[@]} > 0)) && bo_finding FS-RECENT-004 low low filesystem "Libraries or boot files modified in the last ${BO_RECENT_DAYS} day(s)" \
+    "Commonly changed by package updates; shared-library tampering is rare but high impact." \
+    "Verify against package manager checksums (debsums -c / rpm -Va)." "T1574" "${syslib[@]}"
   ((${#etc[@]} > 0)) && bo_finding FS-RECENT-002 low low filesystem "Configuration files modified in the last ${BO_RECENT_DAYS} day(s)" \
     "Compare with your change log." "Review the diffs where a baseline exists." "" "${etc[@]}"
   ((${#other[@]} > 0)) && bo_finding FS-RECENT-003 info medium filesystem "Other files modified in the last ${BO_RECENT_DAYS} day(s)" \
