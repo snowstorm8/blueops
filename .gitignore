@@ -1,0 +1,66 @@
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.venv/
+venv/
+env/
+.pytest_cache/
+.ruff_cache/
+.mypy_cache/
+.coverage
+htmlcov/
+build/
+dist/
+
+# Logs and temp
+*.log
+*.tmp
+*.temp
+*.swp
+*~
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/
+
+# Run output, reports, collected evidence (never commit)
+/reports/
+/output/
+/evidence/
+/collected/
+/rollback/
+blueops-run-*/
+*.evidence
+*.evtx
+*.pcap
+*.pcapng
+*.dmp
+*.mem
+*.raw
+*.E01
+
+# Credentials and secrets
+.env
+.env.*
+*.pem
+*.key
+*.pfx
+*.p12
+*.kdbx
+id_rsa*
+id_ed25519*
+credentials*
+secrets*
+*.secret
+
+# Local configuration
+*.local.*
+local/
+shared/config/local*
+profiles/**/local*
+
+# Keep committed examples/fixtures that look like the above
+!examples/**
+!tests/fixtures/**
+!.env.example

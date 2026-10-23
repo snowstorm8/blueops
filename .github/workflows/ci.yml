@@ -1,0 +1,72 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  python:
+    name: Python tests (${{ matrix.os }}, py${{ matrix.python }})
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest]
+        python: ["3.9", "3.12"]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python }}
+          cache: pip
+          cache-dependency-path: requirements-dev.txt
+      - run: python -m pip install -r requirements-dev.txt
+      - run: python -m pytest
+
+  bash:
+    name: Bash tests (Bats)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install Bats
+        run: sudo apt-get update && sudo apt-get install -y bats
+      - name: Run Bats tests
+        shell: bash
+        run: |
+          shopt -s nullglob globstar
+          files=(tests/linux/**/*.bats)
+          if ((${#files[@]} == 0)); then
+            echo "No Bats tests yet (no Bash modules implemented); skipping."
+          else
+            bats --recursive tests/linux
+          fi
+
+  powershell:
+    name: PowerShell tests (Pester)
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install Pester 5
+        shell: pwsh
+        run: Install-Module Pester -MinimumVersion 5.5.0 -Scope CurrentUser -Force -SkipPublisherCheck
+      - name: Run Pester tests
+        shell: pwsh
+        run: |
+          $tests = Get-ChildItem -Path tests/windows -Recurse -Filter *.Tests.ps1 -ErrorAction SilentlyContinue
+          if (-not $tests) {
+            Write-Output 'No Pester tests yet (no PowerShell modules implemented); skipping.'
+            exit 0
+          }
+          $config = New-PesterConfiguration
+          $config.Run.Path = 'tests/windows'
+          $config.Run.Exit = $true
+          $config.Output.Verbosity = 'Detailed'
+          Invoke-Pester -Configuration $config

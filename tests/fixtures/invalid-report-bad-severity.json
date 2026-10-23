@@ -1,0 +1,17 @@
+{
+  "schema_version": "0.1.0",
+  "tool": { "name": "fixture", "version": "0.0.0", "category": "audit" },
+  "run": {
+    "id": "fixture",
+    "started_at": "2026-01-01T12:00:00Z",
+    "finished_at": "2026-01-01T12:00:01Z",
+    "mode": "read-only",
+    "dry_run": false,
+    "exit_code": 0
+  },
+  "host": { "hostname": "h", "os": { "family": "linux", "name": "x", "version": "1" }, "arch": "x" },
+  "findings": [
+    { "id": "AUD-X-001", "title": "t", "severity": "catastrophic", "category": "c", "description": "d" }
+  ],
+  "summary": { "total": 1, "by_severity": { "info": 0, "low": 0, "medium": 0, "high": 0, "critical": 0 } }
+}

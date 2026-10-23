@@ -1,0 +1,138 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://blueops.invalid/schemas/audit-report/0.1.0",
+  "title": "BlueOps audit report",
+  "description": "Structured output of a BlueOps audit, persistence, incident, or hardening run. See docs/contracts.md for versioning rules.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema_version", "tool", "run", "host", "findings", "summary"],
+  "properties": {
+    "schema_version": {
+      "description": "Semantic version of this schema. Major bumps are breaking.",
+      "type": "string",
+      "pattern": "^0\\.\\d+\\.\\d+$"
+    },
+    "tool": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["name", "version", "category"],
+      "properties": {
+        "name": { "type": "string", "minLength": 1 },
+        "version": { "type": "string", "minLength": 1 },
+        "category": { "enum": ["audit", "persistence", "incident", "hardening"] }
+      }
+    },
+    "run": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "started_at", "finished_at", "mode", "dry_run", "exit_code"],
+      "properties": {
+        "id": { "type": "string", "minLength": 1, "description": "Unique run identifier (UUID recommended)." },
+        "started_at": { "$ref": "#/$defs/timestamp" },
+        "finished_at": { "$ref": "#/$defs/timestamp" },
+        "mode": { "enum": ["read-only", "containment", "hardening"] },
+        "dry_run": { "type": "boolean" },
+        "exit_code": { "type": "integer", "minimum": 0, "maximum": 6 }
+      }
+    },
+    "host": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["hostname", "os", "arch"],
+      "properties": {
+        "hostname": { "type": "string", "minLength": 1 },
+        "os": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["family", "name", "version"],
+          "properties": {
+            "family": { "enum": ["linux", "windows"] },
+            "name": { "type": "string" },
+            "version": { "type": "string" }
+          }
+        },
+        "arch": { "type": "string" },
+        "user": { "type": "string" },
+        "elevated": { "type": "boolean" }
+      }
+    },
+    "findings": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/finding" }
+    },
+    "errors": {
+      "description": "Non-fatal problems encountered (e.g. unreadable path, missing optional tool). Coverage gaps must be recorded here, not hidden.",
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["code", "message"],
+        "properties": {
+          "code": { "type": "string", "minLength": 1 },
+          "message": { "type": "string" },
+          "check_id": { "type": "string" }
+        }
+      }
+    },
+    "summary": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["total", "by_severity"],
+      "properties": {
+        "total": { "type": "integer", "minimum": 0 },
+        "by_severity": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["info", "low", "medium", "high", "critical"],
+          "properties": {
+            "info": { "type": "integer", "minimum": 0 },
+            "low": { "type": "integer", "minimum": 0 },
+            "medium": { "type": "integer", "minimum": 0 },
+            "high": { "type": "integer", "minimum": 0 },
+            "critical": { "type": "integer", "minimum": 0 }
+          }
+        }
+      }
+    }
+  },
+  "$defs": {
+    "timestamp": {
+      "description": "ISO 8601 UTC with Z suffix.",
+      "type": "string",
+      "pattern": "^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}(\\.\\d+)?Z$"
+    },
+    "finding": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "title", "severity", "category", "description"],
+      "properties": {
+        "id": { "type": "string", "pattern": "^[A-Z]{2,6}-[A-Z0-9]+-\\d{3,}$", "description": "Stable identifier, e.g. PER-CRON-001." },
+        "title": { "type": "string", "minLength": 1 },
+        "severity": { "enum": ["info", "low", "medium", "high", "critical"] },
+        "confidence": { "enum": ["low", "medium", "high"] },
+        "category": { "type": "string", "minLength": 1 },
+        "description": { "type": "string" },
+        "evidence": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["type", "ref"],
+            "properties": {
+              "type": { "enum": ["file", "registry", "process", "network", "command", "log", "other"] },
+              "ref": { "type": "string", "description": "Path, key, or identifier. Never a secret value." },
+              "sha256": { "type": "string", "pattern": "^[a-f0-9]{64}$" },
+              "excerpt": { "type": "string", "maxLength": 2000 }
+            }
+          }
+        },
+        "remediation": { "type": "string" },
+        "mitre_attack": {
+          "type": "array",
+          "items": { "type": "string", "pattern": "^T\\d{4}(\\.\\d{3})?$" }
+        },
+        "references": { "type": "array", "items": { "type": "string" } }
+      }
+    }
+  }
+}
