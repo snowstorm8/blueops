@@ -23,6 +23,17 @@ _fs_roots() {
   return 0
 }
 
+# Standard X11/ICE/font socket directories under /tmp are created by display
+# managers and X servers; their contents are not "temporary executables".
+_fs_x11_runtime() {
+  case "$1" in
+    */.X11-unix | */.ICE-unix | */.font-unix | */.XIM-unix | */.Test-unix) return 0 ;;
+    */.X11-unix/* | */.ICE-unix/* | */.font-unix/* | */.XIM-unix/* | */.Test-unix/*) [[ "${1##*/}" != *.* ]] ;;
+    */.X[0-9]*-lock) return 0 ;;
+    *) return 1 ;;
+  esac
+}
+
 _fs_known_suid() {
   case "$1" in
     su | sudo | sudoedit | passwd | chsh | chfn | gpasswd | newgrp | chage | expiry | mount | umount | ping | ping6 | pkexec | fusermount | fusermount3 | \
@@ -41,21 +52,29 @@ _fs_dangerous_suid() {
   esac
 }
 
+# Local (disk-backed) mount points, one per line, mapped through BO_ROOT.
+# /proc/mounts is space-separated, so read it with an explicit IFS; spaces in
+# mount points are encoded as \040.
 _fs_local_mounts() {
-  local mt line fs
-  if [[ -n "${BO_ROOT:-}" ]]; then
-    printf '%s/\n' "$(bo_root)"
+  local mt dev mp fs
+  mt="$(bo_path /proc/mounts)"
+  if [[ ! -r "${mt}" ]]; then
+    if [[ -n "${BO_ROOT:-}" ]]; then printf '%s/\n' "$(bo_root)"; else
+      bo_error MOUNTS_UNREADABLE "/proc/mounts unreadable; scanning / only" "FS-SUID-001" 0
+      printf '/\n'
+    fi
     return 0
   fi
-  mt="/proc/mounts"
-  if [[ -r "${mt}" ]]; then
-    while read -r _ line fs _; do
-      case "${fs}" in ext2 | ext3 | ext4 | xfs | btrfs | zfs | f2fs | jfs | reiserfs | vfat | ntfs | ntfs3 | exfat) printf '%s\n' "${line}" ;; *) ;; esac
-    done <"${mt}" | sort -u
-  else
-    bo_error MOUNTS_UNREADABLE "/proc/mounts unreadable; scanning / only" "FS-SUID-001" 0
-    printf '/\n'
-  fi
+  while IFS=' ' read -r dev mp fs _; do
+    case "${fs}" in
+      ext2 | ext3 | ext4 | xfs | btrfs | zfs | f2fs | jfs | reiserfs | vfat | ntfs | ntfs3 | exfat | overlay)
+        : "${dev}"
+        mp="${mp//\\040/ }"
+        printf '%s\n' "$(bo_path "${mp}")"
+        ;;
+      *) ;;
+    esac
+  done <"${mt}" | sort -u
 }
 
 _fs_suid() {
@@ -87,7 +106,7 @@ _fs_suid() {
         fi
         ;;
     esac
-  done <"${BO_SCRATCH}/suid.txt"
+  done < <(sort -u "${BO_SCRATCH}/suid.txt")
   bo_finding FS-SUID-001 info high filesystem "SUID/SGID files" "${#inv[@]} SUID/SGID file(s) on local filesystems." "" "" ${inv[@]+"${inv[@]}"}
   ((${#bad[@]} > 0)) && bo_finding FS-SUID-002 high high filesystem "Dangerous or misplaced SUID/SGID binary" \
     "SUID/SGID on general-purpose utilities, interpreters, or files in user-writable locations enables privilege escalation." \
@@ -145,8 +164,8 @@ _fs_perms() {
     while IFS= read -r f; do [[ -n "${f}" ]] && hidden+=("file|$(bo_unroot "${f}")|name made of dots/spaces"); done < <(bo_find "${sysroots[@]}" -xdev \( -name '...*' -o -name '.. *' -o -name '. *' \))
   fi
   if ((${#tmproots[@]} > 0)); then
-    while IFS= read -r f; do [[ -n "${f}" ]] && exe+=("file|$(bo_unroot "${f}")|mode $(bo_mode "${f}" || echo '?')"); done < <(bo_find "${tmproots[@]}" -xdev -type f \( -perm -0100 -o -perm -0010 -o -perm -0001 \))
-    while IFS= read -r f; do [[ -n "${f}" ]] && hidden+=("file|$(bo_unroot "${f}")|name made of dots/spaces"); done < <(bo_find "${tmproots[@]}" -xdev \( -name '...*' -o -name '.. *' -o -name '. *' \))
+    while IFS= read -r f; do [[ -n "${f}" ]] && ! _fs_x11_runtime "${f}" && exe+=("file|$(bo_unroot "${f}")|mode $(bo_mode "${f}" || echo '?')"); done < <(bo_find "${tmproots[@]}" -xdev -type f \( -perm -0100 -o -perm -0010 -o -perm -0001 \))
+    while IFS= read -r f; do [[ -n "${f}" ]] && ! _fs_x11_runtime "${f}" && hidden+=("file|$(bo_unroot "${f}")|name made of dots/spaces"); done < <(bo_find "${tmproots[@]}" -xdev \( -name '...*' -o -name '.. *' -o -name '. *' \))
   fi
   ((${#ww[@]} > 0)) && bo_finding FS-PERM-001 medium high filesystem "World-writable files in system directories" \
     "Any user can modify these files." "Remove other-write (chmod o-w) after confirming no service depends on it." "T1222.002" "${ww[@]}"
@@ -184,10 +203,59 @@ _fs_perms() {
   return 0
 }
 
+# Opt-in (--package-integrity): dpkg --verify compares installed files with the
+# checksums recorded by their packages. Read-only, but it hashes every packaged file.
+# Output rows: "??5??????   /path", "??5?????? c /conffile", "missing     /path".
+_fs_pkg() {
+  if ! bo_have dpkg || [[ ! -r "$(bo_path /var/lib/dpkg/status)" ]]; then
+    bo_error PKG_UNSUPPORTED "--package-integrity needs a Debian-family system with dpkg; check skipped" "FS-PKG-001"
+    return 0
+  fi
+  local out="${BO_SCRATCH}/pkg.txt" err="${BO_SCRATCH}/pkg.err" kind flags path rest
+  local -a lim=()
+  if bo_have timeout; then lim=(timeout 1800); fi
+  "${lim[@]+"${lim[@]}"}" dpkg --verify >"${out}" 2>"${err}" || true
+  if [[ -s "${err}" ]]; then
+    bo_perm_error "dpkg --verify reported errors (e.g. unreadable files); results may be incomplete" "FS-PKG-001"
+  fi
+  local -a crit=() other=()
+  local nconf=0 ndoc=0
+  while IFS=' ' read -r flags rest; do
+    [[ -n "${flags}" ]] || continue
+    kind=modified
+    [[ "${flags}" == missing ]] && kind=missing
+    if [[ "${rest}" == "c "* ]]; then
+      nconf=$((nconf + 1))
+      continue
+    fi
+    path="${rest#"${rest%%[![:space:]]*}"}"
+    case "${path}" in
+      /usr/share/doc/* | /usr/share/man/* | /usr/share/info/* | /usr/share/locale/*)
+        ndoc=$((ndoc + 1))
+        continue
+        ;;
+      /bin/* | /sbin/* | /usr/bin/* | /usr/sbin/* | /lib/* | /lib64/* | /usr/lib/* | /usr/lib64/* | /usr/local/bin/* | /boot/*)
+        if [[ "${kind}" == modified ]]; then crit+=("file|${path}|${flags}"); else other+=("file|${path}|${kind}"); fi
+        ;;
+      *) other+=("file|${path}|${kind} ${flags}") ;;
+    esac
+  done <"${out}"
+  bo_finding FS-PKG-003 info high filesystem "Package integrity summary" \
+    "dpkg --verify: ${#crit[@]} modified program/library file(s), ${#other[@]} other discrepancy(ies); ${nconf} modified configuration file(s) and ${ndoc} documentation file(s) not listed (expected to change)." "" ""
+  ((${#crit[@]} > 0)) && bo_finding FS-PKG-001 high medium filesystem "Installed programs or libraries differ from their package checksums" \
+    "Flags: 5 = content (MD5) changed, S size, T mtime, U/G owner. Content changes outside a package upgrade indicate trojanized binaries." \
+    "Reinstall the package from a trusted source after preserving the file (apt install --reinstall PKG)." "T1554" "${crit[@]}"
+  ((${#other[@]} > 0)) && bo_finding FS-PKG-002 medium low filesystem "Other packaged files modified or missing" \
+    "Files outside the main program directories, and packaged files that were removed." \
+    "Compare with your change log; reinstall the owning package if the change is unexplained." "T1565.001" "${other[@]}"
+  return 0
+}
+
 mod_filesystem() {
   _fs_suid
   _fs_recent
   _fs_perms
+  if [[ "${BO_PKG_CHECK}" == 1 ]]; then _fs_pkg; fi
 }
 
 if [[ "${BASH_SOURCE[0]}" == "$0" ]]; then

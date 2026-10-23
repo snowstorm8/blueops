@@ -50,6 +50,9 @@ setup() {
     'chmod u+s /bin/bash' \
     'bash /tmp/x.sh' \
     'rm /tmp/a; /tmp/.x/agent' \
+    'bash /tmp/.X11-unix/payload.sh' \
+    '/tmp/.X11-unixx/agent' \
+    '/tmp/.X11-unix/sub/agent' \
     "alias sudo='/tmp/steal'" \
     'export LD_PRELOAD=/lib/x.so'; do
     run bo_suspicious_reasons "${line}"
@@ -70,7 +73,12 @@ setup() {
     'nc -z localhost 22' \
     '0 3 * * * root find /tmp -type f -mtime +7 -delete' \
     '*/10 * * * * root rm -rf /tmp/cache/* /tmp/old' \
-    '@daily root /usr/sbin/tmpreaper 7d /tmp/'; do
+    '@daily root /usr/sbin/tmpreaper 7d /tmp/' \
+    '[ -S /tmp/.X11-unix/X0 ] && export DISPLAY=:0' \
+    'export ICEAUTHORITY=/tmp/.ICE-unix/1234' \
+    'mkdir -p /tmp/.X11-unix && chmod 1777 /tmp/.X11-unix' \
+    'xauth -f /tmp/.X0-lock list' \
+    'if [ ! -d /tmp/.font-unix ]; then x; fi'; do
     run bo_suspicious_reasons "${line}"
     [ -z "${output}" ] || {
       echo "false positive: ${line} -> ${output}"

