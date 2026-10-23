@@ -1,0 +1,18 @@
+# Tool configuration only; BlueOps is not (yet) a packaged distribution.
+
+[tool.ruff]
+target-version = "py39"
+line-length = 100
+extend-exclude = [".venv", "tests/fixtures"]
+
+[tool.ruff.lint]
+select = ["E", "F", "W", "I", "B", "UP", "S", "SIM", "C4", "PL"]
+ignore = ["PLR2004"]
+
+[tool.ruff.lint.per-file-ignores]
+"tests/**" = ["S101"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests/shared"]
+pythonpath = ["."]
+addopts = "-ra --strict-markers"

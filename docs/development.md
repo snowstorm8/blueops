@@ -1,0 +1,47 @@
+# Development
+
+Conventions: [CLAUDE.md](../CLAUDE.md). Contribution flow: [CONTRIBUTING.md](../CONTRIBUTING.md).
+
+## Tools
+
+| Purpose | Tool | Install |
+|---|---|---|
+| Bash lint | ShellCheck | `apt install shellcheck` / `brew install shellcheck` |
+| Bash format | shfmt | `apt install shfmt` / `brew install shfmt` |
+| Bash tests | Bats | `apt install bats` / `brew install bats-core` |
+| PowerShell lint | PSScriptAnalyzer | `Install-Module PSScriptAnalyzer -Scope CurrentUser` |
+| PowerShell tests | Pester 5 | `Install-Module Pester -MinimumVersion 5.5.0 -Scope CurrentUser -SkipPublisherCheck` |
+| Python lint/format/test | Ruff, pytest, jsonschema | `python3 -m pip install -r requirements-dev.txt` |
+
+## Running checks
+
+```bash
+scripts/development/check.sh        # Linux/macOS; skipped tools are reported, not counted as passed
+```
+
+```powershell
+./scripts/development/check.ps1     # Windows
+```
+
+CI (`.github/workflows/ci.yml`, `lint.yml`) runs the same checks on Linux and Windows runners. Bats/Pester/ShellCheck/PSScriptAnalyzer steps skip cleanly while no scripts exist and begin enforcing automatically once files are added.
+
+## PowerShell encoding policy and Windows PowerShell 5.1 limitations
+
+All sources are **UTF-8 without BOM** with LF endings (enforced by `.editorconfig`/`.gitattributes`).
+
+- Windows PowerShell 5.1 reads a BOM-less script as the system ANSI code page, so non-ASCII literals in `.ps1` files may be corrupted. PowerShell 7 reads UTF-8 by default.
+- Therefore: keep source ASCII where possible; express non-ASCII characters via escapes (`[char]0x2713`).
+- 5.1 `Out-File`/`Set-Content -Encoding utf8` writes a BOM, and `-Encoding utf8NoBOM` does not exist. For machine-readable output (JSON reports, manifests) use `[System.IO.File]::WriteAllText($path, $text, (New-Object System.Text.UTF8Encoding $false))`, which works on both versions.
+- Consumers of BlueOps JSON must tolerate a leading BOM from older tooling.
+- `Join-Path` accepts only one child path on 5.1 (nest calls); avoid PowerShell 7-only syntax (`??`, ternary, `&&`) -- PSScriptAnalyzer's `PSUseCompatibleSyntax` enforces 5.1/7.0 compatibility.
+
+## Local tool coverage
+
+CI is the authoritative check. Locally, `check.sh` reports every missing tool as SKIPPED; a skipped tool is not a pass.
+
+## Adding a module
+
+1. Pick exactly one category directory and platform.
+2. Follow the Bash/PowerShell conventions in CLAUDE.md; emit a report conforming to the schema.
+3. Add tests in `tests/<platform>/` (`*.bats` or `*.Tests.ps1`); state-changing code needs dry-run, refusal, and rollback tests.
+4. Update README status, `docs/roadmap.md`, and `CHANGELOG.md`.

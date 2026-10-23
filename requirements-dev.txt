@@ -1,0 +1,4 @@
+# Development-only dependencies. Runtime code is stdlib-only.
+pytest>=8.0
+ruff>=0.6
+jsonschema>=4.21
