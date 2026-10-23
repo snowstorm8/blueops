@@ -15,7 +15,7 @@ BO_COMMON_LOADED=1
 BO_VERSION="0.1.0"
 BO_SCHEMA_VERSION="0.1.0"
 BO_LINUX_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/.." && pwd)"
-BO_ALL_MODULES="system users processes network services persistence filesystem"
+BO_ALL_MODULES="system users pam processes network services persistence filesystem"
 
 BO_SCRATCH=""
 BO_QUIET=0
@@ -23,6 +23,7 @@ BO_VERBOSE=0
 BO_COLOR=0
 BO_MAX_EVIDENCE=100
 BO_RECENT_DAYS=3
+export BO_PKG_CHECK=0 # set by --package-integrity; read by audit-filesystem.sh
 BO_FS_PATHS=()
 
 # ---------------------------------------------------------------- utilities
@@ -97,7 +98,7 @@ bo_suspicious_reasons() {
   if [[ "${s}" =~ (/tmp|/var/tmp|/dev/shm)/ ]]; then
     # Housekeeping commands (rm, find, ls ...) legitimately name these directories.
     local t
-    t="$(printf '%s' "${s}" | sed -E 's/(^|[^[:alnum:]_.-])(rm|rmdir|find|ls|cat|mv|cp|mkdir|touch|du|echo|tail|head|grep|stat|chmod|chown|tar|test|tmpreaper|tmpwatch|systemd-tmpfiles)[[:space:]][^;&|]*//g')"
+    t="$(printf '%s' "${s}" | sed -E -e 's#/tmp/(\.X11-unix|\.ICE-unix|\.font-unix|\.XIM-unix|\.Test-unix)(/[A-Za-z0-9_-]+)?([^[:alnum:]_./-]|$)#X11-RUNTIME\3#g' -e 's#/tmp/\.X[0-9]+-lock([^[:alnum:]_./-]|$)#X11-RUNTIME\1#g' -e 's/(^|[^[:alnum:]_.-])(rm|rmdir|find|ls|cat|mv|cp|mkdir|touch|du|echo|tail|head|grep|stat|chmod|chown|tar|test|tmpreaper|tmpwatch|systemd-tmpfiles)[[:space:]][^;&|]*//g')"
     if [[ "${t}" =~ (^|[[:space:]=\"\'])(/tmp|/var/tmp|/dev/shm)/ ]]; then r+="references world-writable directory; "; fi
   fi
   if [[ "${s}" =~ chmod[[:space:]]+([ugoa]*\+s|[0-7]*[4267][0-7]{3}) ]]; then r+="sets setuid/setgid bit; "; fi
@@ -308,6 +309,8 @@ EOF
   --fail-on SEVERITY    lowest severity giving exit 4 (default: medium)
   --recent-days N       "recently modified" window for filesystem checks (default: 3)
   --fs-path DIR         restrict filesystem scans to DIR (repeatable)
+  --package-integrity   also verify installed files against Debian package
+                        checksums (dpkg --verify; read-only, can be slow)
   --quiet               suppress human output and warnings
   --verbose             log progress to stderr
   --no-color            disable ANSI colors
@@ -340,6 +343,7 @@ bo_module_title() {
   case "$1" in
     system) echo "System" ;;
     users) echo "Users and access" ;;
+    pam) echo "PAM" ;;
     processes) echo "Processes" ;;
     network) echo "Network" ;;
     services) echo "Services" ;;
@@ -397,6 +401,7 @@ bo_cli_main() {
         shift
         ;;
       --json) format=json ;;
+      --package-integrity) BO_PKG_CHECK=1 ;;
       --quiet) BO_QUIET=1 ;;
       --verbose) BO_VERBOSE=1 ;;
       --no-color) nocolor=1 ;;

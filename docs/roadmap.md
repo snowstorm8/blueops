@@ -10,6 +10,7 @@ Everything beyond Phase 0 is **planned** and subject to change.
 
 ## Phase 1 — Linux read-only host auditing (v0.1)
 
+- [x] v0.2: PAM review, failed socket units, Debian package-integrity option, SUID fix, context heuristics
 - [x] Bash `lib/common.sh`: logging, arg parsing, finding/error recording, JSON emit, run-dir management
 - [x] `audit-linux.sh` + modules: system, users, processes, network, services, persistence, filesystem
 - [x] Bats tests with synthetic fixtures; Linux CI

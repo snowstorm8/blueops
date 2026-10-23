@@ -1,0 +1,15 @@
+#!/usr/bin/env bash
+# Fake dpkg for fixture tests: only --verify is supported.
+case "$*" in
+"--verify" | "-V")
+  cat <<'OUT'
+??5??????   /usr/bin/ssh
+??5?????? c /etc/ssh/sshd_config
+missing     /usr/bin/gone
+??5??????   /usr/share/doc/foo/copyright
+..5......   /opt/app/data.bin
+OUT
+  exit 1
+  ;;
+*) exit 2 ;;
+esac

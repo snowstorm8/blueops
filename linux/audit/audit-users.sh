@@ -13,6 +13,16 @@ _usr_is_nologin() {
   case "${1##*/}" in nologin | false | sync | shutdown | halt | "") return 0 ;; *) return 1 ;; esac
 }
 
+# Service accounts that legitimately keep a login shell, judged by account name
+# AND its package-managed home directory (so a "postgres" account with a home
+# elsewhere is still reported).
+_usr_expected_shell() {
+  case "$1:$2" in
+    postgres:/var/lib/postgresql | postgres:/var/lib/postgresql/* | postgres:/var/lib/pgsql | postgres:/var/lib/pgsql/* | postgres:/var/lib/postgres | postgres:/var/lib/postgres/*) return 0 ;;
+    *) return 1 ;;
+  esac
+}
+
 _usr_accounts() {
   local pw
   pw="$(bo_path /etc/passwd)"
@@ -27,6 +37,7 @@ _usr_accounts() {
 _usr_accounts_check() {
   local pw shadow n_total=0 n_login=0 login_list="" u uid home shell
   pw="$(bo_path /etc/passwd)"
+  local expected=""
   local -a uid0=() sysshell=() hashed=() empty=()
   _usr_accounts >"${BO_SCRATCH}/accounts.tsv" || return 0
   while IFS=$'\t' read -r u uid _ home shell; do
@@ -37,6 +48,10 @@ _usr_accounts_check() {
     fi
     if [[ "${uid}" == "0" && "${u}" != "root" ]]; then uid0+=("file|/etc/passwd|account '${u}' has UID 0"); fi
     if [[ "${uid}" =~ ^[0-9]+$ ]] && ((uid > 0 && uid < 1000)) && ! _usr_is_nologin "${shell}"; then
+      if _usr_expected_shell "${u}" "${home#"$(bo_root)"}"; then
+        expected+="${u} "
+        continue
+      fi
       case "${shell##*/}" in bash | sh | zsh | dash | ksh | fish | csh | tcsh | ash) sysshell+=("file|/etc/passwd|system account '${u}' (uid ${uid}) has interactive shell ${shell}") ;; *) ;; esac
     fi
   done <"${BO_SCRATCH}/accounts.tsv"
@@ -44,7 +59,7 @@ _usr_accounts_check() {
   while IFS= read -r u; do hashed+=("file|/etc/passwd|account '${u}' stores a password hash in /etc/passwd"); done < <(awk -F: 'NF>=7 && $2 != "x" && $2 != "!" && $2 != "*" && $2 != "" && $1 !~ /^[#+-]/ {print $1}' "${pw}")
 
   bo_finding USR-INFO-001 info high users "Account inventory" \
-    "${n_total} accounts; ${n_login} with a login shell: ${login_list:-none}" "" "" "file|/etc/passwd"
+    "${n_total} accounts; ${n_login} with a login shell: ${login_list:-none}${expected:+; expected service-account shells not flagged: ${expected% }}" "" "" "file|/etc/passwd"
 
   if ((${#uid0[@]} > 0)); then
     bo_finding USR-UID0-001 critical high users "Non-root account with UID 0" \
