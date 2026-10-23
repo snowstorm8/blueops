@@ -1,0 +1,3 @@
+#!/usr/bin/env bash
+echo "alice    pts/0        2026-01-01 10:00 (203.0.113.50)"
+echo "root     tty1         2026-01-01 09:00"

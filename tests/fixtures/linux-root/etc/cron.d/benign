@@ -1,0 +1,1 @@
+0 3 * * * root /usr/local/bin/backup.sh --password=s3cretvalue

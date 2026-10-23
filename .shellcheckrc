@@ -1,3 +1,4 @@
 shell=bash
 enable=require-variable-braces
 external-sources=true
+source-path=SCRIPTDIR

@@ -2,7 +2,7 @@
 
 A portable, cross-platform Blue Team toolkit for competitions, incident response, host auditing, persistence detection, evidence collection, and system hardening — built on Bash and PowerShell with minimal dependencies.
 
-> **Status: pre-alpha scaffolding.** The repository structure, development tooling, and shared contracts exist. **No security functionality is implemented yet.** Everything under "Planned capabilities" is a plan, not a feature.
+> **Status: pre-alpha.** Linux read-only host auditing (v0.1) is implemented. Hardening, containment, evidence collection, and all Windows tooling are **not** implemented yet; everything marked "planned" below is a plan, not a feature.
 
 ## Motivation
 
@@ -17,14 +17,14 @@ In CCDC-style Red vs. Blue exercises and real incidents, defenders take over unf
 
 Portability · reliability · modularity · rapid deployment · minimal dependencies · availability preservation · evidence integrity.
 
-## Planned capabilities
+## Capabilities
 
-All items below are **planned**.
+Status per area; anything not marked implemented is **planned**.
 
 | Area | Linux (Bash) | Windows (PowerShell) |
 |---|---|---|
-| Host audit (users, services, network, packages, configs) | planned | planned |
-| Persistence detection (cron/systemd/rc/profile; tasks/services/registry/WMI) | planned | planned |
+| Host audit (system, users, processes, network, services, filesystem) | **implemented (v0.1)** | planned |
+| Persistence detection (cron/systemd/rc/profile; tasks/services/registry/WMI) | **implemented (v0.1)** | planned |
 | Incident response and evidence collection (with hashing and manifests) | planned | planned |
 | Opt-in containment actions (dry-run, confirmation, rollback) | planned | planned |
 | Hardening profiles with service-dependency protection | planned | planned |
@@ -32,6 +32,7 @@ All items below are **planned**.
 
 ## Implemented today
 
+- **Linux read-only audit** (`linux/audit/audit-linux.sh`): system, users, processes, network, services, persistence, filesystem; human and JSON output. See [docs/linux-audit.md](docs/linux-audit.md)
 - Repository layout, CI and lint workflows, formatting rules
 - Versioned JSON audit-report schema (`shared/schemas/audit-report.schema.json`, v0.1.0, pre-stable) with example and tests
 - Shared contracts: severity levels and exit codes (`shared/reporting/contracts.py`, [docs/contracts.md](docs/contracts.md))
@@ -63,11 +64,18 @@ Defaults live in `shared/config/`; per-environment choices (protected services/p
 
 ## Usage conventions
 
-Planned (not yet available) — every tool will follow the same conventions:
+Implemented:
+
+```bash
+sudo linux/audit/audit-linux.sh                          # full read-only audit, human summary
+sudo linux/audit/audit-linux.sh --json --output-dir out  # also write report.json/report.txt/run.log
+linux/audit/audit-linux.sh --modules users,network       # subset (works unprivileged with reduced coverage)
+```
+
+Planned (not yet available) — remaining tools will follow the same conventions:
 
 ```text
 # Illustrative only — these commands do not exist yet.
-linux/audit/<tool>.sh      --output-dir DIR [--json] [--quiet]
 linux/hardening/<tool>.sh  --profile NAME --dry-run        # preview
 linux/hardening/<tool>.sh  --profile NAME --yes            # apply (records rollback)
 windows\audit\<Tool>.ps1   -OutputDir DIR [-Json]
