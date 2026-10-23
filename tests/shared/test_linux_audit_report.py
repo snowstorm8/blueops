@@ -40,6 +40,8 @@ def fixture_root(tmp_path_factory: pytest.TempPathFactory) -> Path:
     shutil.copytree(FIXTURES / "linux-root", dest, symlinks=True)
     for rel in ("usr/bin/su", "usr/bin/find", "usr/bin/mystery"):
         (dest / rel).chmod(stat.S_ISUID | 0o755)
+    # Not stored in git: Windows cannot check out a file named "...".
+    (dest / "tmp" / "...").write_text("x\n", encoding="utf-8")
     return dest
 
 

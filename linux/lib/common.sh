@@ -545,7 +545,7 @@ bo_cli_main() {
     (umask 077 && cp -- "${report}" "${rd}/report.json" && cp -- "${text}" "${rd}/report.txt" && cp -- "${BO_SCRATCH}/run.log" "${rd}/run.log")
     ((BO_QUIET)) || echo "Report written to ${rd}" >&2
   fi
-  if ((! BO_QUIET)); then
+  if [[ "${BO_QUIET}" == 0 ]]; then
     if [[ "${format}" == "json" ]]; then
       [[ -n "${outdir}" ]] || cat -- "${report}"
       [[ -n "${outdir}" ]] || cat -- "${text}" >&2

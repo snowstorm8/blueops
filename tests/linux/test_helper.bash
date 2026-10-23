@@ -20,6 +20,8 @@ make_root() {
     chmod 644 "${ROOT}/etc/shadow" "${ROOT}/etc/passwd" "${ROOT}/etc/hosts"
     chmod 440 "${ROOT}/etc/sudoers"
     chmod 755 "${ROOT}/root" "${ROOT}/tmp/dropper"
+    # Windows cannot check out a file named "...", so it is created here instead.
+    echo x >"${ROOT}/tmp/..."
     chmod 644 "${ROOT}/tmp/..."
   fi
   export BO_ROOT="${ROOT}"
