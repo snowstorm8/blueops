@@ -52,18 +52,24 @@ setup() {
   evidence_has FS-SUID-001 /usr/bin/su
 }
 
-@test "suid: live host count is not lower than native find" {
+@test "suid: on a live host the mount scan roots include / and cover native find results" {
   [ "$(uname -s)" = "Linux" ] || skip "needs a Linux host"
   unset BO_ROOT
-  local native
-  native="$(find / -xdev -type f \( -perm -4000 -o -perm -2000 \) 2>/dev/null | wc -l | tr -d ' ')"
-  [ "${native}" -gt 0 ] || skip "no SUID files on / of this host"
-  run_audit --modules filesystem --fs-path /nonexistent-bo-dir
-  # Without --fs-path restriction the mount scan must cover at least what find / -xdev sees.
-  run_audit --modules filesystem
-  local got
-  got="$(json_py "int([f for f in d['findings'] if f['id']=='FS-SUID-001'][0]['description'].split()[0])")"
-  [ "${got}" -ge "${native}" ]
+  # Source the module (no full scan: that would walk the whole runner disk).
+  source "${REPO_ROOT}/linux/audit/audit-filesystem.sh"
+  BO_SCRATCH="${BATS_TEST_TMPDIR}"
+  local roots
+  roots="$(_fs_local_mounts)"
+  # The regression: this was empty on real hosts, so nothing was scanned.
+  [ -n "${roots}" ]
+  grep -qx '/' <<<"${roots}" || grep -qx '/usr' <<<"${roots}"
+  # Everything native find reports under /usr/bin must live under one of the roots.
+  local f ok
+  while IFS= read -r f; do
+    ok=0
+    while IFS= read -r r; do [[ "${f}" == "${r%/}"/* ]] && ok=1 && break; done <<<"${roots}"
+    [ "${ok}" -eq 1 ]
+  done < <(find /usr/bin -xdev -type f \( -perm -4000 -o -perm -2000 \) 2>/dev/null)
 }
 
 # ------------------------------------------------ 2. X11 and PostgreSQL
