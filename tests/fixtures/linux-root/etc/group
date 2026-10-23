@@ -1,0 +1,4 @@
+root:x:0:
+sudo:x:27:alice
+docker:x:998:bob
+alice:x:1000:

@@ -23,7 +23,11 @@ scripts/development/check.sh        # Linux/macOS; skipped tools are reported, n
 ./scripts/development/check.ps1     # Windows
 ```
 
-CI (`.github/workflows/ci.yml`, `lint.yml`) runs the same checks on Linux and Windows runners. Bats/Pester/ShellCheck/PSScriptAnalyzer steps skip cleanly while no scripts exist and begin enforcing automatically once files are added.
+CI (`.github/workflows/ci.yml`, `lint.yml`) runs the same checks on Linux and Windows runners. Pester/PSScriptAnalyzer steps skip cleanly while no PowerShell files exist; Bats and ShellCheck/shfmt are enforced.
+
+### Testing the Linux tooling
+
+Bats tests (`tests/linux/*.bats`) run the real scripts against a synthetic root filesystem (`tests/fixtures/linux-root`) so they pass on any POSIX host, including macOS. Two test-only environment hooks make this possible and must not be used in production: `BO_ROOT` (prefix for every file read) and `BO_FORCE_MISSING_TOOLS` (space-separated tools treated as absent). Fake `ss`/`systemctl`/`who`/`ps` live in `tests/fixtures/linux-bin`. Permission bits git cannot store (SUID, 0600) are applied by `tests/linux/test_helper.bash` on a per-test copy. Use `refute cmd`, not `! cmd`, for negative assertions: Bats ignores a bare `!`.
 
 ## PowerShell encoding policy and Windows PowerShell 5.1 limitations
 

@@ -1,0 +1,7 @@
+#!/usr/bin/env bash
+# Fake ps for fixture tests (the /proc-less fallback path).
+cat <<'OUT'
+    1     0 root     systemd         /sbin/init
+  100     1 root     sshd            /usr/sbin/sshd -D
+  200   100 alice    bash            -bash --token=abc123
+OUT

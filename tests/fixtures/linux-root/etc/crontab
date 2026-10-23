@@ -1,0 +1,2 @@
+SHELL=/bin/sh
+17 * * * * root cd / && run-parts /etc/cron.hourly

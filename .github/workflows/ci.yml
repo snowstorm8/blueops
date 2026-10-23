@@ -39,15 +39,7 @@ jobs:
       - name: Install Bats
         run: sudo apt-get update && sudo apt-get install -y bats
       - name: Run Bats tests
-        shell: bash
-        run: |
-          shopt -s nullglob globstar
-          files=(tests/linux/**/*.bats)
-          if ((${#files[@]} == 0)); then
-            echo "No Bats tests yet (no Bash modules implemented); skipping."
-          else
-            bats --recursive tests/linux
-          fi
+        run: bats --recursive tests/linux
 
   powershell:
     name: PowerShell tests (Pester)

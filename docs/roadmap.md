@@ -8,15 +8,20 @@ Everything beyond Phase 0 is **planned** and subject to change.
 - [x] CI/lint workflows, Dependabot, formatting rules
 - [x] Audit-report schema v0.1.0, severity and exit-code contracts
 
-## Phase 1 — Shared libraries
+## Phase 1 — Linux read-only host auditing (v0.1)
 
-- [ ] Bash `lib/`: logging, arg parsing, confirmation, dry-run, JSON emit, run-dir management
+- [x] Bash `lib/common.sh`: logging, arg parsing, finding/error recording, JSON emit, run-dir management
+- [x] `audit-linux.sh` + modules: system, users, processes, network, services, persistence, filesystem
+- [x] Bats tests with synthetic fixtures; Linux CI
+- [ ] Bash `lib/`: confirmation and dry-run helpers (needed by hardening/containment)
+
+## Phase 1b — Shared libraries
 - [ ] PowerShell `lib/`: equivalent module
 - [ ] Python: report validation CLI, merge/diff
 
 ## Phase 2 — Read-only audit and persistence
 
-- [ ] Linux: users/groups, services, network listeners, scheduled jobs, startup, SUID/permissions
+- [x] Linux: users/groups, services, network listeners, scheduled jobs, startup, SUID/permissions (v0.1; baselines/allowlists via profiles still planned)
 - [ ] Windows: users/groups, services, tasks, Run keys, WMI subscriptions, listeners
 
 ## Phase 3 — Incident response
