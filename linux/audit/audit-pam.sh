@@ -90,7 +90,7 @@ mod_pam() {
         pam_permit.so)
           if [[ "${ctl}" == "sufficient" ]]; then
             permit+=("file|${file}|auth sufficient pam_permit.so accepts any user without a password check")
-          elif [[ "${ctl}" == "required" || "${ctl}" == "requisite" ]] && ((! real)); then
+          elif [[ "${ctl}" == "required" || "${ctl}" == "requisite" ]] && [[ "${real}" == 0 ]]; then
             permit+=("file|${file}|auth ${ctl} pam_permit.so with no earlier authenticating module in this file")
           fi
           ;;
