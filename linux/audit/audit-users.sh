@@ -34,12 +34,33 @@ _usr_accounts() {
   awk -F: 'NF >= 7 && $1 !~ /^[#+-]/ { print $1 "\t" $3 "\t" $4 "\t" ($6==""?"-":$6) "\t" ($7==""?"-":$7) }' "${pw}"
 }
 
+# Inventory records for accounts: identity and shell, plus the password *state* (never the hash).
+_usr_inventory_accounts() {
+  local shadow u uid gid home shell state
+  shadow="$(bo_path /etc/shadow)"
+  : >"${BO_SCRATCH}/shadow-state.tsv"
+  if [[ -r "${shadow}" ]]; then
+    awk -F: '{ s = "set"; if ($2 == "") s = "empty"; else if ($2 ~ /^[!*]/) s = "locked"; print $1 "\t" s }' "${shadow}" >"${BO_SCRATCH}/shadow-state.tsv"
+  else
+    bo_cov users "" degraded "/etc/shadow not readable; password state unknown"
+  fi
+  while IFS=$'\t' read -r u uid gid home shell; do
+    state="$(awk -F'\t' -v u="${u}" '$1 == u { print $2; exit }' "${BO_SCRATCH}/shadow-state.tsv")"
+    bo_inv users "" "user:${u}" "uid=${uid}" "gid=${gid}" "home=${home}" "shell=${shell}" "password=${state:-@unknown}" "^file=/etc/passwd"
+  done <"${BO_SCRATCH}/accounts.tsv"
+  bo_cov users "" complete
+}
+
 _usr_accounts_check() {
   local pw shadow n_total=0 n_login=0 login_list="" u uid home shell
   pw="$(bo_path /etc/passwd)"
   local expected=""
   local -a uid0=() sysshell=() hashed=() empty=()
-  _usr_accounts >"${BO_SCRATCH}/accounts.tsv" || return 0
+  if ! _usr_accounts >"${BO_SCRATCH}/accounts.tsv"; then
+    bo_cov users "" unavailable "/etc/passwd not readable"
+    return 0
+  fi
+  _usr_inventory_accounts
   while IFS=$'\t' read -r u uid _ home shell; do
     n_total=$((n_total + 1))
     if ! _usr_is_nologin "${shell}"; then
@@ -98,7 +119,7 @@ _usr_accounts_check() {
 }
 
 _usr_sudo_check() {
-  local gf f line n=0 nopw=0
+  local gf f line norm n=0 nopw=0
   local -a files=() nopasswd=() unsafe=() rules=() privgrp=() rootequiv=()
   for f in "$(bo_path /etc/sudoers)" "$(bo_path /etc/sudoers.d)"/*; do
     [[ -f "${f}" ]] || continue
@@ -107,12 +128,13 @@ _usr_sudo_check() {
     files+=("${f}")
   done
   if ((${#files[@]} == 0)); then
-    [[ -e "$(bo_path /etc/sudoers)" ]] && bo_perm_error "/etc/sudoers not readable; sudo rules skipped" "USR-SUDO-001"
+    [[ -e "$(bo_path /etc/sudoers)" ]] && bo_perm_error "/etc/sudoers not readable; sudo rules skipped" "USR-SUDO-001" && bo_cov config sudoers partial "/etc/sudoers not readable"
     [[ -e "$(bo_path /etc/sudoers)" ]] || bo_error SUDO_ABSENT "no /etc/sudoers present (sudo not installed?)" "USR-SUDO-001" 0
   fi
   for f in ${files[@]+"${files[@]}"}; do
     if [[ ! -r "${f}" ]]; then
       bo_perm_error "$(bo_unroot "${f}") not readable; sudo rules skipped" "USR-SUDO-001"
+      bo_cov config sudoers partial "$(bo_unroot "${f}") not readable"
       continue
     fi
     local mode rel
@@ -126,6 +148,8 @@ _usr_sudo_check() {
       [[ "${line}" =~ ^[[:space:]]*$ ]] && continue
       [[ "${line}" =~ ^[[:space:]]*(Defaults|Cmnd_Alias|User_Alias|Host_Alias|Runas_Alias|@include|#include) ]] && continue
       n=$((n + 1))
+      norm="$(printf '%s' "${line}" | tr -s '[:space:]' ' ')"
+      bo_inv config sudoers "config:sudoers:${rel}#$(bo_hash_id "${norm}")" "file=${rel}" "rule=$(printf '%s' "${norm}" | bo_redact)" "^file=${rel}"
       rules+=("file|${rel}|$(printf '%s' "${line}" | tr -s '[:space:]' ' ' | bo_redact)")
       if [[ "${line}" == *NOPASSWD* ]]; then
         nopw=$((nopw + 1))
@@ -142,22 +166,26 @@ _usr_sudo_check() {
   ((${#unsafe[@]} > 0)) && bo_finding USR-SUDO-003 high high users "Sudoers file writable by non-root" \
     "Group/other-writable sudoers files allow privilege escalation." "chmod 0440 on the file after review." "T1548.003" "${unsafe[@]}"
 
+  bo_cov config sudoers complete
   gf="$(bo_path /etc/group)"
   if [[ -r "${gf}" ]]; then
-    local g members
-    while IFS=: read -r g _ _ members; do
+    local g gid members
+    while IFS=: read -r g _ gid members; do
+      [[ -n "${g}" && "${g}" != "#"* ]] && bo_inv groups "" "group:${g}" "gid=${gid}" "members[]=${members}" "^file=/etc/group"
       case "${g}" in
         sudo | wheel | admin | root) [[ -n "${members}" ]] && privgrp+=("file|/etc/group|group ${g}: ${members}") ;;
         docker | lxd | disk) [[ -n "${members}" ]] && rootequiv+=("file|/etc/group|group ${g}: ${members}") ;;
         *) ;;
       esac
     done <"${gf}"
+    bo_cov groups "" complete
     ((${#privgrp[@]} > 0)) && bo_finding USR-GROUP-001 info high users "Members of administrative groups" \
       "Users in sudo/wheel/admin/root groups can typically obtain root." "" "" "${privgrp[@]}"
     ((${#rootequiv[@]} > 0)) && bo_finding USR-GROUP-002 low medium users "Members of root-equivalent groups" \
       "docker, lxd and disk group membership is effectively root access." "Remove members that do not need it." "T1548" "${rootequiv[@]}"
   else
     bo_error GROUP_UNREADABLE "/etc/group not readable; group checks skipped" "USR-GROUP-001"
+    bo_cov groups "" unavailable "/etc/group not readable"
   fi
 }
 
@@ -185,15 +213,36 @@ _usr_keytype() {
   printf 'unknown'
 }
 
+# One record per authorized key, identified by the SHA-256 of its public key blob (never the
+# key itself); the free-text label is volatile context.
+_usr_inventory_key() {
+  local u="$1" rel="$2" line="$3" label="$4" ktype blob id
+  IFS=' ' read -r ktype blob < <(printf '%s\n' "${line}" | awk '{ for (i = 1; i <= NF; i++) if ($i ~ /^(ssh-|ecdsa-|sk-)/) { print $i, $(i + 1); exit } }')
+  if [[ -z "${blob:-}" ]]; then
+    bo_cov persistence ssh-authkeys partial "an authorized_keys line in ${rel} could not be fingerprinted"
+    return 0
+  fi
+  id="$(bo_hash_id "${blob}" 24)"
+  local opts=no
+  [[ "${line%%[[:space:]]*}" == "${ktype}" ]] || opts=yes
+  bo_inv persistence ssh-authkeys "persist:ssh-authkey:${u}:${id}" "owner=${u}" "type=${ktype}" "options=${opts}" "file=${rel}" "~label=${label:0:60}" "^file=${rel}"
+}
+
 _usr_ssh_check() {
   local u uid home f dir n opts mode line rel total=0
   local -a inv=() forced=() rootk=() sysk=() perms=()
-  [[ -r "$(bo_path /etc/passwd)" ]] || return 0
+  if [[ ! -r "$(bo_path /etc/passwd)" ]]; then
+    bo_cov persistence ssh-authkeys unavailable "/etc/passwd not readable"
+    return 0
+  fi
+  bo_is_root || bo_cov persistence ssh-authkeys partial "not running as root; other users' home directories may be unreadable"
+  bo_cov persistence ssh-authkeys complete
   while IFS=$'\t' read -r u uid home; do
     for f in "${home}/.ssh/authorized_keys" "${home}/.ssh/authorized_keys2"; do
       [[ -e "${f}" ]] || continue
       if [[ ! -r "${f}" ]]; then
         bo_perm_error "cannot read $(bo_unroot "${f}")" "USR-SSH-001"
+        bo_cov persistence ssh-authkeys partial "cannot read $(bo_unroot "${f}")"
         continue
       fi
       n=0
@@ -206,6 +255,7 @@ _usr_ssh_check() {
         local first="${line%%[[:space:]]*}" comment
         comment="$(printf '%s' "${line}" | awk '{print $NF}')"
         inv+=("file|${rel}|owner ${u}; type $(_usr_keytype "${line}"); label ${comment:0:60}")
+        _usr_inventory_key "${u}" "${rel}" "${line}" "${comment}"
         case "${first}" in
           ssh-* | ecdsa-* | sk-*) ;;
           *)

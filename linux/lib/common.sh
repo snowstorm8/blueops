@@ -13,7 +13,7 @@
 BO_COMMON_LOADED=1
 
 BO_VERSION="0.1.0"
-BO_SCHEMA_VERSION="0.1.0"
+BO_SCHEMA_VERSION="0.2.0"
 BO_LINUX_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/.." && pwd)"
 BO_ALL_MODULES="system users pam processes network services persistence filesystem"
 
@@ -135,7 +135,8 @@ bo_log() {
 
 # ---------------------------------------------------------------- JSON/state
 
-bo_json_str() {
+# _bo_jq STRING : JSON-quote STRING into REPLY without a subshell (hot path for inventory).
+_bo_jq() {
   local s="${1-}"
   s="${s//\\/\\\\}"
   s="${s//\"/\\\"}"
@@ -145,7 +146,12 @@ bo_json_str() {
   if [[ "${s}" =~ [^[:print:]] ]]; then
     s="$(printf '%s' "${s}" | LC_ALL=C tr -c '\040-\176' '?')"
   fi
-  printf '"%s"' "${s}"
+  REPLY="\"${s}\""
+}
+
+bo_json_str() {
+  _bo_jq "${1-}"
+  printf '%s' "${REPLY}"
 }
 
 bo_init_scratch() {
@@ -153,6 +159,8 @@ bo_init_scratch() {
   chmod 700 "${BO_SCRATCH}"
   : >"${BO_SCRATCH}/findings.jsonl"
   : >"${BO_SCRATCH}/errors.jsonl"
+  : >"${BO_SCRATCH}/inventory.jsonl"
+  : >"${BO_SCRATCH}/coverage.jsonl"
   : >"${BO_SCRATCH}/errors.txt"
   : >"${BO_SCRATCH}/human.txt"
   : >"${BO_SCRATCH}/sev.log"
@@ -163,6 +171,158 @@ bo_init_scratch() {
 bo_cleanup() {
   if [[ -n "${BO_SCRATCH}" && -d "${BO_SCRATCH}" ]]; then rm -rf -- "${BO_SCRATCH}"; fi
   return 0
+}
+
+# ---------------------------------------------------------------- inventory
+# Structured records for offline baseline comparison (docs/baseline-diff.md). Keys must
+# be stable between runs: never put pids, ephemeral ports or free text in a key.
+
+# bo_sha256_file FILE / bo_sha256_str STRING : print the hex digest, or fail if no tool exists.
+bo_sha256_file() {
+  local h
+  if bo_have sha256sum; then
+    h="$(sha256sum -- "$1" 2>/dev/null)" || return 1
+  elif bo_have shasum; then
+    h="$(shasum -a 256 -- "$1" 2>/dev/null)" || return 1
+  elif bo_have openssl; then
+    h="$(openssl dgst -sha256 -- "$1" 2>/dev/null | sed 's/.*= //')" || return 1
+  else
+    return 1
+  fi
+  [[ "${h%% *}" =~ ^[0-9a-f]{64}$ ]] || return 1
+  printf '%s' "${h%% *}"
+}
+
+bo_sha256_str() {
+  local h
+  if bo_have sha256sum; then
+    h="$(printf '%s' "$1" | sha256sum 2>/dev/null)" || return 1
+  elif bo_have shasum; then
+    h="$(printf '%s' "$1" | shasum -a 256 2>/dev/null)" || return 1
+  elif bo_have openssl; then
+    h="$(printf '%s' "$1" | openssl dgst -sha256 2>/dev/null | sed 's/.*= //')" || return 1
+  else
+    return 1
+  fi
+  [[ "${h%% *}" =~ ^[0-9a-f]{64}$ ]] || return 1
+  printf '%s' "${h%% *}"
+}
+
+# bo_hash_id STRING [LENGTH] : short stable identifier for a record key. SHA-256 when a tool
+# exists, otherwise the POSIX cksum (prefixed "ck", so a key never silently changes meaning).
+bo_hash_id() {
+  local h len="${2:-16}"
+  if h="$(bo_sha256_str "$1")"; then
+    printf '%s' "${h:0:len}"
+  else
+    printf 'ck%s' "$(printf '%s' "$1" | cksum | awk '{ print $1 "-" $2 }')"
+  fi
+}
+
+# NAME=VALUE -> "NAME":"VALUE"; NAME[]=A,B -> "NAME":["A","B"]; VALUE @unknown -> null.
+# Result goes to _BO_PAIR (no subshell; this runs once per attribute of every record).
+_bo_inv_pair() {
+  local tok="$1" name val item items="" qname
+  name="${tok%%=*}"
+  val=""
+  [[ "${tok}" == *=* ]] && val="${tok#*=}"
+  if [[ "${name}" == *'[]' ]]; then
+    name="${name%'[]'}"
+    _bo_jq "${name}"
+    qname="${REPLY}"
+    local IFS=,
+    for item in ${val}; do
+      _bo_jq "${item}"
+      items+="${items:+,}${REPLY}"
+    done
+    _BO_PAIR="${qname}:[${items}]"
+  elif [[ "${val}" == "@unknown" ]]; then
+    _bo_jq "${name}"
+    _BO_PAIR="${REPLY}:null"
+  else
+    _bo_jq "${name}"
+    qname="${REPLY}"
+    _bo_jq "${val}"
+    _BO_PAIR="${qname}:${REPLY}"
+  fi
+}
+
+# bo_inv DOMAIN SCOPE KEY [TOKEN...]
+#   NAME=VALUE      attribute that is compared (a value of @unknown means "not collectable")
+#   NAME[]=A,B,C    attribute that is a set of strings
+#   ~NAME=VALUE     volatile context that is shown but never compared (pids, command lines)
+#   ^TYPE=REF       supporting evidence (file, registry, ...)
+bo_inv() {
+  local domain="$1" scope="$2" key="$3" tok attrs="" vol="" ev="" type ref line qd qk
+  shift 3
+  for tok in "$@"; do
+    case "${tok}" in
+      '^'*)
+        type="${tok#^}"
+        ref="${type#*=}"
+        type="${type%%=*}"
+        _bo_jq "${type}"
+        ev+="${ev:+,}{\"type\":${REPLY}"
+        _bo_jq "${ref}"
+        ev+=",\"ref\":${REPLY}}"
+        ;;
+      '~'*)
+        _bo_inv_pair "${tok#\~}"
+        vol+="${vol:+,}${_BO_PAIR}"
+        ;;
+      *)
+        _bo_inv_pair "${tok}"
+        attrs+="${attrs:+,}${_BO_PAIR}"
+        ;;
+    esac
+  done
+  _bo_jq "${domain}"
+  qd="${REPLY}"
+  _bo_jq "${key}"
+  qk="${REPLY}"
+  # One write per record so a crash can never leave a torn line in the report.
+  line="{\"domain\":${qd},\"key\":${qk},\"attrs\":{${attrs}}"
+  if [[ -n "${scope}" ]]; then
+    _bo_jq "${scope}"
+    line+=",\"scope\":${REPLY}"
+  fi
+  [[ -n "${vol}" ]] && line+=",\"volatile\":{${vol}}"
+  [[ -n "${ev}" ]] && line+=",\"evidence\":[${ev}]"
+  printf '%s}\n' "${line}" >>"${BO_SCRATCH}/inventory.jsonl"
+  return 0
+}
+
+# bo_cov DOMAIN SCOPE STATUS [REASON]
+# STATUS: complete | degraded (all records, some attributes unknown) | partial | unavailable.
+# Several calls for one partition are merged by the comparison engine (worst status wins),
+# so a module can report a problem where it happens and "complete" at the end.
+bo_cov() {
+  local j
+  j="{\"domain\":$(bo_json_str "$1")"
+  [[ -n "$2" ]] && j+=",\"scope\":$(bo_json_str "$2")"
+  j+=",\"status\":$(bo_json_str "$3")"
+  [[ -n "${4-}" ]] && j+=",\"reason\":$(bo_json_str "$4")"
+  printf '%s}\n' "${j}" >>"${BO_SCRATCH}/coverage.jsonl"
+  return 0
+}
+
+# Inventory partitions (domain/scope) each module owns, used to mark them when a module aborts.
+bo_module_partitions() {
+  case "$1" in
+    users) echo "users: groups: persistence:ssh-authkeys config:sudoers" ;;
+    processes) echo "processes:" ;;
+    network) echo "listeners: config:dns config:hosts config:sysctl" ;;
+    services) echo "services:" ;;
+    persistence) echo "persistence:systemd persistence:startup persistence:udev persistence:apt persistence:shell persistence:autostart scheduled_tasks:cron scheduled_tasks:at" ;;
+    pam) echo "config:pam" ;;
+    filesystem) echo "config:suid" ;;
+    *) echo "" ;;
+  esac
+}
+
+bo_cov_module() { # MODULE STATUS REASON
+  local p IFS=' '
+  for p in $(bo_module_partitions "$1"); do bo_cov "${p%%:*}" "${p#*:}" "$2" "$3"; done
 }
 
 bo_section() { printf '\n== %s ==\n' "$1" >>"${BO_SCRATCH}/human.txt"; }
@@ -491,6 +651,7 @@ bo_cli_main() {
     fi
     if ! declare -F "mod_${m}" >/dev/null; then
       bo_error MODULE_MISSING "module '${m}' not found" "${m}"
+      bo_cov_module "${m}" unavailable "module not found"
       continue
     fi
     bo_section "$(bo_module_title "${m}")"
@@ -501,7 +662,10 @@ bo_cli_main() {
       "mod_${m}" || true
       : >"${BO_SCRATCH}/done.${m}"
     ) || true
-    [[ -e "${BO_SCRATCH}/done.${m}" ]] || bo_error MODULE_FAILED "module '${m}' aborted unexpectedly; results incomplete" "${m}"
+    if [[ ! -e "${BO_SCRATCH}/done.${m}" ]]; then
+      bo_error MODULE_FAILED "module '${m}' aborted unexpectedly; results incomplete" "${m}"
+      bo_cov_module "${m}" partial "module aborted unexpectedly"
+    fi
     bo_log INFO "module end"
   done
   BO_MODULE=main
@@ -538,7 +702,11 @@ bo_cli_main() {
     sed '$!s/$/,/' "${BO_SCRATCH}/findings.jsonl"
     printf '],\n"errors":[\n'
     sed '$!s/$/,/' "${BO_SCRATCH}/errors.jsonl"
-    printf '],\n"summary":{"total":%d,"by_severity":{"info":%d,"low":%d,"medium":%d,"high":%d,"critical":%d}}\n}\n' \
+    printf '],\n"inventory":{"coverage":[\n'
+    sed '$!s/$/,/' "${BO_SCRATCH}/coverage.jsonl"
+    printf '],"records":[\n'
+    sed '$!s/$/,/' "${BO_SCRATCH}/inventory.jsonl"
+    printf ']},\n"summary":{"total":%d,"by_severity":{"info":%d,"low":%d,"medium":%d,"high":%d,"critical":%d}}\n}\n' \
       "${total}" "${n_info}" "${n_low}" "${n_med}" "${n_high}" "${n_crit}"
   } >"${report}"
 
@@ -588,8 +756,19 @@ bo_find() {
   local err="${BO_SCRATCH}/find.err" n
   find "$@" 2>"${err}" || true
   if [[ -s "${err}" ]]; then
+    : >"${BO_SCRATCH}/find.failed"
     n="$(wc -l <"${err}" | tr -d ' ')"
     bo_perm_error "find reported ${n} error(s) (unreadable paths); results may be incomplete" "find"
   fi
   return 0
+}
+
+# True (and the marker is cleared) when a bo_find since the last check hit unreadable paths;
+# callers use it to mark their inventory partition partial.
+bo_find_failed() {
+  if [[ -e "${BO_SCRATCH}/find.failed" ]]; then
+    rm -f -- "${BO_SCRATCH}/find.failed"
+    return 0
+  fi
+  return 1
 }

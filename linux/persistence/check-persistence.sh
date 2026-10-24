@@ -9,6 +9,47 @@ SCRIPT_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
 # shellcheck source=../lib/common.sh
 source "${SCRIPT_DIR}/../lib/common.sh"
 
+_per_scope_of() {
+  case "$1" in
+    SYSTEMD) echo systemd ;; CRON) echo cron ;; STARTUP) echo startup ;; UDEV) echo udev ;;
+    APT) echo apt ;; SHELL) echo shell ;; AUTOSTART) echo autostart ;; *) echo "" ;;
+  esac
+}
+_per_domain_of() { if [[ "$1" == CRON ]]; then echo scheduled_tasks; else echo persistence; fi; }
+
+# Inventory for one persistence file. Crontab-style files get one record per entry (so a new
+# job is visible by itself); everything else is one record with the file's SHA-256 and mode.
+_per_inventory() { # TAG FILE REL
+  local tag="$1" f="$2" rel="$3" scope domain=persistence h mode line norm
+  case "${tag}" in
+    SYSTEMD) scope=systemd ;;
+    CRON)
+      scope=cron
+      domain=scheduled_tasks
+      ;;
+    STARTUP) scope=startup ;;
+    UDEV) scope=udev ;;
+    APT) scope=apt ;;
+    SHELL) scope=shell ;;
+    AUTOSTART) scope=autostart ;;
+    *) return 0 ;;
+  esac
+  if [[ "${tag}" == CRON && "${rel}" != /etc/cron.hourly/* && "${rel}" != /etc/cron.daily/* && "${rel}" != /etc/cron.weekly/* && "${rel}" != /etc/cron.monthly/* ]]; then
+    while IFS= read -r line || [[ -n "${line}" ]]; do
+      [[ "${line}" =~ ^[[:space:]]*(#|$) ]] && continue
+      norm="$(printf '%s' "${line}" | tr -s '[:space:]' ' ')"
+      bo_inv "${domain}" "${scope}" "cron:${rel}#$(bo_hash_id "${norm}")" "file=${rel}" "entry=$(printf '%s' "${norm:0:300}" | bo_redact)" "^file=${rel}"
+    done <"${f}"
+    return 0
+  fi
+  if ! h="$(bo_sha256_file "${f}")"; then
+    h="@unknown"
+    bo_cov "${domain}" "${scope}" degraded "no SHA-256 tool available or ${rel} unreadable; content hashes unknown"
+  fi
+  mode="$(bo_mode "${f}" || echo "@unknown")"
+  bo_inv "${domain}" "${scope}" "persist:${scope}:${rel}" "sha256=${h}" "mode=${mode}" "^file=${rel}"
+}
+
 # _per_scan_file TAG FILE [LINE_FILTER_REGEX]
 # Appends "TAG<TAB>ref<TAB>reason: redacted-line" to hits.tsv for suspicious lines.
 _per_scan_file() {
@@ -17,8 +58,10 @@ _per_scan_file() {
   rel="$(bo_unroot "${f}")"
   if [[ ! -r "${f}" ]]; then
     bo_perm_error "cannot read ${rel}" "PER-${tag}"
+    bo_cov "$(_per_domain_of "${tag}")" "$(_per_scope_of "${tag}")" partial "cannot read ${rel}"
     return 0
   fi
+  _per_inventory "${tag}" "${f}" "${rel}"
   while IFS= read -r line || [[ -n "${line}" ]]; do
     [[ "${line}" =~ ^[[:space:]]*(#|$) ]] && continue
     if [[ -n "${filter}" && ! "${line}" =~ ${filter} ]]; then continue; fi
@@ -41,6 +84,7 @@ _per_emit_hits() { # TAG ID TITLE SEVERITY CONFIDENCE DESC REMEDIATION MITRE
 _per_systemd() {
   local d f
   local -a custom=()
+  bo_find_failed || true # discard failures from earlier scans
   for d in /etc/systemd/system /run/systemd/system /usr/local/lib/systemd/system /usr/lib/systemd/system /lib/systemd/system; do
     [[ -d "$(bo_path "${d}")" ]] || continue
     while IFS= read -r f; do
@@ -56,6 +100,9 @@ _per_systemd() {
       custom+=("file|$(bo_unroot "${f}")|user-level unit")
     done
   done < <(bo_homes)
+  bo_find_failed && bo_cov persistence systemd partial "find hit unreadable directories under the systemd unit paths"
+  bo_is_root || bo_cov persistence systemd partial "not running as root; other users' user-level units may be unreadable"
+  bo_cov persistence systemd complete
   ((${#custom[@]} > 0)) && bo_finding PER-SYSTEMD-002 low low persistence "Administrator-defined systemd units" \
     "${#custom[@]} service/timer unit(s) outside the vendor directories (and user-level units). Expected for local services; also a common persistence method." \
     "Confirm each unit is expected." "T1543.002" "${custom[@]}"
@@ -72,6 +119,7 @@ _per_cron() {
     [[ -d "$(bo_path "${d}")" ]] || continue
     if [[ ! -r "$(bo_path "${d}")" || ! -x "$(bo_path "${d}")" ]]; then
       bo_perm_error "cannot list $(bo_unroot "$(bo_path "${d}")")" "PER-CRON-002"
+      bo_cov scheduled_tasks cron partial "cannot list ${d}"
       continue
     fi
     for f in "$(bo_path "${d}")"/*; do [[ -f "${f}" ]] && files+=("${f}"); done
@@ -82,6 +130,7 @@ _per_cron() {
     inv+=("file|$(bo_unroot "${f}")")
     _per_scan_file CRON "${f}"
   done
+  bo_cov scheduled_tasks cron complete
   ((n > 0)) && bo_finding PER-CRON-001 info high persistence "Scheduled job files" "${n} cron/anacron file(s) found." "" "T1053.003" "${inv[@]}"
   _per_emit_hits CRON PER-CRON-002 "Suspicious cron job" high medium \
     "Cron entries match reverse-shell, download-and-execute, world-writable-path or similar patterns." \
@@ -91,12 +140,18 @@ _per_cron() {
     [[ -d "$(bo_path "${at_dir}")" ]] || continue
     if [[ -r "$(bo_path "${at_dir}")" ]]; then
       local -a atj=()
-      for f in "$(bo_path "${at_dir}")"/*; do [[ -f "${f}" && "${f##*/}" != ".SEQ" ]] && atj+=("file|$(bo_unroot "${f}")"); done
+      for f in "$(bo_path "${at_dir}")"/*; do
+        [[ -f "${f}" && "${f##*/}" != ".SEQ" ]] || continue
+        atj+=("file|$(bo_unroot "${f}")")
+        bo_inv scheduled_tasks at "at:$(bo_unroot "${f}")" "sha256=$(bo_sha256_file "${f}" || echo @unknown)" "^file=$(bo_unroot "${f}")"
+      done
       ((${#atj[@]} > 0)) && bo_finding PER-AT-001 low medium persistence "Pending at jobs" "${#atj[@]} queued at job(s)." "Review with atq/at -c." "T1053.002" "${atj[@]}"
     else
       bo_perm_error "cannot read ${at_dir}" "PER-AT-001"
+      bo_cov scheduled_tasks at partial "cannot read ${at_dir}"
     fi
   done
+  bo_cov scheduled_tasks at complete
 }
 
 _per_startup() {
@@ -117,6 +172,7 @@ _per_startup() {
     "Preserve the script, then remove the offending lines after review." T1037.004
   local pre
   pre="$(bo_path /etc/ld.so.preload)"
+  [[ -f "${pre}" ]] && _per_inventory STARTUP "${pre}" /etc/ld.so.preload
   if [[ -s "${pre}" ]] && grep -q -v -E '^[[:space:]]*(#|$)' "${pre}" 2>/dev/null; then
     bo_finding PER-LDPRE-001 high high persistence "/etc/ld.so.preload is populated" \
       "Libraries listed here are injected into every dynamically linked process; a standard userland rootkit technique." \
@@ -136,6 +192,10 @@ _per_startup() {
     "pam_exec runs commands during authentication; legitimate for some setups, also used to capture credentials." \
     "Review the referenced commands." T1556.003 "${pam[@]}"
   f="$(bo_path /etc/ssh/sshrc)"
+  [[ -f "${f}" ]] && _per_inventory STARTUP "${f}" /etc/ssh/sshrc
+  bo_cov persistence startup complete
+  bo_cov persistence udev complete
+  bo_cov persistence apt complete
   if [[ -f "${f}" ]]; then
     bo_finding PER-SSHRC-001 medium medium persistence "System-wide sshrc present" "/etc/ssh/sshrc runs on every SSH login." "Review its contents." T1546 "file|/etc/ssh/sshrc"
   fi
@@ -153,6 +213,10 @@ _per_shell() {
     for f in "${h}"/.config/autostart/*.desktop; do _per_scan_file AUTOSTART "${f}" '^Exec='; done
   done < <(bo_homes)
   for f in "$(bo_path /etc/xdg/autostart)"/*.desktop; do _per_scan_file AUTOSTART "${f}" '^Exec='; done
+  bo_is_root || bo_cov persistence shell partial "not running as root; other users' dotfiles may be unreadable"
+  bo_is_root || bo_cov persistence autostart partial "not running as root; other users' autostart entries may be unreadable"
+  bo_cov persistence shell complete
+  bo_cov persistence autostart complete
   _per_emit_hits SHELL PER-SHELL-001 "Suspicious shell startup content" high medium \
     "Profile/rc files run on login or shell start and match reverse-shell, alias-hijack, LD_PRELOAD or similar patterns." \
     "Preserve the file, then remove the offending lines after review." T1546.004

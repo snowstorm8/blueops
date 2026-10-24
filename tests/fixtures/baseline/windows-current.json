@@ -1,0 +1,96 @@
+{
+  "schema_version": "0.2.0",
+  "tool": {
+    "name": "synthetic-audit",
+    "version": "0.0.0",
+    "category": "audit"
+  },
+  "run": {
+    "id": "run-2",
+    "started_at": "2026-01-02T10:00:00Z",
+    "finished_at": "2026-01-02T10:05:00Z",
+    "mode": "read-only",
+    "dry_run": false,
+    "exit_code": 0
+  },
+  "host": {
+    "hostname": "WIN-SRV01",
+    "os": {
+      "family": "windows",
+      "name": "Synthetic",
+      "version": "1"
+    },
+    "arch": "x86_64",
+    "elevated": false
+  },
+  "findings": [],
+  "errors": [],
+  "summary": {
+    "total": 0,
+    "by_severity": {
+      "info": 0,
+      "low": 0,
+      "medium": 0,
+      "high": 0,
+      "critical": 0
+    }
+  },
+  "inventory": {
+    "coverage": [
+      {
+        "domain": "users",
+        "status": "complete"
+      },
+      {
+        "domain": "services",
+        "status": "degraded",
+        "reason": "not elevated: image paths unknown"
+      },
+      {
+        "domain": "persistence",
+        "status": "complete",
+        "scope": "autoruns"
+      },
+      {
+        "domain": "config",
+        "status": "complete",
+        "scope": "security"
+      }
+    ],
+    "records": [
+      {
+        "domain": "users",
+        "key": "user:S-1-5-21-1-2-3-1001",
+        "attrs": {
+          "name": "Alice",
+          "enabled": "true"
+        }
+      },
+      {
+        "domain": "services",
+        "key": "service:SPOOLER",
+        "attrs": {
+          "state": "Running",
+          "start_mode": "Auto",
+          "image_path": null
+        }
+      },
+      {
+        "domain": "persistence",
+        "key": "persist:run:machine:\\software\\microsoft\\windows\\currentversion\\run:updater",
+        "attrs": {
+          "data": "C:\\Users\\Public\\up.exe"
+        },
+        "scope": "autoruns"
+      },
+      {
+        "domain": "config",
+        "key": "config:security:reg:hklm\\x::enablelua",
+        "attrs": {
+          "value": "0"
+        },
+        "scope": "security"
+      }
+    ]
+  }
+}

@@ -1,0 +1,242 @@
+{
+  "schema_version": "0.2.0",
+  "kind": "baseline-diff",
+  "generated_at": "2026-01-02T12:00:00Z",
+  "tool": {
+    "name": "blueops-diff",
+    "version": "0.2.0"
+  },
+  "baseline": {
+    "run_id": "run-1",
+    "tool": "synthetic-audit",
+    "tool_version": "0.0.0",
+    "schema_version": "0.2.0",
+    "started_at": "2026-01-01T10:00:00Z",
+    "finished_at": "2026-01-01T10:05:00Z",
+    "hostname": "WIN-SRV01",
+    "os_family": "windows",
+    "os_name": "Synthetic",
+    "os_version": "1",
+    "elevated": true,
+    "has_inventory": true
+  },
+  "current": {
+    "run_id": "run-2",
+    "tool": "synthetic-audit",
+    "tool_version": "0.0.0",
+    "schema_version": "0.2.0",
+    "started_at": "2026-01-02T10:00:00Z",
+    "finished_at": "2026-01-02T10:05:00Z",
+    "hostname": "WIN-SRV01",
+    "os_family": "windows",
+    "os_name": "Synthetic",
+    "os_version": "1",
+    "elevated": false,
+    "has_inventory": true
+  },
+  "window": {
+    "from": "2026-01-01T10:05:00Z",
+    "to": "2026-01-02T10:00:00Z"
+  },
+  "warnings": [
+    {
+      "code": "PRIVILEGE_DIFFERS",
+      "message": "baseline elevated=True, current elevated=False; attributes that need privileges may be unknown on one side"
+    }
+  ],
+  "domains": [
+    {
+      "domain": "users",
+      "scope": "",
+      "status": "compared",
+      "baseline_coverage": {
+        "status": "complete",
+        "reason": ""
+      },
+      "current_coverage": {
+        "status": "complete",
+        "reason": ""
+      },
+      "note": ""
+    },
+    {
+      "domain": "services",
+      "scope": "",
+      "status": "compared",
+      "baseline_coverage": {
+        "status": "complete",
+        "reason": ""
+      },
+      "current_coverage": {
+        "status": "degraded",
+        "reason": "not elevated: image paths unknown"
+      },
+      "note": "some attributes were unavailable and are not compared"
+    },
+    {
+      "domain": "persistence",
+      "scope": "autoruns",
+      "status": "compared",
+      "baseline_coverage": {
+        "status": "complete",
+        "reason": ""
+      },
+      "current_coverage": {
+        "status": "complete",
+        "reason": ""
+      },
+      "note": ""
+    },
+    {
+      "domain": "config",
+      "scope": "security",
+      "status": "compared",
+      "baseline_coverage": {
+        "status": "complete",
+        "reason": ""
+      },
+      "current_coverage": {
+        "status": "complete",
+        "reason": ""
+      },
+      "note": ""
+    }
+  ],
+  "changes": [
+    {
+      "domain": "persistence",
+      "scope": "autoruns",
+      "key": "persist:run:machine:\\software\\microsoft\\windows\\currentversion\\run:updater",
+      "change": "modified",
+      "priority": "high",
+      "transient": false,
+      "attributes": [
+        {
+          "name": "data",
+          "before": "C:\\Tools\\up.exe",
+          "after": "C:\\Users\\Public\\up.exe"
+        }
+      ],
+      "unverified_attributes": [],
+      "observed": {
+        "baseline_at": "2026-01-01T10:05:00Z",
+        "current_at": "2026-01-02T10:05:00Z"
+      },
+      "baseline": {
+        "attrs": {
+          "data": "C:\\Tools\\up.exe"
+        },
+        "volatile": {},
+        "evidence": []
+      },
+      "current": {
+        "attrs": {
+          "data": "C:\\Users\\Public\\up.exe"
+        },
+        "volatile": {},
+        "evidence": []
+      },
+      "related_findings": []
+    },
+    {
+      "domain": "config",
+      "scope": "security",
+      "key": "config:security:reg:hklm\\x::enablelua",
+      "change": "modified",
+      "priority": "medium",
+      "transient": false,
+      "attributes": [
+        {
+          "name": "value",
+          "before": "1",
+          "after": "0"
+        }
+      ],
+      "unverified_attributes": [],
+      "observed": {
+        "baseline_at": "2026-01-01T10:05:00Z",
+        "current_at": "2026-01-02T10:05:00Z"
+      },
+      "baseline": {
+        "attrs": {
+          "value": "1"
+        },
+        "volatile": {},
+        "evidence": []
+      },
+      "current": {
+        "attrs": {
+          "value": "0"
+        },
+        "volatile": {},
+        "evidence": []
+      },
+      "related_findings": []
+    }
+  ],
+  "indeterminate": [
+    {
+      "domain": "services",
+      "scope": "",
+      "key": "service:spooler",
+      "reason": "ATTRIBUTE_UNKNOWN",
+      "detail": "attribute(s) unknown on one side (permission gap?): image_path",
+      "observed": {
+        "baseline_at": "2026-01-01T10:05:00Z",
+        "current_at": "2026-01-02T10:05:00Z"
+      },
+      "baseline": {
+        "attrs": {
+          "image_path": "C:\\Windows\\System32\\spoolsv.exe",
+          "start_mode": "Auto",
+          "state": "Running"
+        },
+        "volatile": {},
+        "evidence": []
+      },
+      "current": {
+        "attrs": {
+          "image_path": null,
+          "start_mode": "Auto",
+          "state": "Running"
+        },
+        "volatile": {},
+        "evidence": []
+      }
+    }
+  ],
+  "findings": {
+    "new": [],
+    "resolved": [],
+    "changed": [],
+    "unverified": []
+  },
+  "summary": {
+    "added": 0,
+    "removed": 0,
+    "modified": 2,
+    "transient": 0,
+    "indeterminate": 1,
+    "unchanged": 1,
+    "ignored": 0,
+    "by_domain": {
+      "persistence": {
+        "added": 0,
+        "removed": 0,
+        "modified": 1
+      },
+      "config": {
+        "added": 0,
+        "removed": 0,
+        "modified": 1
+      }
+    },
+    "domains_compared": 4,
+    "domains_partial": 0,
+    "domains_not_compared": 0,
+    "findings_new": 0,
+    "findings_resolved": 0,
+    "findings_changed": 0,
+    "findings_unverified": 0
+  }
+}

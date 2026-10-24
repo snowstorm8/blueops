@@ -72,17 +72,31 @@ _prc_tree() {
 
 mod_processes() {
   local tsv="${BO_SCRATCH}/procs.tsv"
-  _prc_collect || return 0
+  _prc_collect || {
+    bo_cov processes "" unavailable "no /proc and no ps"
+    return 0
+  }
   local total
   total="$(wc -l <"${tsv}" | tr -d ' ')"
   if ((total == 0)); then
     bo_error NO_PROCESSES "no processes could be enumerated" "PRC-INFO-001"
+    bo_cov processes "" unavailable "no processes could be enumerated"
     return 0
   fi
-  local pid ppid user comm exe cmd reasons
+  local pid ppid user comm exe cmd reasons unknown_exe=0 exe_inv
   local -a inv=() deleted=() tmpx=() hidden=() masq=() cmdl=() nonstd=()
   while IFS=$'\t' read -r pid ppid user comm exe cmd; do
     inv+=("process|pid=${pid}|ppid=${ppid} user=${user} comm=${comm} exe=${exe} cmd=${cmd:0:160}")
+    # Kernel threads (no command line, no executable) are not inventoried; every other process
+    # is keyed by user and name so pids and instance counts never register as changes.
+    if [[ "${cmd}" != "-" || "${exe}" != "-" ]]; then
+      exe_inv="${exe}"
+      if [[ "${exe}" == "-" ]]; then
+        exe_inv="@unknown"
+        unknown_exe=$((unknown_exe + 1))
+      fi
+      bo_inv processes "" "process:${user}:${comm}" "user=${user}" "comm=${comm}" "exe=${exe_inv}" "~pid=${pid}" "~ppid=${ppid}" "~cmdline=${cmd:0:160}"
+    fi
     # Kernel threads have no cmdline and (usually) no exe; skip exe checks for them.
     [[ "${cmd}" == "-" && "${exe}" == "-" ]] && continue
     if [[ "${cmd}" == "["* && "${exe}" != "-" ]]; then
@@ -108,6 +122,11 @@ mod_processes() {
     [[ -n "${reasons}" ]] && cmdl+=("process|pid=${pid}|user=${user} ${reasons}: ${cmd:0:160}")
   done <"${tsv}"
 
+  if ((unknown_exe > 0)); then
+    bo_cov processes "" degraded "${unknown_exe} process(es) with unreadable executable path (needs root)"
+  else
+    bo_cov processes "" complete
+  fi
   local save="${BO_MAX_EVIDENCE}"
   BO_MAX_EVIDENCE=500
   bo_finding PRC-INFO-001 info high processes "Process inventory" \

@@ -1,6 +1,6 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://blueops.invalid/schemas/audit-report/0.1.0",
+  "$id": "https://blueops.invalid/schemas/audit-report/0.2.0",
   "title": "BlueOps audit report",
   "description": "Structured output of a BlueOps audit, persistence, incident, or hardening run. See docs/contracts.md for versioning rules.",
   "type": "object",
@@ -74,6 +74,36 @@
         }
       }
     },
+    "inventory": {
+      "description": "Structured host inventory used for offline baseline comparison (added in 0.2.0; optional). Records have stable keys and never rely on free-text descriptions. See docs/baseline-diff.md.",
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["coverage", "records"],
+      "properties": {
+        "coverage": {
+          "description": "How completely each domain was collected. A domain with records but no coverage entry is treated as partial by the comparison engine.",
+          "type": "array",
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["domain", "status"],
+            "properties": {
+              "domain": { "$ref": "#/$defs/inventory_domain" },
+              "scope": { "$ref": "#/$defs/inventory_scope" },
+              "status": {
+                "description": "complete: every record was collected. degraded: every record was collected but some attributes are null (unknown), e.g. needs root. partial: some records may be missing. unavailable: not collected.",
+                "enum": ["complete", "degraded", "partial", "unavailable"]
+              },
+              "reason": { "type": "string" }
+            }
+          }
+        },
+        "records": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/inventory_record" }
+        }
+      }
+    },
     "summary": {
       "type": "object",
       "additionalProperties": false,
@@ -101,6 +131,61 @@
       "type": "string",
       "pattern": "^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}(\\.\\d+)?Z$"
     },
+    "inventory_domain": {
+      "enum": ["users", "groups", "services", "processes", "listeners", "scheduled_tasks", "persistence", "config"]
+    },
+    "inventory_scope": {
+      "description": "Optional sub-area of a domain with its own coverage (e.g. config/sudoers, persistence/systemd). Records of a scope are only judged against coverage declared for that scope.",
+      "type": "string",
+      "maxLength": 64
+    },
+    "attr_value": {
+      "description": "Scalar attribute value (null = unknown) or a set of strings. Compared as text; arrays compare as sets.",
+      "anyOf": [
+        { "type": ["string", "integer", "boolean", "null"] },
+        { "type": "array", "items": { "type": "string" } }
+      ]
+    },
+    "inventory_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["domain", "key", "attrs"],
+      "properties": {
+        "domain": { "$ref": "#/$defs/inventory_domain" },
+        "scope": { "$ref": "#/$defs/inventory_scope" },
+        "key": {
+          "description": "Stable identifier, unique within the domain (e.g. user:alice, service:sshd, listener:tcp/0.0.0.0/22). Must not contain transient values such as PIDs.",
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 1024
+        },
+        "attrs": {
+          "description": "Attributes compared between runs.",
+          "type": "object",
+          "additionalProperties": { "$ref": "#/$defs/attr_value" }
+        },
+        "volatile": {
+          "description": "Context that is shown but never compared (pids, counts, ephemeral ports, command lines).",
+          "type": "object",
+          "additionalProperties": { "$ref": "#/$defs/attr_value" }
+        },
+        "evidence": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/evidence_item" }
+        }
+      }
+    },
+    "evidence_item": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["type", "ref"],
+      "properties": {
+        "type": { "enum": ["file", "registry", "process", "network", "command", "log", "other"] },
+        "ref": { "type": "string", "description": "Path, key, or identifier. Never a secret value." },
+        "sha256": { "type": "string", "pattern": "^[a-f0-9]{64}$" },
+        "excerpt": { "type": "string", "maxLength": 2000 }
+      }
+    },
     "finding": {
       "type": "object",
       "additionalProperties": false,
@@ -114,17 +199,7 @@
         "description": { "type": "string" },
         "evidence": {
           "type": "array",
-          "items": {
-            "type": "object",
-            "additionalProperties": false,
-            "required": ["type", "ref"],
-            "properties": {
-              "type": { "enum": ["file", "registry", "process", "network", "command", "log", "other"] },
-              "ref": { "type": "string", "description": "Path, key, or identifier. Never a secret value." },
-              "sha256": { "type": "string", "pattern": "^[a-f0-9]{64}$" },
-              "excerpt": { "type": "string", "maxLength": 2000 }
-            }
-          }
+          "items": { "$ref": "#/$defs/evidence_item" }
         },
         "remediation": { "type": "string" },
         "mitre_attack": {

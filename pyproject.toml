@@ -10,7 +10,7 @@ select = ["E", "F", "W", "I", "B", "UP", "S", "SIM", "C4", "PL"]
 ignore = ["PLR2004"]
 
 [tool.ruff.lint.per-file-ignores]
-"tests/**" = ["S101"]
+"tests/**" = ["S101", "S104", "S108"] # synthetic fixtures name /tmp paths and 0.0.0.0 on purpose
 
 [tool.pytest.ini_options]
 testpaths = ["tests/shared"]

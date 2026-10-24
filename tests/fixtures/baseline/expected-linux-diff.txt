@@ -1,0 +1,73 @@
+BlueOps baseline diff 0.2.0 - offline, read-only comparison
+Baseline: web01  run run-1  finished 2026-01-01T10:05:00Z  (linux, elevated=True)
+Current : web01  run run-2  finished 2026-01-02T10:05:00Z  (linux, elevated=True)
+Changes occurred between 2026-01-01T10:05:00Z and 2026-01-02T10:00:00Z
+Result: 4 added, 1 removed, 5 modified; 1 indeterminate; 8 unchanged
+
+Coverage:
+  users                      compared      baseline=complete current=complete
+  groups                     compared      baseline=complete current=complete
+  services                   compared      baseline=complete current=complete
+  processes                  compared      baseline=complete current=complete
+  listeners                  compared      baseline=complete current=complete
+  scheduled_tasks            compared      baseline=complete current=complete
+  persistence                compared      baseline=complete current=complete
+  persistence/systemd        compared      baseline=complete current=complete
+  config                     compared      baseline=complete current=complete
+  config/suid                partial       baseline=complete current=partial  current collection incomplete: removals cannot be confirmed
+
+== users ==
+  ~ user:alice  [high]
+      shell: /bin/bash -> /bin/sh
+      seen: baseline 2026-01-01T10:05:00Z, current 2026-01-02T10:05:00Z
+  - user:bob  [medium]
+      home=/home/bob shell=/usr/sbin/nologin uid=1001
+      seen: baseline 2026-01-01T10:05:00Z, current absent
+  + user:mallory  [high]
+      home=/home/mallory shell=/bin/bash uid=0
+      evidence: file /etc/passwd
+      related findings: USR-UID0-001
+      seen: baseline absent, current 2026-01-02T10:05:00Z
+
+== services ==
+  + service:evil.service  [medium]
+      active=running enabled=enabled
+      seen: baseline absent, current 2026-01-02T10:05:00Z
+
+== listeners ==
+  + listener:tcp/0.0.0.0/4444  [high]
+      bind=0.0.0.0 port=4444 process=nc proto=tcp
+      seen: baseline absent, current 2026-01-02T10:05:00Z
+  + listener:tcp/0.0.0.0/ephemeral  [high]
+      bind=0.0.0.0 process=curl proto=tcp
+      seen: baseline absent, current 2026-01-02T10:05:00Z
+
+== scheduled_tasks ==
+  ~ cron:/etc/cron.d/backup  [high]
+      command: /usr/local/bin/backup.sh -> /tmp/.x/backup.sh
+      evidence: file /etc/cron.d/backup
+      seen: baseline 2026-01-01T10:05:00Z, current 2026-01-02T10:05:00Z
+
+== persistence ==
+  ~ persist:file:/etc/rc.local  [high]
+      sha256: aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa -> dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd
+      evidence: file /etc/rc.local
+      related findings: PER-NEW-001
+      seen: baseline 2026-01-01T10:05:00Z, current 2026-01-02T10:05:00Z
+  ~ persist:systemd:/etc/systemd/system/backup.service  [high]
+      sha256: bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb -> cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc
+      seen: baseline 2026-01-01T10:05:00Z, current 2026-01-02T10:05:00Z
+
+== config ==
+  ~ config:sysctl:net.ipv4.ip_forward  [medium]
+      value: 0 -> 1
+      seen: baseline 2026-01-01T10:05:00Z, current 2026-01-02T10:05:00Z
+
+== indeterminate (no conclusion drawn) ==
+  ? cron:/etc/cron.d/dup  RECORD_CONFLICT: 2 records share this key with different attributes
+
+== findings (by id, severity and file/registry evidence) ==
+  + PER-NEW-001 [medium] Finding PER-NEW-001
+  - NET-OLD-001 [low] Finding NET-OLD-001
+  ~ USR-UID0-001 [high] evidence changed
+      + evidence /etc/shadow

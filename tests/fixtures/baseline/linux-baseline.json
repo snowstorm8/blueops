@@ -1,0 +1,247 @@
+{
+  "schema_version": "0.2.0",
+  "tool": {
+    "name": "synthetic-audit",
+    "version": "0.0.0",
+    "category": "audit"
+  },
+  "run": {
+    "id": "run-1",
+    "started_at": "2026-01-01T10:00:00Z",
+    "finished_at": "2026-01-01T10:05:00Z",
+    "mode": "read-only",
+    "dry_run": false,
+    "exit_code": 0
+  },
+  "host": {
+    "hostname": "web01",
+    "os": {
+      "family": "linux",
+      "name": "Synthetic",
+      "version": "1"
+    },
+    "arch": "x86_64",
+    "elevated": true
+  },
+  "findings": [
+    {
+      "id": "USR-UID0-001",
+      "title": "Finding USR-UID0-001",
+      "severity": "high",
+      "category": "test",
+      "description": "synthetic",
+      "evidence": [
+        {
+          "type": "file",
+          "ref": "/etc/passwd"
+        }
+      ]
+    },
+    {
+      "id": "NET-OLD-001",
+      "title": "Finding NET-OLD-001",
+      "severity": "low",
+      "category": "test",
+      "description": "synthetic"
+    }
+  ],
+  "errors": [],
+  "summary": {
+    "total": 2,
+    "by_severity": {
+      "info": 0,
+      "low": 0,
+      "medium": 0,
+      "high": 0,
+      "critical": 0
+    }
+  },
+  "inventory": {
+    "coverage": [
+      {
+        "domain": "users",
+        "status": "complete"
+      },
+      {
+        "domain": "groups",
+        "status": "complete"
+      },
+      {
+        "domain": "services",
+        "status": "complete"
+      },
+      {
+        "domain": "processes",
+        "status": "complete"
+      },
+      {
+        "domain": "listeners",
+        "status": "complete"
+      },
+      {
+        "domain": "scheduled_tasks",
+        "status": "complete"
+      },
+      {
+        "domain": "persistence",
+        "status": "complete"
+      },
+      {
+        "domain": "persistence",
+        "status": "complete",
+        "scope": "systemd"
+      },
+      {
+        "domain": "config",
+        "status": "complete"
+      },
+      {
+        "domain": "config",
+        "status": "complete",
+        "scope": "suid"
+      }
+    ],
+    "records": [
+      {
+        "domain": "users",
+        "key": "user:root",
+        "attrs": {
+          "uid": "0",
+          "shell": "/bin/bash",
+          "home": "/root"
+        }
+      },
+      {
+        "domain": "users",
+        "key": "user:alice",
+        "attrs": {
+          "uid": "1000",
+          "shell": "/bin/bash",
+          "home": "/home/alice"
+        }
+      },
+      {
+        "domain": "users",
+        "key": "user:bob",
+        "attrs": {
+          "uid": "1001",
+          "shell": "/usr/sbin/nologin",
+          "home": "/home/bob"
+        }
+      },
+      {
+        "domain": "groups",
+        "key": "group:sudo",
+        "attrs": {
+          "gid": "27",
+          "members": [
+            "alice"
+          ]
+        }
+      },
+      {
+        "domain": "services",
+        "key": "service:ssh.service",
+        "attrs": {
+          "enabled": "enabled",
+          "active": "running"
+        }
+      },
+      {
+        "domain": "services",
+        "key": "service:nginx.service",
+        "attrs": {
+          "enabled": "enabled",
+          "active": "running"
+        }
+      },
+      {
+        "domain": "processes",
+        "key": "process:root:sshd",
+        "attrs": {
+          "user": "root",
+          "comm": "sshd",
+          "exe": "/usr/sbin/sshd"
+        },
+        "volatile": {
+          "pid": "812"
+        }
+      },
+      {
+        "domain": "listeners",
+        "key": "listener:tcp/0.0.0.0/22",
+        "attrs": {
+          "proto": "tcp",
+          "bind": "0.0.0.0",
+          "port": "22",
+          "process": "sshd"
+        },
+        "volatile": {
+          "pid": "812"
+        }
+      },
+      {
+        "domain": "listeners",
+        "key": "listener:tcp/0.0.0.0/80",
+        "attrs": {
+          "proto": "tcp",
+          "bind": "0.0.0.0",
+          "port": "80",
+          "process": "nginx"
+        }
+      },
+      {
+        "domain": "scheduled_tasks",
+        "key": "cron:/etc/cron.d/backup",
+        "attrs": {
+          "schedule": "0 2 * * *",
+          "user": "root",
+          "command": "/usr/local/bin/backup.sh"
+        },
+        "evidence": [
+          {
+            "type": "file",
+            "ref": "/etc/cron.d/backup"
+          }
+        ]
+      },
+      {
+        "domain": "persistence",
+        "key": "persist:file:/etc/rc.local",
+        "attrs": {
+          "sha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+          "mode": "755"
+        },
+        "evidence": [
+          {
+            "type": "file",
+            "ref": "/etc/rc.local"
+          }
+        ]
+      },
+      {
+        "domain": "config",
+        "key": "config:sysctl:net.ipv4.ip_forward",
+        "attrs": {
+          "value": "0"
+        }
+      },
+      {
+        "domain": "persistence",
+        "key": "persist:systemd:/etc/systemd/system/backup.service",
+        "attrs": {
+          "sha256": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
+        },
+        "scope": "systemd"
+      },
+      {
+        "domain": "config",
+        "key": "config:suid:/usr/bin/passwd",
+        "attrs": {
+          "mode": "4755"
+        },
+        "scope": "suid"
+      }
+    ]
+  }
+}

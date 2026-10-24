@@ -8,7 +8,15 @@ from pathlib import Path
 import pytest
 from jsonschema import Draft202012Validator
 
-from shared.reporting.contracts import SCHEMA_VERSION, ExitCode, Severity
+from shared.reporting.contracts import (
+    COVERAGE_STATUSES,
+    INVENTORY_DOMAINS,
+    READABLE_REPORT_VERSIONS,
+    SCHEMA_VERSION,
+    ExitCode,
+    Severity,
+)
+from shared.reporting.inventory import Options, options_from_config
 
 ROOT = Path(__file__).resolve().parents[2]
 SCHEMA_PATH = ROOT / "shared" / "schemas" / "audit-report.schema.json"
@@ -57,3 +65,45 @@ def test_severity_parse() -> None:
     assert Severity.CRITICAL > Severity.LOW
     with pytest.raises(ValueError):
         Severity.parse("nope")
+
+
+DIFF_SCHEMA_PATH = ROOT / "shared" / "schemas" / "baseline-diff.schema.json"
+
+
+def test_inventory_enums_match_schema(schema: dict) -> None:
+    assert list(INVENTORY_DOMAINS) == schema["$defs"]["inventory_domain"]["enum"]
+    cov_props = schema["properties"]["inventory"]["properties"]["coverage"]["items"]["properties"]
+    assert list(COVERAGE_STATUSES) == cov_props["status"]["enum"]
+
+
+def test_diff_schema_is_valid_and_versioned() -> None:
+    diff_schema = _load(DIFF_SCHEMA_PATH)
+    Draft202012Validator.check_schema(diff_schema)
+    assert diff_schema["$id"].endswith(f"/{SCHEMA_VERSION}")
+    assert _load(SCHEMA_PATH)["$id"].endswith(f"/{SCHEMA_VERSION}")
+
+
+def test_diff_schema_reasons_and_coverage_match_code() -> None:
+    diff_schema = _load(DIFF_SCHEMA_PATH)
+    reasons = diff_schema["$defs"]["indeterminate"]["properties"]["reason"]["enum"]
+    assert reasons == [
+        "BASELINE_INCOMPLETE",
+        "CURRENT_INCOMPLETE",
+        "ATTRIBUTE_UNKNOWN",
+        "RECORD_CONFLICT",
+    ]
+    cov = diff_schema["$defs"]["coverage"]["oneOf"][1]["properties"]["status"]["enum"]
+    assert cov == list(COVERAGE_STATUSES)
+
+
+def test_default_diff_config_matches_builtin_defaults() -> None:
+    cfg = _load(ROOT / "shared" / "config" / "baseline-diff.default.json")
+    opts = options_from_config(cfg)
+    assert opts.transient_processes == Options().transient_processes
+    assert opts.ephemeral_from is None
+    assert not opts.ignore
+
+
+def test_legacy_schema_0_1_reports_are_still_readable() -> None:
+    assert "0.1" in READABLE_REPORT_VERSIONS
+    assert SCHEMA_VERSION.rsplit(".", 1)[0] in READABLE_REPORT_VERSIONS

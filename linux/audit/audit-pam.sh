@@ -67,11 +67,15 @@ mod_pam() {
   for i in "${!files[@]}"; do
     if [[ ! -r "${files[${i}]}" ]]; then
       bo_perm_error "cannot read $(bo_unroot "${files[${i}]}")" "PAM-INFO-001"
+      bo_inv config pam "config:pam:$(bo_unroot "${files[${i}]}")" "sha256=@unknown" "mode=@unknown" "^file=$(bo_unroot "${files[${i}]}")"
+      bo_cov config pam degraded "$(bo_unroot "${files[${i}]}") not readable; content hash unknown"
       continue
     fi
+    bo_inv config pam "config:pam:$(bo_unroot "${files[${i}]}")" "sha256=$(bo_sha256_file "${files[${i}]}" || echo @unknown)" "mode=$(bo_mode "${files[${i}]}" || echo @unknown)" "^file=$(bo_unroot "${files[${i}]}")"
     _pam_parse "${files[${i}]}" "${svc[${i}]}" >>"${BO_SCRATCH}/pam.tsv"
   done
 
+  bo_cov config pam complete
   local file type ctl mod args curfile="" real=0 mode
   local modules=" " nrules=0
   local -a permit=() nullok=() hash=() abspath=() unknown=() perms=() inv=()
