@@ -56,6 +56,8 @@ Reports conform to `shared/schemas/audit-report.schema.json` (0.1.0). Inventory 
 - Findings carry a path "zone" (system, Program Files, temp, AppData, ProgramData, other) combined with the Authenticode status. A validly signed binary in a user-writable folder is rated lower than an unsigned one; known per-user application folders are not treated like `Temp`.
 - Command-line heuristics separate strong indicators (encoded commands, hidden windows with download cradles) from weak ones (a bare `powershell.exe`), which are only reported alongside another signal.
 - Loaded user hives are read through `HKEY_USERS\<SID>`; offline `NTUSER.DAT` files are never loaded, so profiles of users who are not logged in are covered only for startup folders.
+- Only positive evidence is reported as unsigned: a system binary whose Authenticode status cannot be determined is counted in a non-material `SIG_UNVERIFIED` gap instead of `FS-RECENT-001`.
+- Stock Windows values (`VmApplet`, `BootExecute` with switches, in-box netsh helpers and port monitors), AppContainer-scoped firewall rules, and Chocolatey helper scripts are not reported at their generic severity. The audit's own process is excluded from `NET-ESTAB-002`.
 - Check severity is the maximum over the explicit severity of its hits.
 
 ## Known limitations
@@ -63,6 +65,7 @@ Reports conform to `shared/schemas/audit-report.schema.json` (0.1.0). Inventory 
 - Findings are heuristics; many `medium`/`low` items have benign explanations. Detection is point-in-time and userland-only; a kernel-level implant can hide from every check.
 - Not elevated, the audit still runs but records `PERM_DENIED`-style gaps (other users' processes, services' paths, audit policy, some ACLs).
 - BITS jobs are listed only while the BITS service is running (`BITS_UNREADABLE` otherwise): starting a stopped BITS service changes its startup type from Manual to Automatic, which a read-only audit must not do.
+- Authenticode checks may contact certificate revocation endpoints (Windows decides this, not BlueOps); on an isolated host they can be slow. Signature checks are capped and cached.
 - Offline user hives, event-log analysis, Active Directory/domain controller checks, and memory inspection are not covered.
 - Windows PowerShell 5.1 and PowerShell 7 are supported; Constrained Language Mode hosts may degrade (reported as gaps).
 - Tests run against synthetic fixtures; behaviour on real Windows editions beyond the CI runners is unverified.

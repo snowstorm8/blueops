@@ -90,7 +90,7 @@ function Invoke-BoTasksModule {
                 $zone = (Get-BoTargetRisk $exe).Zone
                 $resolved = Get-BoExecutablePath $exe
                 if (@('system', 'programfiles', 'programdata-known', 'temp', 'appdata', 'appdata-known') -notcontains $zone -and $resolved -notmatch '(?i)^(cmd|powershell|pwsh|wscript|cscript|schtasks|wevtutil|sc|net|netsh)(\.exe)?$' -and $resolved -match '^[A-Za-z]:\\') {
-                    Add-BoHit -Id 'TSK-SYSTEM-001' -Type 'file' -Ref $resolved -Excerpt "task $full runs as $user ($runLevel)"
+                    Add-BoHit -Id 'TSK-SYSTEM-001' -Type 'file' -Ref $resolved -Excerpt "task $full runs as $user$(if ($runLevel) { " ($runLevel)" })"
                 }
             }
         }

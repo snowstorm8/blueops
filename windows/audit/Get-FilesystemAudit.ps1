@@ -82,7 +82,12 @@ function Invoke-BoFilesystemModule {
                 }
                 catch { Add-BoPermError -Message "cannot read script $($f.FullPath)" -CheckId 'FS-SCRIPT-001' }
                 $reasons = Get-BoCommandReason ($text -replace '\r?\n', ' ')
-                if ($reasons.Strong.Count -gt 0) { Add-BoHit -Id 'FS-SCRIPT-001' -Type 'file' -Ref $f.FullPath -Excerpt ($reasons.Strong -join '; ') -Severity 'high' }
+                if ($reasons.Strong.Count -gt 0) {
+                    # Package-manager trees (for example Chocolatey) legitimately contain download/Invoke-Expression helpers.
+                    $sev = 'high'
+                    if ((Get-BoPathZone $f.FullPath) -eq 'programdata-known') { $sev = 'low' }
+                    Add-BoHit -Id 'FS-SCRIPT-001' -Type 'file' -Ref $f.FullPath -Excerpt ($reasons.Strong -join '; ') -Severity $sev
+                }
                 else { Add-BoHit -Id 'FS-SCRIPT-001' -Type 'file' -Ref $f.FullPath -Excerpt "size=$($f.Length) modified=$($f.LastWriteUtc.ToString('yyyy-MM-ddTHH:mm:ssZ'))" }
             }
         }

