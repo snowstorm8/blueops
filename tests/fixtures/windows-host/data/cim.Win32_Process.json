@@ -1,0 +1,163 @@
+[
+ {
+  "ProcessId": 0,
+  "ParentProcessId": 0,
+  "Name": "System Idle Process",
+  "ExecutablePath": "",
+  "CommandLine": ""
+ },
+ {
+  "ProcessId": 4,
+  "ParentProcessId": 0,
+  "Name": "System",
+  "ExecutablePath": "",
+  "CommandLine": ""
+ },
+ {
+  "ProcessId": 88,
+  "ParentProcessId": 4,
+  "Name": "Registry",
+  "ExecutablePath": "",
+  "CommandLine": ""
+ },
+ {
+  "ProcessId": 300,
+  "ParentProcessId": 4,
+  "Name": "smss.exe",
+  "ExecutablePath": "C:\\Windows\\System32\\smss.exe",
+  "CommandLine": "\\SystemRoot\\System32\\smss.exe"
+ },
+ {
+  "ProcessId": 400,
+  "ParentProcessId": 300,
+  "Name": "csrss.exe",
+  "ExecutablePath": "C:\\Windows\\System32\\csrss.exe",
+  "CommandLine": "%SystemRoot%\\system32\\csrss.exe ObjectDirectory=\\Windows"
+ },
+ {
+  "ProcessId": 480,
+  "ParentProcessId": 300,
+  "Name": "wininit.exe",
+  "ExecutablePath": "C:\\Windows\\System32\\wininit.exe",
+  "CommandLine": "wininit.exe"
+ },
+ {
+  "ProcessId": 560,
+  "ParentProcessId": 480,
+  "Name": "services.exe",
+  "ExecutablePath": "C:\\Windows\\System32\\services.exe",
+  "CommandLine": "C:\\Windows\\system32\\services.exe"
+ },
+ {
+  "ProcessId": 570,
+  "ParentProcessId": 480,
+  "Name": "lsass.exe",
+  "ExecutablePath": "C:\\Windows\\System32\\lsass.exe",
+  "CommandLine": "C:\\Windows\\system32\\lsass.exe"
+ },
+ {
+  "ProcessId": 700,
+  "ParentProcessId": 560,
+  "Name": "svchost.exe",
+  "ExecutablePath": "C:\\Windows\\System32\\svchost.exe",
+  "CommandLine": "C:\\Windows\\system32\\svchost.exe -k netsvcs -p"
+ },
+ {
+  "ProcessId": 720,
+  "ParentProcessId": 560,
+  "Name": "svchost.exe",
+  "ExecutablePath": "C:\\Windows\\System32\\svchost.exe",
+  "CommandLine": "C:\\Windows\\system32\\svchost.exe -k LocalServiceNetworkRestricted -p"
+ },
+ {
+  "ProcessId": 900,
+  "ParentProcessId": 560,
+  "Name": "MsMpEng.exe",
+  "ExecutablePath": "C:\\ProgramData\\Microsoft\\Windows Defender\\Platform\\4.18.2.1-0\\MsMpEng.exe",
+  "CommandLine": "\"C:\\ProgramData\\Microsoft\\Windows Defender\\Platform\\4.18.2.1-0\\MsMpEng.exe\""
+ },
+ {
+  "ProcessId": 1200,
+  "ParentProcessId": 9999,
+  "Name": "explorer.exe",
+  "ExecutablePath": "C:\\Windows\\explorer.exe",
+  "CommandLine": "C:\\Windows\\Explorer.EXE"
+ },
+ {
+  "ProcessId": 1300,
+  "ParentProcessId": 1200,
+  "Name": "OneDrive.exe",
+  "ExecutablePath": "C:\\Users\\alice\\AppData\\Local\\Microsoft\\OneDrive\\OneDrive.exe",
+  "CommandLine": "\"C:\\Users\\alice\\AppData\\Local\\Microsoft\\OneDrive\\OneDrive.exe\" /background"
+ },
+ {
+  "ProcessId": 1400,
+  "ParentProcessId": 1200,
+  "Name": "chrome.exe",
+  "ExecutablePath": "C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe",
+  "CommandLine": "\"C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe\""
+ },
+ {
+  "ProcessId": 1500,
+  "ParentProcessId": 1200,
+  "Name": "powershell.exe",
+  "ExecutablePath": "C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe",
+  "CommandLine": "powershell.exe -NoProfile -ExecutionPolicy Bypass -File \"C:\\Program Files\\Contoso\\Agent\\health.ps1\""
+ },
+ {
+  "ProcessId": 1600,
+  "ParentProcessId": 1200,
+  "Name": "cmd.exe",
+  "ExecutablePath": "C:\\Windows\\System32\\cmd.exe",
+  "CommandLine": "\"C:\\Windows\\system32\\cmd.exe\""
+ },
+ {
+  "ProcessId": 2000,
+  "ParentProcessId": 1200,
+  "Name": "svchost.exe",
+  "ExecutablePath": "C:\\Users\\Public\\svchost.exe",
+  "CommandLine": "C:\\Users\\Public\\svchost.exe -k netsvcs"
+ },
+ {
+  "ProcessId": 2100,
+  "ParentProcessId": 1200,
+  "Name": "svchost.exe",
+  "ExecutablePath": "C:\\Windows\\System32\\svchost.exe",
+  "CommandLine": "svchost.exe"
+ },
+ {
+  "ProcessId": 2200,
+  "ParentProcessId": 1200,
+  "Name": "WINWORD.EXE",
+  "ExecutablePath": "C:\\Program Files\\Microsoft Office\\root\\Office16\\WINWORD.EXE",
+  "CommandLine": "\"WINWORD.EXE\" /n \"C:\\Users\\alice\\Documents\\invoice.docm\""
+ },
+ {
+  "ProcessId": 2300,
+  "ParentProcessId": 2200,
+  "Name": "powershell.exe",
+  "ExecutablePath": "C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe",
+  "CommandLine": "powershell.exe -nop -w hidden -enc SQBFAFgAIAAoAE4AZQB3AC0ATwBiAGoAZQBjAHQAIABOAGUAdAAuAFcAZQBiAEMAbABpAGUAbgB0ACkA"
+ },
+ {
+  "ProcessId": 2400,
+  "ParentProcessId": 1200,
+  "Name": "updater.exe",
+  "ExecutablePath": "C:\\Users\\alice\\Downloads\\updater.exe",
+  "CommandLine": "C:\\Users\\alice\\Downloads\\updater.exe --password hunter2"
+ },
+ {
+  "ProcessId": 2500,
+  "ParentProcessId": 1200,
+  "Name": "signed-setup.exe",
+  "ExecutablePath": "C:\\Windows\\Temp\\signed-setup.exe",
+  "CommandLine": "C:\\Windows\\Temp\\signed-setup.exe /quiet"
+ },
+ {
+  "ProcessId": 2600,
+  "ParentProcessId": 1200,
+  "Name": "lsass.exe",
+  "ExecutablePath": "C:\\Windows\\Temp\\lsass.exe",
+  "CommandLine": "lsass.exe"
+ }
+]

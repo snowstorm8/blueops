@@ -1,0 +1,10 @@
+[
+  { "Name": "Administrator", "SID": "S-1-5-21-1000-2000-3000-500", "Disabled": true,  "PasswordRequired": true,  "PasswordExpires": false, "Description": "Built-in account for administering the computer/domain" },
+  { "Name": "Guest",         "SID": "S-1-5-21-1000-2000-3000-501", "Disabled": true,  "PasswordRequired": false, "PasswordExpires": false, "Description": "Built-in account for guest access" },
+  { "Name": "DefaultAccount","SID": "S-1-5-21-1000-2000-3000-503", "Disabled": true,  "PasswordRequired": false, "PasswordExpires": false, "Description": "A user account managed by the system." },
+  { "Name": "WDAGUtilityAccount","SID": "S-1-5-21-1000-2000-3000-504", "Disabled": true, "PasswordRequired": true, "PasswordExpires": true, "Description": "Defender Application Guard account" },
+  { "Name": "alice",         "SID": "S-1-5-21-1000-2000-3000-1001", "Disabled": false, "PasswordRequired": true,  "PasswordExpires": true,  "Description": "Alice, operations" },
+  { "Name": "svc_backup",    "SID": "S-1-5-21-1000-2000-3000-1002", "Disabled": false, "PasswordRequired": true,  "PasswordExpires": false, "Description": "Backup service account" },
+  { "Name": "helpdesk",      "SID": "S-1-5-21-1000-2000-3000-1003", "Disabled": false, "PasswordRequired": false, "PasswordExpires": true,  "Description": "" },
+  { "Name": "support$",      "SID": "S-1-5-21-1000-2000-3000-1004", "Disabled": false, "PasswordRequired": true,  "PasswordExpires": true,  "Description": "" }
+]

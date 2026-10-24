@@ -1,0 +1,7 @@
+{
+ "Windows/System32/kernel32.dll": 400,
+ "Windows/System32/evilsvc.dll": 0,
+ "Windows/System32/newpatched.dll": 1,
+ "ProgramData/Oracle/Java/javaw.exe": 200,
+ "Windows/Temp/signed-setup.exe": 3
+}

@@ -1,0 +1,7 @@
+[
+  { "Name": "ADMIN$", "Path": "C:\\Windows" },
+  { "Name": "C$", "Path": "C:\\" },
+  { "Name": "IPC$", "Path": "" },
+  { "Name": "Public", "Path": "C:\\Shares\\Public" },
+  { "Name": "backup$", "Path": "C:\\Users\\Public\\backup" }
+]

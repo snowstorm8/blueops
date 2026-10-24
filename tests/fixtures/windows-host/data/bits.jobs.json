@@ -1,0 +1,16 @@
+[
+ {
+  "DisplayName": "Windows Update",
+  "JobState": "Suspended",
+  "OwnerAccount": "NT AUTHORITY\\SYSTEM",
+  "NotifyCmdLine": "",
+  "Url": "https://download.windowsupdate.com/c/msdownload/update.cab"
+ },
+ {
+  "DisplayName": "Backdoor",
+  "JobState": "Transferred",
+  "OwnerAccount": "FIXTURE-WS01\\alice",
+  "NotifyCmdLine": "C:\\Users\\Public\\a.exe",
+  "Url": "http://203.0.113.9/p.bin"
+ }
+]

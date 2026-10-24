@@ -1,0 +1,254 @@
+{
+ "Registry::HKEY_LOCAL_MACHINE\\SYSTEM\\CurrentControlSet\\Services\\Tcpip\\Parameters": {
+  "values": {
+   "IPEnableRouter": 0
+  }
+ },
+ "Registry::HKEY_LOCAL_MACHINE\\SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Internet Settings": {
+  "values": {
+   "ProxyEnable": 0
+  }
+ },
+ "Registry::HKEY_USERS\\S-1-5-21-1000-2000-3000-1001\\Software\\Microsoft\\Windows\\CurrentVersion\\Internet Settings": {
+  "values": {
+   "ProxyEnable": 1,
+   "ProxyServer": "proxy.corp.example.test:8080"
+  }
+ },
+ "Registry::HKEY_LOCAL_MACHINE\\SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Run": {
+  "values": {
+   "SecurityHealth": "%windir%\\system32\\SecurityHealthSystray.exe",
+   "VMware User Process": "\"C:\\Program Files\\VMware\\VMware Tools\\vmtoolsd.exe\" -n vmusr"
+  }
+ },
+ "Registry::HKEY_LOCAL_MACHINE\\SOFTWARE\\Wow6432Node\\Microsoft\\Windows\\CurrentVersion\\Run": {
+  "values": {
+   "Adobe ARM": "\"C:\\Program Files (x86)\\Common Files\\Adobe\\ARM\\1.0\\AdobeARM.exe\""
+  }
+ },
+ "Registry::HKEY_USERS\\S-1-5-21-1000-2000-3000-1001\\SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Run": {
+  "values": {
+   "OneDrive": "\"C:\\Users\\alice\\AppData\\Local\\Microsoft\\OneDrive\\OneDrive.exe\" /background",
+   "Teams": "C:\\Users\\alice\\AppData\\Local\\Microsoft\\Teams\\Update.exe --processStart \"Teams.exe\"",
+   "Updater": "C:\\Users\\alice\\AppData\\Roaming\\svchost\\svchost.exe",
+   "Loader": "powershell.exe -nop -w hidden -enc SQBFAFgAIAAoAE4AZQB3AC0ATwBiAGoAZQBjAHQAIABOAGUAdAAuAFcAZQBiAEMAbABpAGUAbgB0ACkA",
+   "Tmp": "C:\\Users\\Public\\a.exe"
+  }
+ },
+ "Registry::HKEY_LOCAL_MACHINE\\SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\RunOnce": {
+  "values": {}
+ },
+ "Registry::HKEY_LOCAL_MACHINE\\SOFTWARE\\Microsoft\\Windows NT\\CurrentVersion\\Winlogon": {
+  "values": {
+   "Shell": "explorer.exe",
+   "Userinit": "C:\\Windows\\system32\\userinit.exe,",
+   "AutoAdminLogon": "0"
+  }
+ },
+ "Registry::HKEY_LOCAL_MACHINE\\SOFTWARE\\Microsoft\\Active Setup\\Installed Components\\{44BBA840-CC51-11CF-AAFA-00AA00B6015C}": {
+  "values": {
+   "StubPath": "\"%ProgramFiles%\\Windows Mail\\WinMail.exe\" OCInstallUserConfigOE"
+  }
+ },
+ "Registry::HKEY_LOCAL_MACHINE\\SOFTWARE\\Microsoft\\Windows NT\\CurrentVersion\\Image File Execution Options\\sethc.exe": {
+  "values": {
+   "Debugger": "C:\\Windows\\System32\\cmd.exe"
+  }
+ },
+ "Registry::HKEY_LOCAL_MACHINE\\SOFTWARE\\Microsoft\\Windows NT\\CurrentVersion\\Image File Execution Options\\notepad.exe": {
+  "values": {
+   "GlobalFlag": 512
+  }
+ },
+ "Registry::HKEY_LOCAL_MACHINE\\SOFTWARE\\Microsoft\\Windows NT\\CurrentVersion\\Image File Execution Options\\devenv.exe": {
+  "values": {
+   "Debugger": "\"C:\\Windows\\system32\\vsjitdebugger.exe\""
+  }
+ },
+ "Registry::HKEY_LOCAL_MACHINE\\SOFTWARE\\Microsoft\\Windows NT\\CurrentVersion\\Windows": {
+  "values": {
+   "AppInit_DLLs": "",
+   "LoadAppInit_DLLs": 0
+  }
+ },
+ "Registry::HKEY_LOCAL_MACHINE\\SYSTEM\\CurrentControlSet\\Control\\Session Manager": {
+  "values": {
+   "BootExecute": [
+    "autocheck autochk *"
+   ]
+  }
+ },
+ "Registry::HKEY_LOCAL_MACHINE\\SYSTEM\\CurrentControlSet\\Control\\Lsa": {
+  "values": {
+   "Authentication Packages": [
+    "msv1_0"
+   ],
+   "Security Packages": [
+    "\"\""
+   ],
+   "Notification Packages": [
+    "scecli"
+   ],
+   "RunAsPPL": 0,
+   "LmCompatibilityLevel": 5,
+   "NoLMHash": 1
+  }
+ },
+ "Registry::HKEY_LOCAL_MACHINE\\SOFTWARE\\Microsoft\\NetSh": {
+  "values": {
+   "ifmon": "ifmon.dll",
+   "rasmontr": "rasmontr.dll",
+   "fwcfg": "fwcfg.dll"
+  }
+ },
+ "Registry::HKEY_LOCAL_MACHINE\\SYSTEM\\CurrentControlSet\\Services\\W32Time\\TimeProviders\\NtpClient": {
+  "values": {
+   "DllName": "%systemroot%\\system32\\w32time.dll"
+  }
+ },
+ "Registry::HKEY_LOCAL_MACHINE\\SYSTEM\\CurrentControlSet\\Services\\W32Time\\TimeProviders\\VMICTimeProvider": {
+  "values": {
+   "DllName": "%SystemRoot%\\System32\\vmictimeprovider.dll"
+  }
+ },
+ "Registry::HKEY_LOCAL_MACHINE\\SYSTEM\\CurrentControlSet\\Control\\Print\\Monitors\\Local Port": {
+  "values": {
+   "Driver": "localspl.dll"
+  }
+ },
+ "Registry::HKEY_LOCAL_MACHINE\\SYSTEM\\CurrentControlSet\\Control\\Print\\Monitors\\Standard TCP/IP Port": {
+  "values": {
+   "Driver": "tcpmon.dll"
+  }
+ },
+ "Registry::HKEY_LOCAL_MACHINE\\SYSTEM\\CurrentControlSet\\Control\\Print\\Monitors\\USB Monitor": {
+  "values": {
+   "Driver": "usbmon.dll"
+  }
+ },
+ "Registry::HKEY_USERS\\S-1-5-21-1000-2000-3000-1001\\Control Panel\\Desktop": {
+  "values": {
+   "SCRNSAVE.EXE": "C:\\Windows\\system32\\Mystify.scr"
+  }
+ },
+ "Registry::HKEY_USERS\\S-1-5-21-1000-2000-3000-1001\\Software\\Classes\\CLSID\\{11111111-1111-1111-1111-111111111111}\\InprocServer32": {
+  "values": {
+   "(default)": "C:\\Users\\alice\\AppData\\Local\\Microsoft\\OneDrive\\24.1\\FileSyncShell64.dll"
+  }
+ },
+ "Registry::HKEY_USERS\\S-1-5-21-1000-2000-3000-1001\\Software\\Classes\\CLSID\\{22222222-2222-2222-2222-222222222222}\\InprocServer32": {
+  "values": {
+   "(default)": "C:\\Users\\alice\\AppData\\Roaming\\Cache\\evil.dll"
+  }
+ },
+ "Registry::HKEY_LOCAL_MACHINE\\SYSTEM\\CurrentControlSet\\Services\\SharedAccess\\Parameters\\FirewallPolicy\\DomainProfile": {
+  "values": {
+   "EnableFirewall": 1,
+   "DefaultInboundAction": 1,
+   "DefaultOutboundAction": 0
+  }
+ },
+ "Registry::HKEY_LOCAL_MACHINE\\SYSTEM\\CurrentControlSet\\Services\\SharedAccess\\Parameters\\FirewallPolicy\\DomainProfile\\Logging": {
+  "values": {
+   "LogDroppedPackets": 1,
+   "LogFilePath": "%systemroot%\\system32\\LogFiles\\Firewall\\pfirewall.log"
+  }
+ },
+ "Registry::HKEY_LOCAL_MACHINE\\SYSTEM\\CurrentControlSet\\Services\\SharedAccess\\Parameters\\FirewallPolicy\\StandardProfile": {
+  "values": {
+   "EnableFirewall": 1,
+   "DefaultInboundAction": 1,
+   "DefaultOutboundAction": 0
+  }
+ },
+ "Registry::HKEY_LOCAL_MACHINE\\SYSTEM\\CurrentControlSet\\Services\\SharedAccess\\Parameters\\FirewallPolicy\\StandardProfile\\Logging": {
+  "values": {
+   "LogDroppedPackets": 1,
+   "LogFilePath": "%systemroot%\\system32\\LogFiles\\Firewall\\pfirewall.log"
+  }
+ },
+ "Registry::HKEY_LOCAL_MACHINE\\SYSTEM\\CurrentControlSet\\Services\\SharedAccess\\Parameters\\FirewallPolicy\\PublicProfile": {
+  "values": {
+   "EnableFirewall": 1,
+   "DefaultInboundAction": 1,
+   "DefaultOutboundAction": 0
+  }
+ },
+ "Registry::HKEY_LOCAL_MACHINE\\SYSTEM\\CurrentControlSet\\Services\\SharedAccess\\Parameters\\FirewallPolicy\\PublicProfile\\Logging": {
+  "values": {
+   "LogDroppedPackets": 0,
+   "LogFilePath": "%systemroot%\\system32\\LogFiles\\Firewall\\pfirewall.log"
+  }
+ },
+ "Registry::HKEY_LOCAL_MACHINE\\SYSTEM\\CurrentControlSet\\Services\\SharedAccess\\Parameters\\FirewallPolicy\\FirewallRules": {
+  "values": {
+   "CoreNet-DHCP-In": "v2.31|Action=Allow|Active=TRUE|Dir=In|Protocol=17|LPort=68|RPort=67|App=%SystemRoot%\\system32\\svchost.exe|Svc=dhcp|Name=@FirewallAPI.dll,-25301|",
+   "RemoteDesktop-UserMode-In-TCP": "v2.31|Action=Allow|Active=TRUE|Dir=In|Protocol=6|Profile=Domain|Profile=Private|LPort=3389|App=%SystemRoot%\\system32\\svchost.exe|Svc=termservice|Name=@FirewallAPI.dll,-28775|",
+   "FPS-ICMP4-ERQ-In": "v2.31|Action=Allow|Active=TRUE|Dir=In|Protocol=1|ICMP4=8:*|Name=@FirewallAPI.dll,-28543|",
+   "FPS-SMB-In-TCP": "v2.31|Action=Allow|Active=FALSE|Dir=In|Protocol=6|LPort=445|App=System|Name=@FirewallAPI.dll,-28502|",
+   "{A1B2C3D4-0000-0000-0000-000000000001}": "v2.31|Action=Allow|Active=TRUE|Dir=In|Protocol=6|App=C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe|Name={A1B2C3D4-0000-0000-0000-000000000001}|",
+   "TeamsRule": "v2.31|Action=Allow|Active=TRUE|Dir=In|Protocol=17|Profile=Public|App=C:\\Users\\alice\\AppData\\Local\\Microsoft\\Teams\\current\\Teams.exe|Name=Teams.exe|",
+   "ContosoAgentIn": "v2.31|Action=Allow|Active=TRUE|Dir=In|Protocol=6|LPort=8443|RA4=10.20.0.0/255.255.0.0|App=C:\\Program Files\\Contoso Agent\\agent.exe|Name=Contoso Agent|",
+   "AllowAll": "v2.31|Action=Allow|Active=TRUE|Dir=In|Name=Allow Everything|",
+   "TmpRule": "v2.31|Action=Allow|Active=TRUE|Dir=In|Protocol=6|App=C:\\Users\\Public\\a.exe|Name=a.exe|",
+   "TelnetAny": "v2.31|Action=Allow|Active=TRUE|Dir=In|Protocol=6|LPort=23|Name=Telnet|",
+   "SqlAny": "v2.31|Action=Allow|Active=TRUE|Dir=In|Protocol=6|LPort=1433|Name=SQL|",
+   "OutboundBlock": "v2.31|Action=Block|Active=TRUE|Dir=Out|Name=BlockOut|"
+  }
+ },
+ "Registry::HKEY_LOCAL_MACHINE\\SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Policies\\System": {
+  "values": {
+   "EnableLUA": 1,
+   "ConsentPromptBehaviorAdmin": 5,
+   "LocalAccountTokenFilterPolicy": 1
+  }
+ },
+ "Registry::HKEY_LOCAL_MACHINE\\SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Policies\\System\\Audit": {
+  "values": {
+   "ProcessCreationIncludeCmdLine_Enabled": 0
+  }
+ },
+ "Registry::HKEY_LOCAL_MACHINE\\SYSTEM\\CurrentControlSet\\Control\\SecurityProviders\\WDigest": {
+  "values": {
+   "UseLogonCredential": 0
+  }
+ },
+ "Registry::HKEY_LOCAL_MACHINE\\SYSTEM\\CurrentControlSet\\Services\\LanmanServer\\Parameters": {
+  "values": {
+   "SMB1": 0,
+   "RequireSecuritySignature": 0
+  }
+ },
+ "Registry::HKEY_LOCAL_MACHINE\\SYSTEM\\CurrentControlSet\\Services\\mrxsmb10": {
+  "values": {
+   "Start": 4
+  }
+ },
+ "Registry::HKEY_LOCAL_MACHINE\\SYSTEM\\CurrentControlSet\\Control\\Terminal Server": {
+  "values": {
+   "fDenyTSConnections": 0
+  }
+ },
+ "Registry::HKEY_LOCAL_MACHINE\\SYSTEM\\CurrentControlSet\\Control\\Terminal Server\\WinStations\\RDP-Tcp": {
+  "values": {
+   "UserAuthentication": 1,
+   "SecurityLayer": 2
+  }
+ },
+ "Registry::HKEY_LOCAL_MACHINE\\SOFTWARE\\Microsoft\\Windows Defender\\Exclusions\\Paths": {
+  "values": {
+   "C:\\Program Files\\Contoso Backup\\": 0,
+   "C:\\Users\\Public\\": 0
+  }
+ },
+ "Registry::HKEY_LOCAL_MACHINE\\SOFTWARE\\Microsoft\\Windows Defender\\Exclusions\\Extensions": {
+  "values": {
+   ".log": 0
+  }
+ },
+ "Registry::HKEY_LOCAL_MACHINE\\SYSTEM\\CurrentControlSet\\Control\\Session Manager\\Environment": {
+  "values": {
+   "Path": "%SystemRoot%\\system32;%SystemRoot%;C:\\Windows\\System32\\Wbem;C:\\Tools\\bin"
+  }
+ }
+}

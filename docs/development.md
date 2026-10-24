@@ -23,11 +23,15 @@ scripts/development/check.sh        # Linux/macOS; skipped tools are reported, n
 ./scripts/development/check.ps1     # Windows
 ```
 
-CI (`.github/workflows/ci.yml`, `lint.yml`) runs the same checks on Linux and Windows runners. Pester/PSScriptAnalyzer steps skip cleanly while no PowerShell files exist; Bats and ShellCheck/shfmt are enforced.
+CI (`.github/workflows/ci.yml`, `lint.yml`) runs the same checks on Linux and Windows runners. Pester (run under Windows PowerShell 5.1 and again under PowerShell 7), PSScriptAnalyzer, Bats and ShellCheck/shfmt are enforced.
 
 ### Testing the Linux tooling
 
 Bats tests (`tests/linux/*.bats`) run the real scripts against a synthetic root filesystem (`tests/fixtures/linux-root`) so they pass on any POSIX host, including macOS. Two test-only environment hooks make this possible and must not be used in production: `BO_ROOT` (prefix for every file read) and `BO_FORCE_MISSING_TOOLS` (space-separated tools treated as absent). Fake `ss`/`systemctl`/`who`/`ps` live in `tests/fixtures/linux-bin`. Permission bits git cannot store (SUID, 0600) are applied by `tests/linux/test_helper.bash` on a per-test copy. Use `refute cmd`, not `! cmd`, for negative assertions: Bats ignores a bare `!`.
+
+### Testing the Windows tooling
+
+Pester tests (`tests/windows/*.Tests.ps1`) run the real entry scripts in a child process against a synthetic host (`tests/fixtures/windows-host`: `data/` provider snapshots and an `fs/` tree) so they pass on any OS with PowerShell. Test-only hooks, not for production: `BO_FIXTURE_DIR` (fixture root), `BO_FORCE_MISSING` (space-separated providers treated as unavailable), `BO_TEST_SHELL` (child shell; default `powershell.exe` on Windows, `pwsh` elsewhere). Date tokens `@@AGO:n@@` in fixtures are replaced per test copy. `tests/shared/test_windows_audit_report.py` validates a Windows report against the JSON schema when PowerShell is available. See [windows-audit.md](windows-audit.md).
 
 ## PowerShell encoding policy and Windows PowerShell 5.1 limitations
 

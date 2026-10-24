@@ -1,0 +1,11 @@
+[
+  {
+    "Caption": "Microsoft Windows Server 2019 Standard",
+    "Version": "10.0.17763",
+    "BuildNumber": "17763",
+    "OSArchitecture": "64-bit",
+    "CSName": "FIXTURE-WS01",
+    "LastBootUpTime": "@@AGO:12@@",
+    "InstallDate": "@@AGO:400@@"
+  }
+]

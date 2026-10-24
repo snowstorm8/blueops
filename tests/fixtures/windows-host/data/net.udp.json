@@ -1,0 +1,17 @@
+[
+ {
+  "LocalAddress": "0.0.0.0",
+  "LocalPort": 5353,
+  "OwningProcess": 700
+ },
+ {
+  "LocalAddress": "0.0.0.0",
+  "LocalPort": 161,
+  "OwningProcess": 700
+ },
+ {
+  "LocalAddress": "10.20.0.50",
+  "LocalPort": 137,
+  "OwningProcess": 4
+ }
+]
