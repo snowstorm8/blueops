@@ -1,0 +1,11 @@
+[
+  {
+    "Name": "FIXTURE-WS01",
+    "Domain": "corp.example.test",
+    "PartOfDomain": true,
+    "Manufacturer": "Contoso",
+    "Model": "Virtual Machine",
+    "NumberOfLogicalProcessors": 4,
+    "TotalPhysicalMemory": 8589934592
+  }
+]

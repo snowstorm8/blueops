@@ -1,0 +1,17 @@
+[
+ {
+  "Name": "Beep",
+  "State": "Running",
+  "PathName": "C:\\Windows\\System32\\drivers\\beep.sys"
+ },
+ {
+  "Name": "evil",
+  "State": "Running",
+  "PathName": "\\??\\C:\\Windows\\Temp\\evil.sys"
+ },
+ {
+  "Name": "vmbus",
+  "State": "Running",
+  "PathName": "C:\\Windows\\System32\\drivers\\vmbus.sys"
+ }
+]

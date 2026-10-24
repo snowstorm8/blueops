@@ -1,0 +1,6 @@
+[
+  { "Name": "FIXTURE-WS01\\Administrator", "SID": "S-1-5-21-1000-2000-3000-500", "ObjectClass": "User" },
+  { "Name": "FIXTURE-WS01\\alice", "SID": "S-1-5-21-1000-2000-3000-1001", "ObjectClass": "User" },
+  { "Name": "FIXTURE-WS01\\support$", "SID": "S-1-5-21-1000-2000-3000-1004", "ObjectClass": "User" },
+  { "Name": "CORP\\Domain Admins", "SID": "S-1-5-21-5000-6000-7000-512", "ObjectClass": "Group" }
+]

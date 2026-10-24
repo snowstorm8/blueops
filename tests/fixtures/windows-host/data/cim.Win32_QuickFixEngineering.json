@@ -1,0 +1,4 @@
+[
+  { "HotFixID": "KB5000001", "InstalledOn": "@@AGO:20@@", "Description": "Security Update" },
+  { "HotFixID": "KB4000002", "InstalledOn": "@@AGO:200@@", "Description": "Update" }
+]

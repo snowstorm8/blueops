@@ -49,16 +49,21 @@ jobs:
       - name: Install Pester 5
         shell: pwsh
         run: Install-Module Pester -MinimumVersion 5.5.0 -Scope CurrentUser -Force -SkipPublisherCheck
-      - name: Run Pester tests
+      - name: Run Pester tests (audit runs in Windows PowerShell 5.1)
         shell: pwsh
         run: |
-          $tests = Get-ChildItem -Path tests/windows -Recurse -Filter *.Tests.ps1 -ErrorAction SilentlyContinue
-          if (-not $tests) {
-            Write-Output 'No Pester tests yet (no PowerShell modules implemented); skipping.'
-            exit 0
-          }
           $config = New-PesterConfiguration
           $config.Run.Path = 'tests/windows'
           $config.Run.Exit = $true
           $config.Output.Verbosity = 'Detailed'
+          Invoke-Pester -Configuration $config
+      - name: Run Pester tests (audit runs in PowerShell 7)
+        shell: pwsh
+        env:
+          BO_TEST_SHELL: pwsh
+        run: |
+          $config = New-PesterConfiguration
+          $config.Run.Path = 'tests/windows'
+          $config.Run.Exit = $true
+          $config.Output.Verbosity = 'Normal'
           Invoke-Pester -Configuration $config

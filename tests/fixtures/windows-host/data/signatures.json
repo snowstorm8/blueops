@@ -1,0 +1,74 @@
+{
+ "C:\\Windows\\Temp\\signed-setup.exe": {
+  "status": "Valid",
+  "signer": "CN=Contoso Software"
+ },
+ "C:\\Users\\alice\\Downloads\\updater.exe": {
+  "status": "NotSigned",
+  "signer": ""
+ },
+ "C:\\Users\\Public\\svchost.exe": {
+  "status": "NotSigned",
+  "signer": ""
+ },
+ "C:\\Windows\\Temp\\lsass.exe": {
+  "status": "NotSigned",
+  "signer": ""
+ },
+ "C:\\ProgramData\\Microsoft\\Windows Defender\\Platform\\4.18.2.1-0\\MsMpEng.exe": {
+  "status": "Valid",
+  "signer": "CN=Microsoft Corporation"
+ },
+ "C:\\Users\\Public\\wuhelper.exe": {
+  "status": "NotSigned",
+  "signer": ""
+ },
+ "C:\\Users\\Public\\svc.exe": {
+  "status": "NotSigned",
+  "signer": ""
+ },
+ "C:\\Users\\alice\\AppData\\Roaming\\svchost\\svchost.exe": {
+  "status": "NotSigned",
+  "signer": ""
+ },
+ "C:\\Users\\Public\\a.exe": {
+  "status": "NotSigned",
+  "signer": ""
+ },
+ "C:\\Users\\Public\\payload.exe": {
+  "status": "NotSigned",
+  "signer": ""
+ },
+ "C:\\Users\\alice\\Downloads\\ChromeSetup.exe": {
+  "status": "Valid",
+  "signer": "CN=Google LLC"
+ },
+ "C:\\Users\\alice\\Downloads\\tool.exe": {
+  "status": "NotSigned",
+  "signer": ""
+ },
+ "C:\\Windows\\System32\\evilsvc.dll": {
+  "status": "NotSigned",
+  "signer": ""
+ },
+ "C:\\Windows\\System32\\kernel32.dll": {
+  "status": "Valid",
+  "signer": "CN=Microsoft Windows"
+ },
+ "C:\\Windows\\System32\\newpatched.dll": {
+  "status": "Valid",
+  "signer": "CN=Microsoft Windows"
+ },
+ "C:\\ProgramData\\Oracle\\Java\\javaw.exe": {
+  "status": "Valid",
+  "signer": "CN=Oracle America"
+ },
+ "C:\\Users\\alice\\AppData\\Roaming\\Microsoft\\Teams\\helper.exe": {
+  "status": "Valid",
+  "signer": "CN=Microsoft Corporation"
+ },
+ "C:\\Users\\alice\\AppData\\Roaming\\Cache\\evil.dll": {
+  "status": "NotSigned",
+  "signer": ""
+ }
+}

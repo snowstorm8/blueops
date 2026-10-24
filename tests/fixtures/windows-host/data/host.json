@@ -1,0 +1,8 @@
+{
+  "hostname": "FIXTURE-WS01",
+  "os_name": "Microsoft Windows Server 2019 Standard",
+  "os_version": "10.0.17763 build 17763",
+  "arch": "64-bit",
+  "user": "FIXTURE\\auditor",
+  "elevated": true
+}

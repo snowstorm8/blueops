@@ -5,6 +5,8 @@ All notable changes are documented here. Format: [Keep a Changelog](https://keep
 ## [Unreleased]
 
 ### Added
+- Windows read-only audit v0.1 (`windows/audit/Invoke-WindowsAudit.ps1`, `windows/persistence/Find-Persistence.ps1`, `windows/lib/Common.ps1`): system, users, processes, network, services, scheduled tasks, autoruns, persistence, firewall, security configuration and filesystem modules emitting schema 0.1.0 reports. See `docs/windows-audit.md`.
+- Pester suites, synthetic Windows host fixtures and a schema-conformance pytest; the CI PowerShell job now runs Pester under Windows PowerShell 5.1 and PowerShell 7.
 - `audit-pam.sh` module (`PAM-*` findings): read-only PAM configuration review.
 - `--package-integrity` option: opt-in Debian `dpkg --verify` checks (`FS-PKG-*`).
 - `SVC-FAILED-002`: failed systemd socket units.

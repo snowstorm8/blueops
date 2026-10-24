@@ -1,0 +1,114 @@
+[
+ {
+  "Name": "Spooler",
+  "DisplayName": "Print Spooler",
+  "State": "Running",
+  "StartMode": "Auto",
+  "PathName": "C:\\Windows\\System32\\spoolsv.exe",
+  "StartName": "LocalSystem"
+ },
+ {
+  "Name": "W32Time",
+  "DisplayName": "Windows Time",
+  "State": "Running",
+  "StartMode": "Auto",
+  "PathName": "C:\\Windows\\system32\\svchost.exe -k LocalService",
+  "StartName": "NT AUTHORITY\\LocalService"
+ },
+ {
+  "Name": "EventLog",
+  "DisplayName": "Windows Event Log",
+  "State": "Running",
+  "StartMode": "Auto",
+  "PathName": "C:\\Windows\\System32\\svchost.exe -k LocalServiceNetworkRestricted -p",
+  "StartName": "NT AUTHORITY\\LocalService"
+ },
+ {
+  "Name": "BFE",
+  "DisplayName": "Base Filtering Engine",
+  "State": "Running",
+  "StartMode": "Auto",
+  "PathName": "C:\\Windows\\system32\\svchost.exe -k LocalServiceNoNetworkFirewall -p",
+  "StartName": "NT AUTHORITY\\LocalService"
+ },
+ {
+  "Name": "mpssvc",
+  "DisplayName": "Windows Defender Firewall",
+  "State": "Running",
+  "StartMode": "Auto",
+  "PathName": "C:\\Windows\\system32\\svchost.exe -k LocalServiceNoNetworkFirewall -p",
+  "StartName": "NT AUTHORITY\\LocalService"
+ },
+ {
+  "Name": "WinDefend",
+  "DisplayName": "Microsoft Defender Antivirus Service",
+  "State": "Running",
+  "StartMode": "Auto",
+  "PathName": "\"C:\\ProgramData\\Microsoft\\Windows Defender\\Platform\\4.18.2.1-0\\MsMpEng.exe\"",
+  "StartName": "LocalSystem"
+ },
+ {
+  "Name": "wscsvc",
+  "DisplayName": "Security Center",
+  "State": "Running",
+  "StartMode": "Auto",
+  "PathName": "C:\\Windows\\System32\\svchost.exe -k LocalServiceNetworkRestricted -p",
+  "StartName": "NT AUTHORITY\\LocalService"
+ },
+ {
+  "Name": "gupdate",
+  "DisplayName": "Google Update Service (gupdate)",
+  "State": "Stopped",
+  "StartMode": "Auto",
+  "PathName": "\"C:\\Program Files (x86)\\Google\\Update\\GoogleUpdate.exe\" /svc",
+  "StartName": "LocalSystem"
+ },
+ {
+  "Name": "RemoteRegistry",
+  "DisplayName": "Remote Registry",
+  "State": "Stopped",
+  "StartMode": "Disabled",
+  "PathName": "C:\\Windows\\system32\\svchost.exe -k localService -p",
+  "StartName": "NT AUTHORITY\\LocalService"
+ },
+ {
+  "Name": "svc_backup_agent",
+  "DisplayName": "Contoso Backup Agent",
+  "State": "Running",
+  "StartMode": "Auto",
+  "PathName": "\"C:\\Program Files\\Contoso Backup\\agent.exe\" --service",
+  "StartName": "FIXTURE-WS01\\svc_backup"
+ },
+ {
+  "Name": "ContosoAgent",
+  "DisplayName": "Contoso Agent",
+  "State": "Running",
+  "StartMode": "Auto",
+  "PathName": "C:\\Program Files\\Contoso Agent\\agent.exe -run",
+  "StartName": "LocalSystem"
+ },
+ {
+  "Name": "TlntSvr",
+  "DisplayName": "Telnet",
+  "State": "Running",
+  "StartMode": "Auto",
+  "PathName": "C:\\Windows\\System32\\tlntsvr.exe",
+  "StartName": "LocalSystem"
+ },
+ {
+  "Name": "WinUpdateHelper",
+  "DisplayName": "Windows Update Helper",
+  "State": "Running",
+  "StartMode": "Auto",
+  "PathName": "C:\\Users\\Public\\wuhelper.exe",
+  "StartName": "LocalSystem"
+ },
+ {
+  "Name": "SysCheck",
+  "DisplayName": "System Check",
+  "State": "Stopped",
+  "StartMode": "Manual",
+  "PathName": "cmd.exe /c powershell -nop -w hidden -enc SQBFAFgAIAAoAE4AZQB3AC0ATwBiAGoAZQBjAHQAIABOAGUAdAAuAFcAZQBiAEMAbABpAGUAbgB0ACkA",
+  "StartName": "LocalSystem"
+ }
+]

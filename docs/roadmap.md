@@ -17,13 +17,13 @@ Everything beyond Phase 0 is **planned** and subject to change.
 - [ ] Bash `lib/`: confirmation and dry-run helpers (needed by hardening/containment)
 
 ## Phase 1b — Shared libraries
-- [ ] PowerShell `lib/`: equivalent module
+- [x] PowerShell `lib/Common.ps1`: logging, finding/error recording, JSON emit, run-dir management (confirmation/dry-run helpers still planned)
 - [ ] Python: report validation CLI, merge/diff
 
 ## Phase 2 — Read-only audit and persistence
 
 - [x] Linux: users/groups, services, network listeners, scheduled jobs, startup, SUID/permissions (v0.1; baselines/allowlists via profiles still planned)
-- [ ] Windows: users/groups, services, tasks, Run keys, WMI subscriptions, listeners
+- [x] Windows (v0.1): system, users/groups, processes, network listeners, services, tasks, Run keys/autoruns, WMI subscriptions and other persistence, firewall, security configuration, filesystem
 
 ## Phase 3 — Incident response
 

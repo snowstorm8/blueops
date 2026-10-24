@@ -1,0 +1,4 @@
+[
+  { "LogonId": "123456", "LogonType": 2,  "StartTime": "@@AGO:1@@", "User": "FIXTURE-WS01\\alice" },
+  { "LogonId": "234567", "LogonType": 10, "StartTime": "@@AGO:0@@", "User": "CORP\\bob" }
+]
