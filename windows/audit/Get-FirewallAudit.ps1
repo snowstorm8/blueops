@@ -94,7 +94,9 @@ function Invoke-BoFirewallModule {
             $ref = "$rs :: $n"
             $label = "$display app=$app svc=$svc proto=$proto lport=$lport remote=$ra"
             if (-not $builtIn) { Add-BoHit -Id 'FW-RULE-001' -Type 'registry' -Ref $ref -Excerpt $label }
-            if (-not $app -and -not $svc -and -not $proto -and -not $lport -and -not $ra) {
+            # AppContainer/capability-scoped rules (AppPkgId, LUAuth, ...) are not 'all traffic'.
+            $scoped = ((Get-BoProp $r 'AppPkgId' '') + (Get-BoProp $r 'LUAuth' '') + (Get-BoProp $r 'LUOwn' '') + (Get-BoProp $r 'Security' '') + (Get-BoProp $r 'Security2' '')) -ne ''
+            if (-not $scoped -and -not $app -and -not $svc -and -not $proto -and -not $lport -and -not $ra) {
                 Add-BoHit -Id 'FW-RULE-002' -Type 'registry' -Ref $ref -Excerpt $label
             }
             if ($app) {

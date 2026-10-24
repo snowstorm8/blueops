@@ -86,6 +86,23 @@ Describe 'firewall module' {
     }
 }
 
+Describe 'firewall AppContainer rules' {
+    It 'an inbound allow rule scoped to an app package or capability is not an all-traffic rule' {
+        $fx = Copy-BoTestFixture
+        try {
+            Edit-BoFixtureJson -Fixture $fx -Name 'registry' -Mutator {
+                param($reg)
+                $k = 'Registry::HKEY_LOCAL_MACHINE\SYSTEM\CurrentControlSet\Services\SharedAccess\Parameters\FirewallPolicy\FirewallRules'
+                $reg.PSObject.Properties[$k].Value.values | Add-Member -NotePropertyName 'AppX-In' -NotePropertyValue 'v2.31|Action=Allow|Active=TRUE|Dir=In|Name=Microsoft.Win32WebViewHost_cw5n1h2txyewy-In-Allow-ServerCapability|AppPkgId=S-1-15-2-1|LUAuth=O:LSD:|'
+            }
+            $r = Invoke-BoAuditJson -Fixture $fx -Modules @('firewall')
+            $f = Get-BoFinding $r 'FW-RULE-002'
+            if ($f) { Get-BoEvidenceText $f | Should -Not -Match 'WebViewHost' }
+        }
+        finally { Remove-BoTestFixture $fx }
+    }
+}
+
 Describe 'security configuration module' {
     BeforeAll { $script:Sec = Invoke-BoAuditJson -Fixture $script:Fx -Modules @('security') }
 

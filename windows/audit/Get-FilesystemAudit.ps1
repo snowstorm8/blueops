@@ -95,6 +95,7 @@ function Invoke-BoFilesystemModule {
         }
         $cutoff = [DateTime]::UtcNow.AddDays(-[int]$script:Bo.RecentDays)
         $recentSigned = 0
+        $unverified = 0
         $checked = 0
         foreach ($dir in @('C:\Windows\System32', 'C:\Windows\SysWOW64')) {
             $recent = @(Get-BoChildFile -Path $dir -MaxDepth 0 -Extension $binExt -Limit 60000 | Where-Object { $_.LastWriteUtc -gt $cutoff } | Sort-Object -Property LastWriteUtc -Descending)
@@ -103,9 +104,11 @@ function Invoke-BoFilesystemModule {
                 $checked++
                 $sig = Get-BoSignature -Path $f.FullPath
                 if ($sig.Status -eq 'Valid') { $recentSigned++; continue }
+                if ($sig.Status -eq 'Unknown') { $unverified++; continue }
                 Add-BoHit -Id 'FS-RECENT-001' -Type 'file' -Ref $f.FullPath -Excerpt "signature=$($sig.Status) modified=$($f.LastWriteUtc.ToString('yyyy-MM-ddTHH:mm:ssZ'))"
             }
         }
+        if ($unverified -gt 0) { Add-BoError -Code 'SIG_UNVERIFIED' -Message "$unverified recently changed system binaries could not be signature-checked; not reported as unsigned" -CheckId 'FS-RECENT-001' -Material $false }
         if ($recentSigned -gt 0) { Add-BoHit -Id 'FS-RECENT-002' -Type 'other' -Ref 'C:\Windows\System32' -Excerpt "$recentSigned signed binaries changed in the last $($script:Bo.RecentDays) day(s)" }
 
         $envKey = Get-BoRegKeyChecked -Path ($script:HKLM + '\SYSTEM\CurrentControlSet\Control\Session Manager\Environment') -CheckId 'FS-ACL-001'

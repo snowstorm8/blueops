@@ -167,6 +167,18 @@ Describe 'autoruns module' {
         finally { Remove-BoTestFixture $fx }
     }
 
+    It 'does not flag the stock VmApplet value, and still flags a replaced one' {
+        $fx = Copy-BoTestFixture
+        try {
+            $wl = 'Registry::HKEY_LOCAL_MACHINE\SOFTWARE\Microsoft\Windows NT\CurrentVersion\Winlogon'
+            Set-BoFixtureRegistryValue -Fixture $fx -Path $wl -Values @{ Shell = 'explorer.exe'; Userinit = 'C:\Windows\system32\userinit.exe,'; VmApplet = 'SystemPropertiesPerformance.exe /pagefile' }
+            Get-BoFinding (Invoke-BoAuditJson -Fixture $fx -Modules @('autoruns')) 'AUT-WINLOGON-001' | Should -BeNullOrEmpty
+            Set-BoFixtureRegistryValue -Fixture $fx -Path $wl -Values @{ Shell = 'explorer.exe'; Userinit = 'C:\Windows\system32\userinit.exe,'; VmApplet = 'C:\Users\Public\v.exe /pagefile' }
+            Get-BoEvidenceText (Get-BoFinding (Invoke-BoAuditJson -Fixture $fx -Modules @('autoruns')) 'AUT-WINLOGON-001') | Should -Match 'v\.exe'
+        }
+        finally { Remove-BoTestFixture $fx }
+    }
+
     It 'flags scripts in Startup folders and lists shortcuts separately' {
         Get-BoEvidenceText (Get-BoFinding $script:Aut 'AUT-STARTUP-001') | Should -Match 'update.vbs'
         $s = Get-BoEvidenceText (Get-BoFinding $script:Aut 'AUT-STARTUP-002')
@@ -255,6 +267,23 @@ Describe 'persistence module' {
             Set-BoFixtureRegistryValue -Fixture $fx -Path ('Registry::' + $Path) -Values $Values
             $r = Invoke-BoAuditJson -Fixture $fx -Modules @('persistence')
             Get-BoEvidenceText (Get-BoFinding $r $Id) | Should -Match ([regex]::Escape($Pattern))
+        }
+        finally { Remove-BoTestFixture $fx }
+    }
+
+    It 'accepts stock BootExecute, netsh helper and port monitor values but not look-alikes' {
+        $fx = Copy-BoTestFixture
+        try {
+            Set-BoFixtureRegistryValue -Fixture $fx -Path 'Registry::HKEY_LOCAL_MACHINE\SOFTWARE\Microsoft\NetSh' -Values @{ dnsclient = 'nshdnsclient.dll'; rpc = 'rpcnsh.dll' }
+            Set-BoFixtureRegistryValue -Fixture $fx -Path 'Registry::HKEY_LOCAL_MACHINE\SYSTEM\CurrentControlSet\Control\Print\Monitors\Virtual Port Monitor' -Values @{ Driver = 'VirtualMon.dll' }
+            Set-BoFixtureRegistryValue -Fixture $fx -Path 'Registry::HKEY_LOCAL_MACHINE\SYSTEM\CurrentControlSet\Control\Print\Monitors\WSD Port' -Values @{ Driver = 'APMon.dll' }
+            Edit-BoFixtureJson -Fixture $fx -Name 'registry' -Mutator {
+                param($reg)
+                $k = 'Registry::HKEY_LOCAL_MACHINE\SYSTEM\CurrentControlSet\Control\Session Manager'
+                $reg.PSObject.Properties[$k].Value.values.BootExecute = @('autocheck autochk /q /v *')
+            }
+            $r = Invoke-BoAuditJson -Fixture $fx -Modules @('persistence')
+            foreach ($id in 'PER-NETSH-001', 'PER-PORTMON-001', 'PER-BOOT-001') { Get-BoFinding $r $id | Should -BeNullOrEmpty }
         }
         finally { Remove-BoTestFixture $fx }
     }

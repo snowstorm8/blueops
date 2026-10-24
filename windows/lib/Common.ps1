@@ -622,7 +622,13 @@ function Get-BoExecutablePath {
     }
     $m = [regex]::Match($c, '(?i)^(.*?\.(exe|dll|sys|bat|cmd|com|scr|vbs|js|ps1|msi|cpl|hta))(\s|$|,)')
     if ($m.Success) { return $m.Groups[1].Value }
-    return ($c -split '\s+')[0]
+    # No recognised extension: keep tokens up to the first switch so 'C:\Program Files\x\tool /s' stays whole.
+    $parts = New-Object System.Collections.Generic.List[string]
+    foreach ($tok in ($c -split '\s+')) {
+        if ($parts.Count -gt 0 -and $tok -match '^[-/]') { break }
+        $parts.Add($tok)
+    }
+    return ($parts -join ' ')
 }
 
 function Get-BoPathZone {
@@ -649,7 +655,7 @@ function Get-BoPathZone {
         return 'appdata'
     }
     if ($p -match '^c:\\programdata\\') {
-        if ($p -match '^c:\\programdata\\(microsoft|package cache)\\') { return 'programdata-known' }
+        if ($p -match '^c:\\programdata\\(microsoft|package cache|chocolatey)\\') { return 'programdata-known' }
         return 'programdata'
     }
     if ($p -match '%programdata%') { return 'programdata' }

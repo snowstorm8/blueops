@@ -122,7 +122,7 @@ function Invoke-BoPersistenceModule {
     $smk = Get-BoRegKeyChecked -Path $sm -CheckId 'PER-BOOT-001'
     if ($null -ne $smk) {
         $be = Get-BoRegStringList (Get-BoProp $smk.Values 'BootExecute' @())
-        foreach ($b in $be) { if ($b.Trim() -notmatch '(?i)^autocheck autochk \*$') { Add-BoHit -Id 'PER-BOOT-001' -Type 'registry' -Ref "$sm :: BootExecute" -Excerpt $b } }
+        foreach ($b in $be) { if ($b.Trim() -notmatch '(?i)^autocheck autochk( /[a-z])* ?\*$') { Add-BoHit -Id 'PER-BOOT-001' -Type 'registry' -Ref "$sm :: BootExecute" -Excerpt $b } }
         foreach ($nme in @('SetupExecute', 'PlatformExecute')) {
             foreach ($b in (Get-BoRegStringList (Get-BoProp $smk.Values $nme @()))) { Add-BoHit -Id 'PER-BOOT-001' -Type 'registry' -Ref "$sm :: $nme" -Excerpt $b }
         }
@@ -149,7 +149,7 @@ function Invoke-BoPersistenceModule {
     # netsh helpers, time providers, port monitors
     $netsh = Get-BoRegKeyChecked -Path ($script:HKLM + '\SOFTWARE\Microsoft\NetSh') -CheckId 'PER-NETSH-001'
     if ($null -ne $netsh) {
-        $okNetsh = 'ifmon|rasmontr|authfwcfg|dhcpcmonitor|dot3cfg|fwcfg|hnetmon|netiohlp|nettrace|nshhttp|nshipsec|nshwfp|p2pnetsh|rpc|wcnnetsh|wshelper|wwancfg|whhelper|wlancfg|peerdistsh|nlmnetsh|netprofm|nfsnetsh|mbnmontr|wfpnetsh|rasmbn|hostednetworkmgr|netsh'
+        $okNetsh = 'ifmon|rasmontr|authfwcfg|dhcpcmonitor|dot3cfg|fwcfg|hnetmon|netiohlp|nettrace|nshhttp|nshipsec|nshwfp|p2pnetsh|rpc|wcnnetsh|wshelper|wwancfg|whhelper|wlancfg|peerdistsh|nlmnetsh|netprofm|nfsnetsh|mbnmontr|wfpnetsh|rasmbn|hostednetworkmgr|netsh|rpcnsh|nshdnsclient|mbnmcfg|netshell'
         foreach ($n in $netsh.Values.Keys) {
             $dll = [string]$netsh.Values[$n]
             $leaf = ($dll -split '\\')[-1] -replace '(?i)\.dll$', ''
@@ -172,7 +172,7 @@ function Invoke-BoPersistenceModule {
         foreach ($sub in $pmk.SubKeys) {
             $k = Get-BoRegKeyChecked -Path ($pm + '\' + $sub) -CheckId 'PER-PORTMON-001'
             $dll = [string](Get-BoProp $k.Values 'Driver' '')
-            if ($dll -and ($dll -notmatch '(?i)^(localspl|tcpmon|usbmon|wsdmon|appmon|mfmon|pjlmon|lprmon|fxsmon|hpmon)\.dll$')) { Add-BoHit -Id 'PER-PORTMON-001' -Type 'registry' -Ref "$pm\$sub :: Driver" -Excerpt $dll }
+            if ($dll -and ($dll -notmatch '(?i)^(localspl|tcpmon|usbmon|wsdmon|appmon|mfmon|pjlmon|lprmon|fxsmon|hpmon|virtualmon|apmon)\.dll$')) { Add-BoHit -Id 'PER-PORTMON-001' -Type 'registry' -Ref "$pm\$sub :: Driver" -Excerpt $dll }
         }
     }
 

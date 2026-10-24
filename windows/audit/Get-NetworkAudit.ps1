@@ -127,7 +127,7 @@ function Invoke-BoNetworkModule {
         $ref = "tcp $([string](Get-BoProp $c 'LocalAddress' '')):$([int](Get-BoProp $c 'LocalPort' 0)) -> $($remote):$rport"
         Add-BoHit -Id 'NET-ESTAB-001' -Type 'network' -Ref $ref -Excerpt "pid=$procId $pn"
         $public = -not (Test-BoPrivateAddress $remote)
-        if ($public -and $pn -and ($shellNames -contains $pn.ToLowerInvariant())) {
+        if ($public -and $pn -and $procId -ne $PID -and ($shellNames -contains $pn.ToLowerInvariant())) {
             $sev = 'high'
             if ($softShells -contains $pn.ToLowerInvariant()) { $sev = 'medium' }
             Add-BoHit -Id 'NET-ESTAB-002' -Type 'network' -Ref $ref -Excerpt "$pn (pid=$procId) -> $($remote):$rport" -Severity $sev

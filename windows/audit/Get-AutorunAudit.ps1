@@ -78,6 +78,7 @@ function Invoke-BoAutorunsModule {
         if ($userinit.Trim() -notmatch '(?i)^(c:\\windows\\system32\\|%systemroot%\\system32\\)userinit\.exe,?$') { Add-BoHit -Id 'AUT-WINLOGON-001' -Type 'registry' -Ref "$wl :: Userinit" -Excerpt $userinit }
         foreach ($extra in @('Taskman', 'AppSetup', 'VmApplet', 'System', 'UIHost')) {
             $v = [string](Get-BoProp $w.Values $extra '')
+            if ($extra -eq 'VmApplet' -and $v.Trim() -match '(?i)^((%systemroot%|c:\\windows)\\system32\\)?SystemPropertiesPerformance\.exe /pagefile$') { continue }
             if ($v.Trim() -ne '') { Add-BoHit -Id 'AUT-WINLOGON-001' -Type 'registry' -Ref "$wl :: $extra" -Excerpt $v }
         }
     }

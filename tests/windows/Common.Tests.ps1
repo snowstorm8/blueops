@@ -84,6 +84,7 @@ Describe 'path classification' {
         @{ Path = 'C:\Users\bob\AppData\Local\Programs\Microsoft VS Code\Code.exe'; Zone = 'appdata-known' }
         @{ Path = 'C:\ProgramData\Microsoft\Windows Defender\Platform\1\MsMpEng.exe'; Zone = 'programdata-known' }
         @{ Path = 'C:\ProgramData\Evil\a.exe'; Zone = 'programdata' }
+        @{ Path = 'C:\ProgramData\chocolatey\helpers\chocolateyScriptRunner.ps1'; Zone = 'programdata-known' }
         @{ Path = '%SystemRoot%\system32\svchost.exe'; Zone = 'system' }
         @{ Path = 'D:\Tools\a.exe'; Zone = 'other' }
     ) {
@@ -96,6 +97,8 @@ Describe 'path classification' {
         @{ Cmd = '%windir%\system32\SecurityHealthSystray.exe'; Exe = 'C:\Windows\system32\SecurityHealthSystray.exe' }
         @{ Cmd = '\SystemRoot\System32\smss.exe'; Exe = 'C:\Windows\System32\smss.exe' }
         @{ Cmd = '\??\C:\Windows\Temp\evil.sys'; Exe = 'C:\Windows\Temp\evil.sys' }
+        @{ Cmd = 'C:\Program Files (x86)\Google\Update\GoogleUpdate'; Exe = 'C:\Program Files (x86)\Google\Update\GoogleUpdate' }
+        @{ Cmd = 'C:\Program Files\A B\tool /s -q'; Exe = 'C:\Program Files\A B\tool' }
     ) {
         Get-BoExecutablePath $Cmd | Should -Be $Exe
     }
