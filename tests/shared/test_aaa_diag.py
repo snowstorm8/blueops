@@ -1,4 +1,3 @@
-import shutil
 import subprocess
 import sys
 
@@ -15,12 +14,14 @@ def ps(cmd):
 
 
 def test_diag():
-    q = "(Get-CimInstance Win32_Service -Filter \"Name='BITS'\").StartMode"
+    q = "(Get-CimInstance Win32_Service -Filter \"Name='BITS'\").StartMode + '/' + (Get-Service BITS).Status"
     out = ["start0=" + ps(q)]
-    out.append("start-after-cim=" + ps(q))
+    ps("Start-Service BITS")
+    out.append("started=" + ps(q))
     ps("Get-BitsTransfer -AllUsers | Out-Null")
-    out.append("after-getbits=" + ps(q))
-    ps("Get-Service | Out-Null; Get-ScheduledTask | Out-Null")
-    out.append("after-getsvc-tasks=" + ps(q))
-    assert shutil is not None
+    out.append("after-getbits-running=" + ps(q))
+    ps("Stop-Service BITS; Set-Service BITS -StartupType Manual")
+    out.append("reset=" + ps(q))
+    ps("bitsadmin /list /allusers | Out-Null")
+    out.append("after-bitsadmin=" + ps(q))
     pytest.fail(" ; ".join(out))
