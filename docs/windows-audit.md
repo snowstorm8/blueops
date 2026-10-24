@@ -62,6 +62,7 @@ Reports conform to `shared/schemas/audit-report.schema.json` (0.1.0). Inventory 
 
 - Findings are heuristics; many `medium`/`low` items have benign explanations. Detection is point-in-time and userland-only; a kernel-level implant can hide from every check.
 - Not elevated, the audit still runs but records `PERM_DENIED`-style gaps (other users' processes, services' paths, audit policy, some ACLs).
+- BITS jobs are listed only while the BITS service is running (`BITS_UNREADABLE` otherwise): starting a stopped BITS service changes its startup type from Manual to Automatic, which a read-only audit must not do.
 - Offline user hives, event-log analysis, Active Directory/domain controller checks, and memory inspection are not covered.
 - Windows PowerShell 5.1 and PowerShell 7 are supported; Constrained Language Mode hosts may degrade (reported as gaps).
 - Tests run against synthetic fixtures; behaviour on real Windows editions beyond the CI runners is unverified.

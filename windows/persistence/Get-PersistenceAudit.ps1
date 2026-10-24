@@ -236,6 +236,10 @@ function Invoke-BoPersistenceModule {
 
     # BITS jobs
     $bits = Invoke-BoProvider -Name 'bits.jobs' -ErrorCode 'BITS_UNREADABLE' -Message 'cannot enumerate BITS jobs (needs administrator)' -CheckId 'PER-BITS-001' -NonMaterial -Live {
+        # Starting BITS (which any Get-BitsTransfer/bitsadmin call does) flips its startup type from
+        # Manual to Automatic, so a stopped service is never queried.
+        $svc = Get-Service -Name 'BITS' -ErrorAction Stop
+        if ($svc.Status -ne 'Running') { throw 'BITS service is not running; not started because starting it changes its startup type' }
         Get-BitsTransfer -AllUsers -ErrorAction Stop | ForEach-Object {
             [pscustomobject]@{ DisplayName = [string]$_.DisplayName; JobState = [string]$_.JobState; OwnerAccount = [string]$_.OwnerAccount; NotifyCmdLine = [string]$_.NotifyCmdLine; Url = (@($_.FileList | ForEach-Object { [string]$_.RemoteName }) -join ',') }
         }
