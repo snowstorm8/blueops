@@ -81,7 +81,19 @@ def test_live_audit_is_valid_and_read_only(shell: str, script: Path) -> None:
     # No secret-looking material in the output.
     assert not re.search(r"(?i)(password|passwd|secret|token)\s*=\s*[^\s<*]{4,}", res.stdout)
 
-    assert _snapshot(shell) == before, "audit changed host state"
+    after = _snapshot(shell)
+    changed = {}
+    for key in before:
+        if before[key] != after[key]:
+            old, new = before[key], after[key]
+            if isinstance(old, list) and isinstance(new, list):
+                changed[key] = {
+                    "removed": [x for x in old if x not in new],
+                    "added": [x for x in new if x not in old],
+                }
+            else:
+                changed[key] = "differs"
+    assert not changed, f"audit changed host state: {changed}"
     assert _tree(ROOT / "windows") == repo_before
 
 
