@@ -79,12 +79,22 @@ setup() {
   refute evidence_has PER-SHELL-001 x11.sh
 }
 
-@test "x11: X11 runtime files are not reported as temporary executables or deceptive names" {
+@test "x11: real X11 sockets and lock files are not reported as temporary executables" {
+  D="${ROOT}/tmp/.X11-unix" python3 -c 'import os,socket; os.chdir(os.environ["D"]); socket.socket(socket.AF_UNIX).bind("X0")'
+  [ -S "${ROOT}/tmp/.X11-unix/X0" ]
   run_audit --modules filesystem
   refute evidence_has FS-PERM-003 ".X11-unix"
   refute evidence_has FS-PERM-003 ".X0-lock"
-  refute evidence_has FS-HIDDEN-001 ".X11-unix"
   evidence_has FS-PERM-003 /tmp/dropper
+}
+
+@test "x11: an executable regular file named like an X socket is still flagged" {
+  printf '#!/bin/sh\n' >"${ROOT}/tmp/.X11-unix/X0"
+  chmod 755 "${ROOT}/tmp/.X11-unix/X0"
+  echo '*/5 * * * * root /tmp/.X11-unix/X0' >"${ROOT}/etc/cron.d/x0"
+  run_audit --modules filesystem,persistence
+  evidence_has FS-PERM-003 ".X11-unix/X0"
+  evidence_has PER-CRON-002 x0
 }
 
 @test "x11: a script dropped into the X11 directory is still flagged" {
@@ -94,6 +104,14 @@ setup() {
   run_audit --modules filesystem,persistence
   evidence_has FS-PERM-003 payload.sh
   evidence_has PER-SHELL-001 evil.sh
+}
+
+@test "tmp heuristics: find -exec and cp from /tmp are not hidden by housekeeping exemptions" {
+  echo '0 * * * * root find /var -name x -exec sh /tmp/p.sh \;' >"${ROOT}/etc/cron.d/findexec"
+  echo '0 * * * * root cp /tmp/evil /usr/local/bin/helper' >"${ROOT}/etc/cron.d/cpstage"
+  run_audit --modules persistence
+  evidence_has PER-CRON-002 findexec
+  evidence_has PER-CRON-002 cpstage
 }
 
 @test "postgres: the packaged postgres shell is not flagged but is disclosed" {
@@ -153,6 +171,12 @@ setup() {
   [ "$(finding_sev PAM-PERMIT-001)" = "high" ]
   evidence_has PAM-PERMIT-001 login-bad
   evidence_has PAM-PERMIT-001 su-bad
+}
+
+@test "pam: bracketed success=done and pam_succeed_if uid>=0 bypasses are detected" {
+  run_audit --modules pam
+  evidence_has PAM-PERMIT-001 bypass2
+  evidence_has PAM-PERMIT-001 bypass3
 }
 
 @test "pam: the Debian default stack (pam_unix, pam_deny, pam_permit) is not flagged" {
@@ -246,7 +270,10 @@ setup() {
   evidence_has FS-PKG-002 /opt/app/data.bin
   local d
   d="$(json_py "[f for f in d['findings'] if f['id']=='FS-PKG-003'][0]['description']")"
-  [[ "${d}" == *"1 modified configuration file(s) and 1 documentation"* ]]
+  [[ "${d}" == *"1 modified security-sensitive configuration file(s); 1 other modified configuration file(s) and 1 documentation"* ]]
+  [ "$(finding_sev FS-PKG-004)" = "medium" ]
+  evidence_has FS-PKG-004 /etc/ssh/sshd_config
+  refute evidence_has FS-PKG-004 /etc/default/foo
 }
 
 @test "pkg: non-Debian hosts get a recorded gap and exit 6" {
@@ -266,4 +293,37 @@ setup() {
   [[ "${output}" == *"--package-integrity"* ]]
   run_audit --package-integrity --modules system
   json_py "1" >/dev/null
+}
+
+@test "pam: include/substack controls and dash-prefixed optional modules are not false positives" {
+  printf 'auth\tinclude\tcommon-auth\nsession\toptional\tpam_keyinit.so force revoke\n-session\toptional\tpam_systemd.so\nsession substack common-auth\n' >"${ROOT}/etc/pam.d/runuser-l"
+  chmod 644 "${ROOT}/etc/pam.d/runuser-l"
+  printf 'x' >"${ROOT}/lib/x86_64-linux-gnu/security/pam_keyinit.so"
+  run_audit --modules pam
+  refute evidence_has PAM-MODULE-002 runuser-l
+}
+
+@test "pam: a missing module without the dash prefix is still reported" {
+  printf 'session optional pam_systemd.so\n' >"${ROOT}/etc/pam.d/needs-systemd"
+  chmod 644 "${ROOT}/etc/pam.d/needs-systemd"
+  run_audit --modules pam
+  evidence_has PAM-MODULE-002 needs-systemd
+}
+
+@test "pkg: unprivileged live runs skip the check instead of trusting misleading dpkg output" {
+  [ "$(id -u)" != "0" ] || skip "needs a non-root user"
+  [ "$(uname -s)" = "Linux" ] || skip "needs a Linux host"
+  command -v dpkg >/dev/null 2>&1 || skip "needs dpkg"
+  unset BO_ROOT
+  run_audit --modules system --package-integrity
+  has_error PKG_NEEDS_ROOT
+}
+
+@test "suid: common Debian helper binaries are recognized" {
+  mkdir -p "${ROOT}/usr/sbin"
+  cp "${ROOT}/usr/bin/mystery" "${ROOT}/usr/sbin/pam_extrausers_chkpwd"
+  chmod 4755 "${ROOT}/usr/sbin/pam_extrausers_chkpwd"
+  run_audit --modules filesystem
+  evidence_has FS-SUID-001 pam_extrausers_chkpwd
+  refute evidence_has FS-SUID-003 pam_extrausers_chkpwd
 }

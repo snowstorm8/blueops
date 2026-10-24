@@ -23,23 +23,12 @@ _fs_roots() {
   return 0
 }
 
-# Standard X11/ICE/font socket directories under /tmp are created by display
-# managers and X servers; their contents are not "temporary executables".
-_fs_x11_runtime() {
-  case "$1" in
-    */.X11-unix | */.ICE-unix | */.font-unix | */.XIM-unix | */.Test-unix) return 0 ;;
-    */.X11-unix/* | */.ICE-unix/* | */.font-unix/* | */.XIM-unix/* | */.Test-unix/*) [[ "${1##*/}" != *.* ]] ;;
-    */.X[0-9]*-lock) return 0 ;;
-    *) return 1 ;;
-  esac
-}
-
 _fs_known_suid() {
   case "$1" in
     su | sudo | sudoedit | passwd | chsh | chfn | gpasswd | newgrp | chage | expiry | mount | umount | ping | ping6 | pkexec | fusermount | fusermount3 | \
       ssh-agent | ssh-keysign | crontab | at | wall | write | bsd-write | unix_chkpwd | pam_timestamp_check | polkit-agent-helper-1 | dbus-daemon-launch-helper | \
       Xorg.wrap | mount.nfs | mount.cifs | traceroute6.iputils | newuidmap | newgidmap | locate | mlocate | plocate | utempter | umount.nfs | userhelper | \
-      unix2_chkpwd | staprun | lppasswd | mtr-packet | snap-confine | ksu | vmware-user-suid-wrapper | chrome-sandbox | pppd | Xorg | doas) return 0 ;;
+      unix2_chkpwd | pam_extrausers_chkpwd | dotlockfile | sg | bwrap | eject | ntfs-3g | unix_update | mount.ecryptfs_private | ubuntu-core-launcher | pt_chown | lockfile | screen | dumpcap | procmail | smbmnt | staprun | lppasswd | mtr-packet | snap-confine | ksu | vmware-user-suid-wrapper | chrome-sandbox | pppd | Xorg | doas) return 0 ;;
     *) return 1 ;;
   esac
 }
@@ -119,7 +108,8 @@ _fs_suid() {
 
 _fs_recent() {
   local -a roots=() sysbin=() syslib=() etc=() other=()
-  local r f rel
+  local r f rel rootp
+  rootp="$(bo_root)"
   while IFS= read -r r; do roots+=("${r}"); done < <(_fs_roots /etc /bin /sbin /usr/bin /usr/sbin /usr/local /lib /lib64 /usr/lib /opt /root /home /var/spool /var/www /srv /tmp /var/tmp /dev/shm /boot)
   if ((${#roots[@]} == 0)); then
     bo_error NO_SCAN_ROOTS "no directories to scan for recent modifications" "FS-RECENT-001"
@@ -128,7 +118,7 @@ _fs_recent() {
   bo_find "${roots[@]}" -xdev -type f -mtime "-${BO_RECENT_DAYS}" >"${BO_SCRATCH}/recent.txt"
   while IFS= read -r f; do
     [[ -n "${f}" ]] || continue
-    rel="$(bo_unroot "${f}")"
+    rel="${f#"${rootp}"}"
     case "${rel}" in
       */__pycache__/* | *.pyc | */ld.so.cache | /etc/resolv.conf | /etc/mtab | /etc/adjtime | */random-seed | /etc/machine-id | /etc/hosts.* | /etc/.updated) continue ;;
       /bin/* | /sbin/* | /usr/bin/* | /usr/sbin/* | /usr/local/bin/* | /usr/local/sbin/*) sysbin+=("file|${rel}") ;;
@@ -164,8 +154,8 @@ _fs_perms() {
     while IFS= read -r f; do [[ -n "${f}" ]] && hidden+=("file|$(bo_unroot "${f}")|name made of dots/spaces"); done < <(bo_find "${sysroots[@]}" -xdev \( -name '...*' -o -name '.. *' -o -name '. *' \))
   fi
   if ((${#tmproots[@]} > 0)); then
-    while IFS= read -r f; do [[ -n "${f}" ]] && ! _fs_x11_runtime "${f}" && exe+=("file|$(bo_unroot "${f}")|mode $(bo_mode "${f}" || echo '?')"); done < <(bo_find "${tmproots[@]}" -xdev -type f \( -perm -0100 -o -perm -0010 -o -perm -0001 \))
-    while IFS= read -r f; do [[ -n "${f}" ]] && ! _fs_x11_runtime "${f}" && hidden+=("file|$(bo_unroot "${f}")|name made of dots/spaces"); done < <(bo_find "${tmproots[@]}" -xdev \( -name '...*' -o -name '.. *' -o -name '. *' \))
+    while IFS= read -r f; do [[ -n "${f}" ]] && exe+=("file|$(bo_unroot "${f}")|mode $(bo_mode "${f}" || echo '?')"); done < <(bo_find "${tmproots[@]}" -xdev -type f \( -perm -0100 -o -perm -0010 -o -perm -0001 \))
+    while IFS= read -r f; do [[ -n "${f}" ]] && hidden+=("file|$(bo_unroot "${f}")|name made of dots/spaces"); done < <(bo_find "${tmproots[@]}" -xdev \( -name '...*' -o -name '.. *' -o -name '. *' \))
   fi
   ((${#ww[@]} > 0)) && bo_finding FS-PERM-001 medium high filesystem "World-writable files in system directories" \
     "Any user can modify these files." "Remove other-write (chmod o-w) after confirming no service depends on it." "T1222.002" "${ww[@]}"
@@ -211,6 +201,11 @@ _fs_pkg() {
     bo_error PKG_UNSUPPORTED "--package-integrity needs a Debian-family system with dpkg; check skipped" "FS-PKG-001"
     return 0
   fi
+  if ! bo_is_root && [[ -z "${BO_ROOT:-}" ]]; then
+    # dpkg cannot read root-only files (e.g. /etc/sudoers) and reports them as changed.
+    bo_error PKG_NEEDS_ROOT "--package-integrity needs root: dpkg --verify misreports files it cannot read; check skipped" "FS-PKG-001"
+    return 0
+  fi
   local out="${BO_SCRATCH}/pkg.txt" err="${BO_SCRATCH}/pkg.err" kind flags path rest
   local -a lim=()
   if bo_have timeout; then lim=(timeout 1800); fi
@@ -218,14 +213,23 @@ _fs_pkg() {
   if [[ -s "${err}" ]]; then
     bo_perm_error "dpkg --verify reported errors (e.g. unreadable files); results may be incomplete" "FS-PKG-001"
   fi
-  local -a crit=() other=()
+  local -a crit=() other=() sens=()
   local nconf=0 ndoc=0
   while IFS=' ' read -r flags rest; do
     [[ -n "${flags}" ]] || continue
     kind=modified
     [[ "${flags}" == missing ]] && kind=missing
     if [[ "${rest}" == "c "* ]]; then
-      nconf=$((nconf + 1))
+      path="${rest#c }"
+      path="${path#"${path%%[![:space:]]*}"}"
+      # Conffiles change legitimately, but not these: they are authentication, remote
+      # access, scheduling, boot and privilege configuration.
+      case "${path}" in
+        /etc/pam.d/* | /etc/pam.conf | /etc/security/* | /etc/ssh/* | /etc/sudoers | /etc/sudoers.d/* | /etc/cron* | /etc/init.d/* | /etc/systemd/* | /etc/ld.so* | /etc/profile | /etc/profile.d/* | /etc/bash.bashrc | /etc/rc.local | /etc/ssl/* | /etc/ca-certificates* | /etc/apt/* | /etc/nsswitch.conf | /etc/hosts.allow | /etc/hosts.deny)
+          sens+=("file|${path}|${kind} ${flags}")
+          ;;
+        *) nconf=$((nconf + 1)) ;;
+      esac
       continue
     fi
     path="${rest#"${rest%%[![:space:]]*}"}"
@@ -241,10 +245,13 @@ _fs_pkg() {
     esac
   done <"${out}"
   bo_finding FS-PKG-003 info high filesystem "Package integrity summary" \
-    "dpkg --verify: ${#crit[@]} modified program/library file(s), ${#other[@]} other discrepancy(ies); ${nconf} modified configuration file(s) and ${ndoc} documentation file(s) not listed (expected to change)." "" ""
+    "dpkg --verify: ${#crit[@]} modified program/library file(s), ${#other[@]} other discrepancy(ies); ${#sens[@]} modified security-sensitive configuration file(s); ${nconf} other modified configuration file(s) and ${ndoc} documentation file(s) not listed (expected to change)." "" ""
   ((${#crit[@]} > 0)) && bo_finding FS-PKG-001 high medium filesystem "Installed programs or libraries differ from their package checksums" \
     "Flags: 5 = content (MD5) changed, S size, T mtime, U/G owner. Content changes outside a package upgrade indicate trojanized binaries." \
     "Reinstall the package from a trusted source after preserving the file (apt install --reinstall PKG)." "T1554" "${crit[@]}"
+  ((${#sens[@]} > 0)) && bo_finding FS-PKG-004 medium low filesystem "Security-sensitive configuration differs from the package default" \
+    "Packaged configuration under PAM, SSH, sudo, cron, systemd, boot scripts and TLS trust. Local administrators change these on purpose; so do attackers." \
+    "Compare with a known-good copy (dpkg-query/apt-get download) and your change log." "T1556.003" "${sens[@]}"
   ((${#other[@]} > 0)) && bo_finding FS-PKG-002 medium low filesystem "Other packaged files modified or missing" \
     "Files outside the main program directories, and packaged files that were removed." \
     "Compare with your change log; reinstall the owning package if the change is unexplained." "T1565.001" "${other[@]}"

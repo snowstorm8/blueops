@@ -20,7 +20,7 @@ Run as root for full coverage; unprivileged runs work but record the gaps (`NOT_
 | `--fail-on SEV` | Lowest severity that yields exit 4 (default `medium`). |
 | `--recent-days N` | Window for "recently modified" (default 3). |
 | `--fs-path DIR` | Restrict filesystem scans to DIR (repeatable). |
-| `--package-integrity` | Opt-in: verify installed files against Debian package checksums with `dpkg --verify` (read-only, hashes every packaged file, can take minutes). Debian/Ubuntu only; elsewhere records `PKG_UNSUPPORTED` and exits 6. |
+| `--package-integrity` | Opt-in: verify installed files against Debian package checksums with `dpkg --verify` (read-only, hashes every packaged file, can take minutes). Debian/Ubuntu only and root only (`dpkg --verify` misreports files it cannot read); otherwise records `PKG_UNSUPPORTED` / `PKG_NEEDS_ROOT` and exits 6. |
 | `--quiet`, `--verbose`, `--no-color` | Output control. |
 
 Each module is also runnable alone (`audit-system.sh`, `audit-users.sh`, `audit-pam.sh`, `audit-processes.sh`, `audit-network.sh`, `audit-services.sh`, `audit-filesystem.sh`, and `linux/persistence/check-persistence.sh`) with the same options except `--modules`.
@@ -48,9 +48,11 @@ Reports conform to `shared/schemas/audit-report.schema.json` (0.1.0), which has 
 
 ## Contextual heuristics (false-positive control)
 
-- Housekeeping commands (`rm`, `find`, `ls`, `tmpreaper`, ...) naming `/tmp` are not "execution from a world-writable directory". Standard X11/ICE/font socket paths (`/tmp/.X11-unix[/X0]`, `.ICE-unix`, `.X0-lock`) are ignored, but scripts placed inside them are still reported.
+- Housekeeping commands that only *name* a path (`rm`, `ls`, `chmod`, `mkdir`, `test`, `tmpreaper`, ...) are not "execution from a world-writable directory". `find ... -exec CMD`, `cp`, `mv` and `tar` are deliberately **not** exempt, because they run or stage files from `/tmp`.
+- Standard X11/ICE socket paths are ignored only inside test brackets (`[ -S /tmp/.X11-unix/X0 ]`) and `ICEAUTHORITY`/`XAUTHORITY` assignments, never as a command or script argument, in `ExecStart=`, or in a cron command. Real X sockets are not regular files, so any *regular* executable under `/tmp/.X11-unix` is still reported.
 - The `postgres` account's login shell is expected only when its home is a package path (`/var/lib/postgresql`, `/var/lib/pgsql`); it is disclosed in `USR-INFO-001` rather than flagged. Other accounts, and `postgres` with another home, are still flagged.
-- `pam_permit` is only reported as `sufficient` in `auth`, or as the sole authenticating module of a file with no `@include`.
+- `pam_permit` is reported as `sufficient`/`success=done`/`ok` in `auth`, or as the sole authenticating module of a file with no `@include`; `pam_succeed_if uid >= 0` bypasses are reported likewise.
+- `--package-integrity` does not list ordinary modified conffiles or documentation, but does list conffiles under PAM, SSH, sudo, cron, systemd, boot scripts and TLS trust (`FS-PKG-004`).
 - SUID/SGID scanning walks every local mount point from `/proc/mounts` (ext*/xfs/btrfs/zfs/f2fs/vfat/overlay...), de-duplicated; network and pseudo filesystems are skipped.
 
 ## Known limitations

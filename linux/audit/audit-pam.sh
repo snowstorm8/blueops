@@ -20,14 +20,15 @@ _pam_parse() {
       if (svc == 1) i++
       t = a[i]
       if (t == "@include") { print file "\t@include\t-\t" a[i+1] "\t-"; next }
-      sub(/^-/, "", t)
+      dash = (t ~ /^-/); sub(/^-/, "", t)
       if (t !~ /^(auth|account|password|session)$/) next
       i++; c = a[i]
+      if (c == "include" || c == "substack") { print file "\t@include\t-\t" a[i+1] "\t-"; next }
       if (c ~ /^\[/) { while (c !~ /\]$/ && i < n) { i++; c = c "_" a[i] } }
       i++; m = a[i]; args = ""
       for (j = i + 1; j <= n; j++) args = args (j > i + 1 ? " " : "") a[j]
       if (m == "") next
-      print file "\t" t "\t" c "\t" m "\t" (args == "" ? "-" : args) }' "${f}"
+      print file "\t" (dash ? "-" : "") t "\t" c "\t" m "\t" (args == "" ? "-" : args) }' "${f}"
 }
 
 _pam_security_dirs() {
@@ -83,15 +84,27 @@ mod_pam() {
       real=1
       continue
     fi
+    # "-type" means the module may legitimately be absent (no log, no failure).
+    local optional=0
+    if [[ "${type}" == -* ]]; then
+      optional=1
+      type="${type#-}"
+    fi
     nrules=$((nrules + 1))
     [[ "${modules}" == *" ${mod##*/} "* ]] || modules+="${mod##*/} "
     if [[ "${type}" == "auth" ]]; then
       case "${mod##*/}" in
         pam_permit.so)
-          if [[ "${ctl}" == "sufficient" ]]; then
+          if [[ "${ctl}" == "sufficient" || "${ctl}" == *=done* || "${ctl}" == *=ok* ]]; then
             permit+=("file|${file}|auth sufficient pam_permit.so accepts any user without a password check")
           elif [[ "${ctl}" == "required" || "${ctl}" == "requisite" ]] && [[ "${real}" == 0 ]]; then
             permit+=("file|${file}|auth ${ctl} pam_permit.so with no earlier authenticating module in this file")
+          fi
+          ;;
+        pam_succeed_if.so)
+          # "auth sufficient pam_succeed_if.so uid >= 0" (or similar) accepts everyone.
+          if [[ ("${ctl}" == "sufficient" || "${ctl}" == *=done* || "${ctl}" == *=ok*) && "${args}" =~ uid[[:space:]]*\>=?[[:space:]]*0([[:space:]]|$) ]]; then
+            permit+=("file|${file}|auth ${ctl} pam_succeed_if.so ${args} matches every user")
           fi
           ;;
         pam_unix.so | pam_sss.so | pam_ldap.so | pam_krb5.so | pam_winbind.so | pam_google_authenticator.so | pam_radius_auth.so | pam_u2f.so | pam_fprintd.so) real=1 ;;
@@ -109,7 +122,7 @@ mod_pam() {
         /lib/security/* | /lib64/security/* | /usr/lib/security/* | /usr/lib64/security/* | /lib/*/security/* | /usr/lib/*/security/*) ;;
         *) abspath+=("file|${file}|${type} ${ctl} ${mod}") ;;
       esac
-    elif ((${#dirs[@]} > 0)); then
+    elif ((${#dirs[@]} > 0)) && [[ "${optional}" == 0 ]]; then
       local found=0 d
       for d in "${dirs[@]}"; do [[ -e "${d}/${mod}" ]] && found=1 && break; done
       ((found)) || unknown+=("file|${file}|${type} ${ctl} ${mod}: not found in the system PAM module directories")
