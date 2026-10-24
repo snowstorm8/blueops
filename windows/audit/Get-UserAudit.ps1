@@ -67,6 +67,9 @@ function Invoke-BoUsersModule {
             $state = 'enabled'
             if ($disabled) { $state = 'disabled' }
             Add-BoHit -Id 'USR-INFO-001' -Type 'other' -Ref "user:$name" -Excerpt "$state sid=$sid passwordRequired=$pwdReq passwordExpires=$pwdExp"
+            if ($sid) {
+                Add-BoInventory -Domain 'users' -Key "user:$sid" -Attrs @{ name = $name; enabled = (-not $disabled); password_required = $pwdReq; password_expires = $pwdExp }
+            }
             if ($sid -match '-503$' -or $sid -match '-504$') { continue }
             if (-not $disabled) {
                 $enabledAdminCandidates[$name.ToLowerInvariant()] = $sid
@@ -81,6 +84,9 @@ function Invoke-BoUsersModule {
 
     $admins = Get-BoLocalGroupMember -Sid 'S-1-5-32-544' -DataName 'group.administrators' -CheckId 'USR-ADMIN-001'
     if ($null -ne $admins) {
+        Add-BoInventory -Domain 'groups' -Key 'group:S-1-5-32-544' -Attrs @{ name = 'Administrators'; members = @($admins | ForEach-Object { [string](Get-BoProp $_ 'SID' '') } | Where-Object { $_ }) }
+    }
+    if ($null -ne $admins) {
         foreach ($m in $admins) {
             $mName = [string](Get-BoProp $m 'Name' '')
             $mSid = [string](Get-BoProp $m 'SID' '')
@@ -92,6 +98,9 @@ function Invoke-BoUsersModule {
         }
     }
     $rdp = Get-BoLocalGroupMember -Sid 'S-1-5-32-555' -DataName 'group.remotedesktopusers' -CheckId 'USR-RDP-001'
+    if ($null -ne $rdp) {
+        Add-BoInventory -Domain 'groups' -Key 'group:S-1-5-32-555' -Attrs @{ name = 'Remote Desktop Users'; members = @($rdp | ForEach-Object { [string](Get-BoProp $_ 'SID' '') } | Where-Object { $_ }) }
+    }
     if ($null -ne $rdp) {
         foreach ($m in $rdp) { Add-BoHit -Id 'USR-RDP-001' -Type 'other' -Ref "rdpuser:$([string](Get-BoProp $m 'Name' ''))" -Excerpt "sid=$([string](Get-BoProp $m 'SID' ''))" }
     }

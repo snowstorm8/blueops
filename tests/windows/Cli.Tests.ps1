@@ -69,7 +69,7 @@ Describe 'report shape' {
     It 'emits schema-shaped JSON with exit code 4 when findings exist' {
         $script:Full.ExitCode | Should -Be 4
         $j = $script:Full.Json
-        $j.schema_version | Should -Be '0.1.0'
+        $j.schema_version | Should -Be '0.2.0'
         $j.tool.name | Should -Be 'audit-windows'
         $j.tool.category | Should -Be 'audit'
         $j.run.mode | Should -Be 'read-only'

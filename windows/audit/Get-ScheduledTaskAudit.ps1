@@ -52,6 +52,7 @@ function Invoke-BoTasksModule {
         }
     }
     $tasks = @()
+    $taskFull = $true
     if ($res.Ok) { $tasks = @($res.Data) }
     else {
         $fb = Invoke-BoProvider -Name 'tasks.schtasks' -ErrorCode 'TASKS_UNAVAILABLE' -Message 'schtasks fallback failed; no scheduled task inventory' -CheckId 'TSK-INFO-001' -Text -Live {
@@ -59,6 +60,8 @@ function Invoke-BoTasksModule {
         }
         if ($fb.Ok) {
             $tasks = @(ConvertFrom-BoSchtasksCsv -Text $fb.Data)
+            $taskFull = $false
+            Add-BoCoverage -Domain 'scheduled_tasks' -Scope 'tasks' -Status 'degraded' -Reason 'schtasks fallback: hidden flag, run level, triggers and extra actions unknown'
             Add-BoError -Code 'TASKS_FALLBACK' -Message 'task data came from schtasks (Get-ScheduledTask unavailable); hidden flag and multiple actions are not visible' -CheckId 'TSK-HIDDEN-001' -Material $false
         }
     }
@@ -75,6 +78,14 @@ function Invoke-BoTasksModule {
         }
         $privileged = ($user -match '(?i)^(SYSTEM|NT AUTHORITY\\SYSTEM|S-1-5-18)$' -or $runLevel -match 'Highest')
         $ref = "task:$full"
+        $invActions = @($actions | ForEach-Object { Protect-BoText (([string](Get-BoProp $_ 'Execute' '') + ' ' + [string](Get-BoProp $_ 'Arguments' '')).Trim()) 500 })
+        $invHidden = $null; $invLevel = $null; $invTrig = $null
+        if ($taskFull) {
+            $invHidden = [bool](Get-BoProp $t 'Hidden' $false)
+            $invLevel = $runLevel
+            $invTrig = @(Get-BoProp $t 'Triggers' @())
+        }
+        Add-BoInventory -Domain 'scheduled_tasks' -Scope 'tasks' -Key "task:$($full.ToLowerInvariant())" -Attrs @{ name = $full; user = $user; run_level = $invLevel; hidden = $invHidden; actions = $invActions; triggers = $invTrig } -Volatile @{ state = [string](Get-BoProp $t 'State' '') } -EvidenceType 'other' -EvidenceRef $ref
         foreach ($a in $actions) {
             $exe = [string](Get-BoProp $a 'Execute' '')
             $argText = [string](Get-BoProp $a 'Arguments' '')

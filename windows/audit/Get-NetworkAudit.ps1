@@ -76,6 +76,7 @@ function Invoke-BoNetworkModule {
         }
         else {
             Add-BoError -Code 'SOCKETS_MISSING' -Message 'no socket inventory could be produced' -CheckId 'NET-LISTEN-001' -Material $true
+            Add-BoCoverage -Domain 'listeners' -Status 'unavailable' -Reason 'no socket inventory could be produced'
         }
     }
 
@@ -100,6 +101,11 @@ function Invoke-BoNetworkModule {
         if ($procs.ContainsKey($procId)) { $pn = [string](Get-BoProp $procs[$procId] 'Name' ''); $pp = [string](Get-BoProp $procs[$procId] 'ExecutablePath' '') }
         $ref = "$proto $($addr):$port"
         Add-BoHit -Id 'NET-LISTEN-001' -Type 'network' -Ref $ref -Excerpt "pid=$procId $pn $pp"
+        # Ephemeral ports are re-keyed by the comparison engine; the owning pid is volatile.
+        $invProc = $null
+        if ($pn) { $invProc = $pn.ToLowerInvariant() }
+        elseif ($procId -eq 0) { $invProc = '' }
+        Add-BoInventory -Domain 'listeners' -Key "listener:$proto/$($addr.ToLowerInvariant())/$port" -Attrs @{ proto = $proto; bind = $addr; port = [string]$port; process = $invProc } -Volatile @{ pid = [string]$procId } -EvidenceType 'network' -EvidenceRef $ref
         $loop = Test-BoLoopbackAddress $addr
         if (-not $loop) {
             if ($high.ContainsKey($port)) { Add-BoHit -Id 'NET-EXPOSE-001' -Type 'network' -Ref $ref -Excerpt "$($high[$port]) pid=$procId $pn" }
@@ -147,6 +153,7 @@ function Invoke-BoNetworkModule {
             $dns = @(Get-BoProp $n 'DNSServerSearchOrder' @()) -join ','
             Add-BoHit -Id 'NET-IFACE-001' -Type 'other' -Ref "adapter:$d" -Excerpt "ip=$ips gw=$gw dhcp=$([string](Get-BoProp $n 'DHCPEnabled' ''))"
             if ($dns) { Add-BoHit -Id 'NET-DNS-001' -Type 'other' -Ref "adapter:$d" -Excerpt "dns=$dns" }
+            Add-BoInventory -Domain 'config' -Scope 'network' -Key "config:dns:$($d.ToLowerInvariant())" -Attrs @{ adapter = $d; servers = @(Get-BoProp $n 'DNSServerSearchOrder' @()) } -EvidenceType 'other' -EvidenceRef "adapter:$d"
         }
     }
 
@@ -167,6 +174,7 @@ function Invoke-BoNetworkModule {
             foreach ($n in $names) { if ($n -ne 'localhost' -and $n -ne 'localhost.localdomain' -and $n -ne 'broadcasthost' -and ($selfName -eq '' -or $n -ne $selfName.ToLowerInvariant())) { $keep += $n } }
             if ($keep.Count -eq 0) { continue }
             Add-BoHit -Id 'NET-HOSTS-001' -Type 'file' -Ref $hostsPath -Excerpt "$($parts[0]) $($keep -join ' ')"
+            foreach ($hn in $keep) { Add-BoInventory -Domain 'config' -Scope 'network' -Key "config:hosts:$($parts[0].ToLowerInvariant())/$($hn.ToLowerInvariant())" -Attrs @{ address = $parts[0]; name = $hn } -EvidenceType 'file' -EvidenceRef $hostsPath }
             if (($keep -join ' ') -match $vendors) { Add-BoHit -Id 'NET-HOSTS-002' -Type 'file' -Ref $hostsPath -Excerpt "$($parts[0]) $($keep -join ' ')" }
         }
         if (-not $script:Bo.Elevated) { Write-BoLog 'DEBUG' 'hosts file read as non-admin' }
@@ -182,6 +190,9 @@ function Invoke-BoNetworkModule {
         $enable = Get-BoProp $key.Values 'ProxyEnable' 0
         $server = [string](Get-BoProp $key.Values 'ProxyServer' '')
         $pac = [string](Get-BoProp $key.Values 'AutoConfigURL' '')
+        $proxyId = 'machine'
+        if ($k[0] -match '(S-1-5-21-[\d-]+)') { $proxyId = $Matches[1] }
+        Add-BoInventory -Domain 'config' -Scope 'network' -Key "config:proxy:$($proxyId.ToLowerInvariant())" -Attrs @{ enabled = ([int]$enable -eq 1); server = ([regex]::Replace($server, '//[^/@\s]*@', '//<redacted>@')); pac = ([regex]::Replace($pac, '//[^/@\s]*@', '//<redacted>@')) } -EvidenceType 'registry' -EvidenceRef $k[0]
         if (([int]$enable -eq 1 -and $server) -or $pac) {
             Add-BoHit -Id 'NET-PROXY-001' -Type 'registry' -Ref $k[0] -Excerpt "scope=$($k[1]) proxy=$server pac=$pac"
         }
@@ -194,10 +205,12 @@ function Invoke-BoNetworkModule {
             if ($n -match '^([A-Za-z]\$|ADMIN\$|IPC\$)$') { continue }
             $path = [string](Get-BoProp $s 'Path' '')
             Add-BoHit -Id 'NET-SHARE-001' -Type 'other' -Ref "share:$n" -Excerpt "path=$path"
+            Add-BoInventory -Domain 'config' -Scope 'network' -Key "config:share:$($n.ToLowerInvariant())" -Attrs @{ name = $n; path = $path } -EvidenceType 'other' -EvidenceRef "share:$n"
             if ($n.EndsWith('$')) { Add-BoHit -Id 'NET-SHARE-002' -Type 'other' -Ref "share:$n" -Excerpt "path=$path" }
         }
     }
     $fwd = Get-BoRegValue -Path ($script:HKLM + '\SYSTEM\CurrentControlSet\Services\Tcpip\Parameters') -Name 'IPEnableRouter' -Default 0
+    Add-BoInventory -Domain 'config' -Scope 'network' -Key 'config:ip_forward' -Attrs @{ enabled = ([int]$fwd -eq 1) } -EvidenceType 'registry' -EvidenceRef ($script:HKLM + '\SYSTEM\CurrentControlSet\Services\Tcpip\Parameters :: IPEnableRouter')
     if ([int]$fwd -eq 1) { Add-BoHit -Id 'NET-FWD-001' -Type 'registry' -Ref ($script:HKLM + '\SYSTEM\CurrentControlSet\Services\Tcpip\Parameters') -Excerpt 'IPEnableRouter=1' }
     Publish-BoCheck
 }

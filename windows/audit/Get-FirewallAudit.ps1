@@ -60,6 +60,7 @@ function Invoke-BoFirewallModule {
         if ($null -ne $gpo -and $gpo.Values.Count -gt 0) { $src = 'policy' }
         $enabled = [int](Get-BoProp $vals 'EnableFirewall' 1)
         $inbound = [int](Get-BoProp $vals 'DefaultInboundAction' 1)
+        Add-BoInventory -Domain 'config' -Scope 'firewall' -Key "config:firewall:profile:$($p[1].ToLowerInvariant())" -Attrs @{ enabled = ($enabled -ne 0); default_inbound = $(if ($inbound -eq 0) { 'allow' } else { 'block' }); source = $src } -EvidenceType 'registry' -EvidenceRef "$fp\$($p[0])"
         if ($enabled -eq 0) { Add-BoHit -Id 'FW-PROFILE-001' -Type 'registry' -Ref "$fp\$($p[0]) :: EnableFirewall" -Excerpt "$($p[1]) profile disabled ($src)" }
         elseif ($inbound -eq 0) { Add-BoHit -Id 'FW-DEFAULT-001' -Type 'registry' -Ref "$fp\$($p[0]) :: DefaultInboundAction" -Excerpt "$($p[1]) profile allows inbound by default ($src)" }
         if ($enabled -ne 0) {
@@ -83,6 +84,7 @@ function Invoke-BoFirewallModule {
         foreach ($n in $rk.Values.Keys) {
             $r = ConvertFrom-BoFirewallRule ([string]$rk.Values[$n])
             $total++
+            Add-BoInventory -Domain 'config' -Scope 'firewall' -Key "config:firewall:rule:$($rs.ToLowerInvariant())::$($n.ToLowerInvariant())" -Attrs @{ name = [string](Get-BoProp $r 'Name' $n); active = ((Get-BoProp $r 'Active' 'FALSE') -eq 'TRUE'); direction = [string](Get-BoProp $r 'Dir' ''); action = [string](Get-BoProp $r 'Action' ''); app = [string](Get-BoProp $r 'App' ''); service = [string](Get-BoProp $r 'Svc' ''); protocol = [string](Get-BoProp $r 'Protocol' ''); local_ports = [string](Get-BoProp $r 'LPort' ''); remote = ([string](Get-BoProp $r 'RA4' '') + [string](Get-BoProp $r 'RA6' '')) } -EvidenceType 'registry' -EvidenceRef "$rs :: $n"
             if ((Get-BoProp $r 'Active' 'FALSE') -ne 'TRUE' -or (Get-BoProp $r 'Dir' '') -ne 'In' -or (Get-BoProp $r 'Action' '') -ne 'Allow') { continue }
             $display = [string](Get-BoProp $r 'Name' $n)
             $builtIn = ($display.StartsWith('@') -or $display -match '^\{[0-9A-Fa-f-]{36}\}$')

@@ -45,6 +45,9 @@ function Invoke-BoAutorunsModule {
                 $data = [string]$key.Values[$n]
                 $ref = "$keyPath :: $n"
                 Add-BoHit -Id 'AUT-RUN-001' -Type 'registry' -Ref $ref -Excerpt "scope=$($scope[1]) data=$data"
+                $scopeId = ($scope[0] -split '\\')[-1]
+                if ($scope[1] -eq 'machine') { $scopeId = 'machine' }
+                Add-BoInventory -Domain 'persistence' -Scope 'autoruns' -Key "persist:run:$($scopeId.ToLowerInvariant()):$($rel.ToLowerInvariant()):$($n.ToLowerInvariant())" -Attrs @{ name = $n; data = (Protect-BoText $data 500) } -EvidenceType 'registry' -EvidenceRef $ref
                 $reasons = Get-BoCommandReason $data
                 if ($reasons.Strong.Count -gt 0) { Add-BoHit -Id 'AUT-CMD-001' -Type 'registry' -Ref $ref -Excerpt "$($reasons.Strong -join '; '): $data" }
                 $risk = Get-BoTargetRisk $data
@@ -61,6 +64,7 @@ function Invoke-BoAutorunsModule {
             if ($null -eq $k -or -not $k.Values.ContainsKey('StubPath')) { continue }
             $data = [string]$k.Values['StubPath']
             $ref = "$asRoot\$sub :: StubPath"
+            Add-BoInventory -Domain 'persistence' -Scope 'autoruns' -Key "persist:activesetup:$($sub.ToLowerInvariant())" -Attrs @{ stub_path = (Protect-BoText $data 500) } -EvidenceType 'registry' -EvidenceRef $ref
             $reasons = Get-BoCommandReason $data
             if ($reasons.Strong.Count -gt 0) { Add-BoHit -Id 'AUT-CMD-001' -Type 'registry' -Ref $ref -Excerpt "$($reasons.Strong -join '; '): $data" }
             $risk = Get-BoTargetRisk $data
@@ -74,6 +78,8 @@ function Invoke-BoAutorunsModule {
     if ($null -ne $w) {
         $shell = [string](Get-BoProp $w.Values 'Shell' 'explorer.exe')
         $userinit = [string](Get-BoProp $w.Values 'Userinit' 'C:\Windows\system32\userinit.exe,')
+        Add-BoInventory -Domain 'persistence' -Scope 'autoruns' -Key 'persist:winlogon:shell' -Attrs @{ value = (Protect-BoText $shell 500) } -EvidenceType 'registry' -EvidenceRef "$wl :: Shell"
+        Add-BoInventory -Domain 'persistence' -Scope 'autoruns' -Key 'persist:winlogon:userinit' -Attrs @{ value = (Protect-BoText $userinit 500) } -EvidenceType 'registry' -EvidenceRef "$wl :: Userinit"
         if ($shell.Trim() -ne '' -and $shell.Trim() -notmatch '(?i)^explorer\.exe$') { Add-BoHit -Id 'AUT-WINLOGON-001' -Type 'registry' -Ref "$wl :: Shell" -Excerpt $shell }
         if ($userinit.Trim() -notmatch '(?i)^(c:\\windows\\system32\\|%systemroot%\\system32\\)userinit\.exe,?$') { Add-BoHit -Id 'AUT-WINLOGON-001' -Type 'registry' -Ref "$wl :: Userinit" -Excerpt $userinit }
         foreach ($extra in @('Taskman', 'AppSetup', 'VmApplet', 'System', 'UIHost')) {
@@ -91,6 +97,7 @@ function Invoke-BoAutorunsModule {
     foreach ($f in $folders) {
         foreach ($file in (Get-BoChildFile -Path $f -MaxDepth 0)) {
             if ($file.Name -ieq 'desktop.ini') { continue }
+            Add-BoInventory -Domain 'persistence' -Scope 'autoruns' -Key "persist:startup:$($file.FullPath.ToLowerInvariant())" -Attrs @{ size = [string]$file.Length } -Volatile @{ modified = $file.LastWriteUtc.ToString('yyyy-MM-ddTHH:mm:ssZ') } -EvidenceType 'file' -EvidenceRef $file.FullPath
             if ($file.Extension -eq '.lnk') { Add-BoHit -Id 'AUT-STARTUP-002' -Type 'file' -Ref $file.FullPath -Excerpt "size=$($file.Length)" }
             elseif ($execExt -contains $file.Extension) { Add-BoHit -Id 'AUT-STARTUP-001' -Type 'file' -Ref $file.FullPath -Excerpt "size=$($file.Length) modified=$($file.LastWriteUtc.ToString('yyyy-MM-ddTHH:mm:ssZ'))" }
         }
