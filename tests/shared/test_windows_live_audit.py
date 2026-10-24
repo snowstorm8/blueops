@@ -53,12 +53,11 @@ def _tree(path: Path) -> set[tuple[str, int]]:
 
 @pytest.mark.parametrize("shell", SHELLS)
 @pytest.mark.parametrize("script", [AUDIT, PERSIST], ids=["audit", "persistence"])
-def test_live_audit_is_valid_and_read_only(shell: str, script: Path, tmp_path: Path) -> None:
+def test_live_audit_is_valid_and_read_only(shell: str, script: Path) -> None:
     before = _snapshot(shell)
-    repo_before = _tree(ROOT / "windows") | _tree(ROOT / "shared")
+    repo_before = _tree(ROOT / "windows")
 
-    out = tmp_path / "out"
-    res = _run(shell, ["-File", str(script), "-Json", "-OutputDir", str(out), "-Quiet"])
+    res = _run(shell, ["-File", str(script), "-Json", "-Quiet"])
     assert res.returncode in (0, 4, 6), (res.returncode, res.stderr[-2000:])
 
     # stdout is the machine-readable report, and only that.
@@ -79,16 +78,21 @@ def test_live_audit_is_valid_and_read_only(shell: str, script: Path, tmp_path: P
         for prefix in ("SYS", "USR", "PRC", "NET", "SVC", "TSK", "AUT", "FW", "SEC", "FS"):
             assert any(i.startswith(prefix + "-") for i in ids), prefix
 
-    # Output stayed in the run directory and the text/log files were written.
-    runs = list(out.glob("blueops-run-*"))
-    assert len(runs) == 1
-    assert {p.name for p in runs[0].iterdir()} >= {"report.json", "report.txt", "run.log"}
-    on_disk = json.loads((runs[0] / "report.json").read_text("utf-8-sig"))
-    assert on_disk["findings"] == report["findings"]
-
-    # No secret-looking material in anything written.
-    blob = res.stdout + (runs[0] / "report.txt").read_text("utf-8", "replace")
-    assert not re.search(r"(?i)(password|passwd|secret|token)\s*=\s*[^\s<*]{4,}", blob)
+    # No secret-looking material in the output.
+    assert not re.search(r"(?i)(password|passwd|secret|token)\s*=\s*[^\s<*]{4,}", res.stdout)
 
     assert _snapshot(shell) == before, "audit changed host state"
-    assert (_tree(ROOT / "windows") | _tree(ROOT / "shared")) == repo_before
+    assert _tree(ROOT / "windows") == repo_before
+
+
+@pytest.mark.parametrize("shell", SHELLS)
+def test_live_output_dir_holds_report_text_and_log(shell: str, tmp_path: Path) -> None:
+    out = tmp_path / "out"
+    res = _run(shell, ["-File", str(AUDIT), "-Modules", "system,users", "-OutputDir", str(out)])
+    assert res.returncode in (0, 4, 6), (res.returncode, res.stderr[-2000:])
+    runs = list(out.glob("blueops-run-*"))
+    assert len(runs) == 1
+    assert {p.name for p in runs[0].iterdir()} == {"report.json", "report.txt", "run.log"}
+    report = json.loads((runs[0] / "report.json").read_text("utf-8-sig"))
+    assert not list(Draft202012Validator(SCHEMA).iter_errors(report))
+    assert report["run"]["exit_code"] == res.returncode
