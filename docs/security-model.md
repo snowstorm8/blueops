@@ -21,6 +21,10 @@ BlueOps is for defenders operating on systems they own or are explicitly authori
 | Evidence | Originals untouched; SHA-256 manifest; UTC timestamps; owner-only permissions |
 | Secrets | Never printed/logged/committed; never passed as CLI arguments |
 
+## Baseline comparison
+
+`shared.reporting.diff` is offline and read-only: it reads two reports (and an optional config), writes only its result (stdout, or a new file with mode 0600 that is never overwritten), and uses no network. Reports are treated as attacker-influenced input: size and nesting limits, duplicate JSON keys rejected, control characters escaped in text output. Inventories contain no secrets: password state is recorded as `set`/`locked`/`empty`, SSH keys by fingerprint, sensitive command lines and registry data are redacted. A clean diff is not proof of integrity, because a compromised host can alter what its own audit sees; baselines should be taken early and stored off-host.
+
 ## Non-goals
 
 Offensive security, exploit development, anti-forensics, or covert operation. Not a replacement for EDR/SIEM.

@@ -51,6 +51,10 @@ Reports conform to `shared/schemas/audit-report.schema.json` (0.1.0). Inventory 
 | security | SEC-* | UAC, LSA protection, SMBv1/signing, RDP/NLA, auto-logon, LLMNR, Defender state and exclusions, audit policy, password policy, PowerShell logging, WinRM, Windows Update |
 | filesystem | FS-* | executables and scripts in user-writable/temp locations (signature checked, capped), root-of-drive oddities, recent changes to system directories, writable ACLs on sensitive paths |
 
+## Inventory for baseline comparison (schema 0.2.0)
+
+Every run also emits `inventory` (stable-keyed records plus per-domain coverage) for [baseline-diff.md](baseline-diff.md): users by SID, Administrators / Remote Desktop Users membership by SID, services, processes (PIDs volatile), listeners (owning PID volatile), scheduled tasks, autoruns and other persistence (Run keys, Winlogon, startup files, WMI consumers, IFEO, AppInit, LSA/netsh/port-monitor entries, PowerShell profiles, accessibility binaries), and configuration (security registry settings, firewall profiles and rules, DNS, hosts, proxy, shares, IP forwarding, Defender exclusions, password policy). Keys are compared case-insensitively. A module that records any error, crashes or is missing marks its partitions `partial`/`unavailable`, so a permission gap is never read as a removal; fallback data sources (e.g. `Get-Service` without image paths) mark the unavailable attributes `null` and the domain `degraded`. Command lines and registry data are redacted with the same rules as findings. Pester coverage: `tests/windows/Inventory.Tests.ps1`.
+
 ## Contextual heuristics (false-positive control)
 
 - Findings carry a path "zone" (system, Program Files, temp, AppData, ProgramData, other) combined with the Authenticode status. A validly signed binary in a user-writable folder is rated lower than an unsigned one; known per-user application folders are not treated like `Temp`.

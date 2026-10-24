@@ -18,12 +18,21 @@ Everything beyond Phase 0 is **planned** and subject to change.
 
 ## Phase 1b — Shared libraries
 - [x] PowerShell `lib/Common.ps1`: logging, finding/error recording, JSON emit, run-dir management (confirmation/dry-run helpers still planned)
-- [ ] Python: report validation CLI, merge/diff
+- [x] Python: baseline diff / change detection (`python -m shared.reporting.diff`, schema 0.2.0 inventory; see [baseline-diff.md](baseline-diff.md))
+- [ ] Python: report validation CLI, multi-host merge
 
 ## Phase 2 — Read-only audit and persistence
 
 - [x] Linux: users/groups, services, network listeners, scheduled jobs, startup, SUID/permissions (v0.1; baselines/allowlists via profiles still planned)
 - [x] Windows (v0.1): system, users/groups, processes, network listeners, services, tasks, Run keys/autoruns, WMI subscriptions and other persistence, firewall, security configuration, filesystem
+
+## Phase 2b — Baselines and change detection (v0.2)
+
+- [x] Structured inventory with stable keys and per-domain coverage (Linux and Windows collectors)
+- [x] Offline comparison engine: additions, removals, modifications, indeterminate results, findings delta
+- [x] Text and JSON diff reports; golden and adversarial regression tests
+- [ ] Baseline allowlists in `profiles/` (accepted changes), HTML rendering, multi-host merge
+- [ ] Inventory for Windows local groups beyond Administrators/Remote Desktop Users, installed software, and Linux package state
 
 ## Phase 3 — Incident response
 

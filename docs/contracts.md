@@ -39,7 +39,7 @@ Findings may also carry `confidence` (`low|medium|high`) to separate how bad fro
 ## Audit-report schema
 
 - File: `shared/schemas/audit-report.schema.json` (JSON Schema draft 2020-12). Example: `examples/audit-report.example.json`.
-- Top level: `schema_version`, `tool`, `run`, `host`, `findings[]`, `errors[]` (optional), `summary`.
+- Top level: `schema_version`, `tool`, `run`, `host`, `findings[]`, `errors[]` (optional), `inventory` (optional, 0.2.0+), `summary`.
 - Finding IDs are stable, `<AREA>-<TOPIC>-<NNN>` (e.g. `PER-CRON-001`); never reuse an ID for a different check.
 - Coverage gaps (unreadable paths, missing tools) go in `errors[]` and should yield exit code 6 when material.
 
@@ -47,6 +47,14 @@ Findings may also carry `confidence` (`low|medium|high`) to separate how bad fro
 
 Semantic versioning on `schema_version`.
 
-- **Current: `0.1.0` (pre-stable).** No producer or consumer exists yet, so the shape is unproven. Per SemVer, `0.y.z` signals that any minor bump may be breaking; this lets the schema change while the first real audit tools are built, without burning a `2.0.0`. The schema accepts `0.x.y`.
+- **Current: `0.2.0` (pre-stable).** 0.2.0 only adds the optional `inventory` object (structured records plus per-domain coverage; see [baseline-diff.md](baseline-diff.md)); every valid 0.1.0 report is still valid. Earlier: `0.1.0`. No producer or consumer exists yet, so the shape is unproven. Per SemVer, `0.y.z` signals that any minor bump may be breaking; this lets the schema change while the first real audit tools are built, without burning a `2.0.0`. The schema accepts `0.x.y`.
 - **`1.0.0`** is declared once at least one Linux and one Windows tool emit conforming reports and the shape has survived real use. From then on: patch = clarifications; minor = backward-compatible additions; major = breaking changes (schema `$id` and filename version bump; consumers must check the major).
 - During `0.x`, every change is recorded in `CHANGELOG.md` and the example/fixtures are updated in the same commit.
+
+## Inventory and baseline-diff contracts (0.2.0)
+
+- `inventory = { coverage: [{domain, scope?, status, reason?}], records: [{domain, scope?, key, attrs, volatile?, evidence?}] }`. Domains: `users groups services processes listeners scheduled_tasks persistence config` (`INVENTORY_DOMAINS` in `shared/reporting/contracts.py`); coverage statuses `complete degraded partial unavailable` (`COVERAGE_STATUSES`).
+- `key` is a stable identifier and must not contain PIDs, timestamps or free text; `attrs` are compared (null = unknown, arrays = sets); `volatile` is shown but never compared. Same concept = same key convention on both platforms (e.g. `listener:<proto>/<bind>/<port>`).
+- The comparison output is `shared/schemas/baseline-diff.schema.json` (`kind: "baseline-diff"`); exit codes for `python -m shared.reporting.diff` are listed in [baseline-diff.md](baseline-diff.md#exit-codes) and reuse the table above (0, 4, 6, 3, 2, 1).
+- Compatibility: producers may add record keys and attributes in minor releases; renaming a key or changing an attribute's meaning is a breaking change (CHANGELOG entry and deprecation period).
+- Tested by `tests/shared/test_contracts.py`, `tests/shared/test_baseline_diff.py` and the golden files in `tests/fixtures/baseline/`.

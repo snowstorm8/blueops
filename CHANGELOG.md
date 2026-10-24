@@ -4,6 +4,18 @@ All notable changes are documented here. Format: [Keep a Changelog](https://keep
 
 ## [Unreleased]
 
+### Added (baseline snapshots and change detection, schema 0.2.0)
+- Offline comparison engine and CLI (`python -m shared.reporting.diff`, `shared/reporting/{inventory,baseline,baseline_render,diff}.py`): additions, removals and modifications of users, groups, services, processes, listeners, scheduled tasks, persistence and configuration, with observation timestamps, evidence and related-finding links; text and JSON (`shared/schemas/baseline-diff.schema.json`) output; exit codes 0/4/6/3/2/1. See `docs/baseline-diff.md`.
+- Audit-report schema **0.2.0**: optional `inventory` (`coverage[]` + `records[]` with stable keys, compared `attrs`, `volatile` context and `evidence`). Additive: 0.1.0 reports remain valid and load (findings delta only, exit 6 with a `NO_INVENTORY` warning). `SCHEMA_VERSION` is `0.2.0`; `READABLE_REPORT_VERSIONS` lists the readable lines.
+- Linux collectors emit inventory (users/groups/sudoers/SSH-key fingerprints, processes, listeners and network config, services, cron/persistence, PAM, SUID) with per-domain coverage (`bo_inv`, `bo_cov` in `linux/lib/common.sh`).
+- Windows collectors emit inventory (users and groups by SID, services, processes, listeners, tasks, autoruns/persistence, security/firewall/network configuration) with coverage that degrades on errors, fallbacks and crashed or missing modules (`Add-BoInventory`, `Add-BoCoverage` in `windows/lib/Common.ps1`).
+- Handling of transient PIDs, ephemeral ports (per-OS thresholds), transient helper processes, partial/degraded/unavailable coverage, privilege differences and duplicate keys; hardened report loader (size and nesting limits, duplicate keys, BOM, control characters).
+- Tests: `tests/shared/test_baseline_diff.py` (synthetic and adversarial baselines), `test_baseline_cli.py` (golden files in `tests/fixtures/baseline/`, CLI, read-only/offline checks), `test_linux_baseline_e2e.py`, `tests/linux/inventory.bats`, `tests/windows/Inventory.Tests.ps1`; CI smoke step for the diff CLI.
+- `shared/config/baseline-diff.default.json`: default comparison options.
+
+### Changed
+- Reports now declare `schema_version` `0.2.0` (Linux and Windows collectors); the example report was updated.
+
 ### Added
 - Windows read-only audit v0.1 (`windows/audit/Invoke-WindowsAudit.ps1`, `windows/persistence/Find-Persistence.ps1`, `windows/lib/Common.ps1`): system, users, processes, network, services, scheduled tasks, autoruns, persistence, firewall, security configuration and filesystem modules emitting schema 0.1.0 reports. See `docs/windows-audit.md`.
 - Pester suites, synthetic Windows host fixtures and a schema-conformance pytest; the CI PowerShell job now runs Pester under Windows PowerShell 5.1 and PowerShell 7.

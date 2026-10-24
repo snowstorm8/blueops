@@ -28,14 +28,16 @@ Status per area; anything not marked implemented is **planned**.
 | Incident response and evidence collection (with hashing and manifests) | planned | planned |
 | Opt-in containment actions (dry-run, confirmation, rollback) | planned | planned |
 | Hardening profiles with service-dependency protection | planned | planned |
-| Shared analysis/reporting (merge, diff, render) in Python 3 | planned | planned |
+| Baseline snapshots and offline change detection (`python -m shared.reporting.diff`) | **implemented (v0.2)** | **implemented (v0.2)** |
+| Shared analysis/reporting (multi-host merge, HTML render) in Python 3 | planned | planned |
 
 ## Implemented today
 
 - **Linux read-only audit** (`linux/audit/audit-linux.sh`): system, users, processes, network, services, persistence, filesystem; human and JSON output. See [docs/linux-audit.md](docs/linux-audit.md)
 - **Windows read-only audit** (`windows/audit/Invoke-WindowsAudit.ps1`, PowerShell 5.1+): system, users, processes, network, services, scheduled tasks, registry autoruns, persistence, Windows Firewall, security configuration, filesystem; human and JSON output. See [docs/windows-audit.md](docs/windows-audit.md)
+- **Baseline snapshots and change detection** (`python -m shared.reporting.diff BASELINE CURRENT`): offline, read-only comparison of two audit reports (users, groups, services, processes, listeners, scheduled tasks, persistence, configuration) with text and JSON output; handles transient PIDs, ephemeral ports, incomplete audits and permission gaps without false conclusions. See [docs/baseline-diff.md](docs/baseline-diff.md)
 - Repository layout, CI and lint workflows, formatting rules
-- Versioned JSON audit-report schema (`shared/schemas/audit-report.schema.json`, v0.1.0, pre-stable) with example and tests
+- Versioned JSON audit-report schema (`shared/schemas/audit-report.schema.json`, v0.2.0, pre-stable; adds an optional `inventory`, 0.1.0 reports stay valid) with example and tests
 - Shared contracts: severity levels and exit codes (`shared/reporting/contracts.py`, [docs/contracts.md](docs/contracts.md))
 
 ## Architecture
@@ -79,6 +81,13 @@ Windows (PowerShell 5.1+, run as Administrator for full coverage):
 .\windows\audit\Invoke-WindowsAudit.ps1                          # full read-only audit, human summary
 .\windows\audit\Invoke-WindowsAudit.ps1 -Json -OutputDir out     # also write report.json/report.txt/run.log
 .\windows\audit\Invoke-WindowsAudit.ps1 -Modules users,network   # subset
+```
+
+Compare a later audit with a baseline (analyst machine, Python 3.9+, no network):
+
+```bash
+python -m shared.reporting.diff baselines/run-a out/run-b            # text report, exit 4 if changes
+python -m shared.reporting.diff baselines/run-a out/run-b --json --output diff.json
 ```
 
 Planned (not yet available) — remaining tools will follow the same conventions:

@@ -30,6 +30,13 @@ jobs:
           cache-dependency-path: requirements-dev.txt
       - run: python -m pip install -r requirements-dev.txt
       - run: python -m pytest
+      - name: Baseline diff smoke test (offline CLI)
+        shell: bash
+        run: |
+          set +e
+          python -m shared.reporting.diff tests/fixtures/baseline/linux-baseline.json tests/fixtures/baseline/linux-current.json --json --quiet --generated-at 2026-01-02T12:00:00Z > /dev/null
+          code=$?
+          test "$code" -eq 4 || { echo "expected exit 4, got $code"; exit 1; }
 
   bash:
     name: Bash tests (Bats)
