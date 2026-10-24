@@ -315,7 +315,7 @@ setup() {
   [ "$(uname -s)" = "Linux" ] || skip "needs a Linux host"
   command -v dpkg >/dev/null 2>&1 || skip "needs dpkg"
   unset BO_ROOT
-  run_audit --modules system --package-integrity
+  run_audit --modules filesystem --fs-path "${BATS_TEST_TMPDIR}" --package-integrity
   has_error PKG_NEEDS_ROOT
 }
 
