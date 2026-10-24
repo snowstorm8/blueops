@@ -45,14 +45,14 @@ mod_services() {
   local units unitfiles failed
   units="$(systemctl list-units --type=service --all --no-legend --no-pager --plain 2>/dev/null | _svc_strip || true)"
   unitfiles="$(systemctl list-unit-files --type=service --state=enabled --no-legend --no-pager 2>/dev/null | _svc_strip || true)"
-  failed="$(systemctl list-units --type=service --state=failed --no-legend --no-pager --plain 2>/dev/null | _svc_strip || true)"
+  failed="$(systemctl list-units --type=service,socket --state=failed --no-legend --no-pager --plain 2>/dev/null | _svc_strip || true)"
   if [[ -z "${units}" && -z "${unitfiles}" ]]; then
     bo_error SYSTEMCTL_FAILED "systemctl returned no data (not booted with systemd, or bus unreachable)" "SVC-INFO-001"
     _svc_sysv
     return 0
   fi
   local u active sub desc state n_run=0 n_all=0
-  local -a running=() fail=() enabled=() legacy=()
+  local -a running=() fail=() failsock=() enabled=() legacy=()
   while IFS=' ' read -r u _ active sub desc; do
     [[ -n "${u}" ]] || continue
     u="${u#●}"
@@ -64,7 +64,10 @@ mod_services() {
   done <<<"${units}"
   while IFS=' ' read -r u _ active sub desc; do
     [[ -n "${u}" ]] || continue
-    fail+=("other|${u#●}|${active}/${sub} ${desc}")
+    case "${u}" in
+      *.socket) failsock+=("other|${u}|${active}/${sub} ${desc}") ;;
+      *) fail+=("other|${u}|${active}/${sub} ${desc}") ;;
+    esac
   done <<<"${failed}"
   while IFS=' ' read -r u state _; do
     [[ -n "${u}" ]] || continue
@@ -73,11 +76,14 @@ mod_services() {
   done <<<"${unitfiles}"
 
   bo_finding SVC-INFO-001 info high services "Service inventory" \
-    "${n_all} service units loaded, ${n_run} running, ${#enabled[@]} enabled at boot, ${#fail[@]} failed." "" "" ${running[@]+"${running[@]}"}
+    "${n_all} service units loaded, ${n_run} running, ${#enabled[@]} enabled at boot, ${#fail[@]} failed, ${#failsock[@]} failed socket unit(s)." "" "" ${running[@]+"${running[@]}"}
   bo_finding SVC-ENABLED-001 info high services "Enabled services" "${#enabled[@]} unit(s) start at boot." "" "" ${enabled[@]+"${enabled[@]}"}
   ((${#fail[@]} > 0)) && bo_finding SVC-FAILED-001 medium high services "Failed services" \
     "Failed units may indicate a broken scored service or a tampered/removed binary." \
     "Inspect with 'systemctl status UNIT' and 'journalctl -u UNIT'; restore from a known-good package." "" "${fail[@]}"
+  ((${#failsock[@]} > 0)) && bo_finding SVC-FAILED-002 medium high services "Failed socket units" \
+    "A failed .socket unit means its service can no longer be activated on demand (for example ssh.socket, cups.socket)." \
+    "Inspect with 'systemctl status UNIT'; check for port conflicts or tampered unit files before restarting." "" "${failsock[@]}"
   ((${#legacy[@]} > 0)) && bo_finding SVC-LEGACY-001 low medium services "Legacy or high-exposure services enabled" \
     "Services historically abused or rarely needed (telnet, r-services, tftp, FTP, NFS, SMB, SNMP, Avahi)." \
     "Disable if unnecessary - confirm they are not scored services first." "" "${legacy[@]}"

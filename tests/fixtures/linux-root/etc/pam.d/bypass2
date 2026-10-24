@@ -1,0 +1,1 @@
+auth [success=done default=ignore] pam_permit.so

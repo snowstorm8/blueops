@@ -26,11 +26,13 @@ SCRIPTS = [
     ("linux/audit/audit-linux.sh", []),
     ("linux/audit/audit-system.sh", []),
     ("linux/audit/audit-users.sh", []),
+    ("linux/audit/audit-pam.sh", []),
     ("linux/audit/audit-processes.sh", []),
     ("linux/audit/audit-network.sh", []),
     ("linux/audit/audit-services.sh", []),
     ("linux/persistence/check-persistence.sh", []),
     ("linux/audit/audit-filesystem.sh", []),
+    ("linux/audit/audit-filesystem.sh", ["--package-integrity"]),
 ]
 
 

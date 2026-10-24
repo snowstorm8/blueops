@@ -28,7 +28,7 @@ _fs_known_suid() {
     su | sudo | sudoedit | passwd | chsh | chfn | gpasswd | newgrp | chage | expiry | mount | umount | ping | ping6 | pkexec | fusermount | fusermount3 | \
       ssh-agent | ssh-keysign | crontab | at | wall | write | bsd-write | unix_chkpwd | pam_timestamp_check | polkit-agent-helper-1 | dbus-daemon-launch-helper | \
       Xorg.wrap | mount.nfs | mount.cifs | traceroute6.iputils | newuidmap | newgidmap | locate | mlocate | plocate | utempter | umount.nfs | userhelper | \
-      unix2_chkpwd | staprun | lppasswd | mtr-packet | snap-confine | ksu | vmware-user-suid-wrapper | chrome-sandbox | pppd | Xorg | doas) return 0 ;;
+      unix2_chkpwd | pam_extrausers_chkpwd | dotlockfile | sg | bwrap | eject | ntfs-3g | unix_update | mount.ecryptfs_private | ubuntu-core-launcher | pt_chown | lockfile | screen | dumpcap | procmail | smbmnt | staprun | lppasswd | mtr-packet | snap-confine | ksu | vmware-user-suid-wrapper | chrome-sandbox | pppd | Xorg | doas) return 0 ;;
     *) return 1 ;;
   esac
 }
@@ -41,21 +41,29 @@ _fs_dangerous_suid() {
   esac
 }
 
+# Local (disk-backed) mount points, one per line, mapped through BO_ROOT.
+# /proc/mounts is space-separated, so read it with an explicit IFS; spaces in
+# mount points are encoded as \040.
 _fs_local_mounts() {
-  local mt line fs
-  if [[ -n "${BO_ROOT:-}" ]]; then
-    printf '%s/\n' "$(bo_root)"
+  local mt dev mp fs
+  mt="$(bo_path /proc/mounts)"
+  if [[ ! -r "${mt}" ]]; then
+    if [[ -n "${BO_ROOT:-}" ]]; then printf '%s/\n' "$(bo_root)"; else
+      bo_error MOUNTS_UNREADABLE "/proc/mounts unreadable; scanning / only" "FS-SUID-001" 0
+      printf '/\n'
+    fi
     return 0
   fi
-  mt="/proc/mounts"
-  if [[ -r "${mt}" ]]; then
-    while read -r _ line fs _; do
-      case "${fs}" in ext2 | ext3 | ext4 | xfs | btrfs | zfs | f2fs | jfs | reiserfs | vfat | ntfs | ntfs3 | exfat) printf '%s\n' "${line}" ;; *) ;; esac
-    done <"${mt}" | sort -u
-  else
-    bo_error MOUNTS_UNREADABLE "/proc/mounts unreadable; scanning / only" "FS-SUID-001" 0
-    printf '/\n'
-  fi
+  while IFS=' ' read -r dev mp fs _; do
+    case "${fs}" in
+      ext2 | ext3 | ext4 | xfs | btrfs | zfs | f2fs | jfs | reiserfs | vfat | ntfs | ntfs3 | exfat | overlay)
+        : "${dev}"
+        mp="${mp//\\040/ }"
+        printf '%s\n' "$(bo_path "${mp}")"
+        ;;
+      *) ;;
+    esac
+  done <"${mt}" | sort -u
 }
 
 _fs_suid() {
@@ -87,7 +95,7 @@ _fs_suid() {
         fi
         ;;
     esac
-  done <"${BO_SCRATCH}/suid.txt"
+  done < <(sort -u "${BO_SCRATCH}/suid.txt")
   bo_finding FS-SUID-001 info high filesystem "SUID/SGID files" "${#inv[@]} SUID/SGID file(s) on local filesystems." "" "" ${inv[@]+"${inv[@]}"}
   ((${#bad[@]} > 0)) && bo_finding FS-SUID-002 high high filesystem "Dangerous or misplaced SUID/SGID binary" \
     "SUID/SGID on general-purpose utilities, interpreters, or files in user-writable locations enables privilege escalation." \
@@ -100,7 +108,8 @@ _fs_suid() {
 
 _fs_recent() {
   local -a roots=() sysbin=() syslib=() etc=() other=()
-  local r f rel
+  local r f rel rootp
+  rootp="$(bo_root)"
   while IFS= read -r r; do roots+=("${r}"); done < <(_fs_roots /etc /bin /sbin /usr/bin /usr/sbin /usr/local /lib /lib64 /usr/lib /opt /root /home /var/spool /var/www /srv /tmp /var/tmp /dev/shm /boot)
   if ((${#roots[@]} == 0)); then
     bo_error NO_SCAN_ROOTS "no directories to scan for recent modifications" "FS-RECENT-001"
@@ -109,7 +118,7 @@ _fs_recent() {
   bo_find "${roots[@]}" -xdev -type f -mtime "-${BO_RECENT_DAYS}" >"${BO_SCRATCH}/recent.txt"
   while IFS= read -r f; do
     [[ -n "${f}" ]] || continue
-    rel="$(bo_unroot "${f}")"
+    rel="${f#"${rootp}"}"
     case "${rel}" in
       */__pycache__/* | *.pyc | */ld.so.cache | /etc/resolv.conf | /etc/mtab | /etc/adjtime | */random-seed | /etc/machine-id | /etc/hosts.* | /etc/.updated) continue ;;
       /bin/* | /sbin/* | /usr/bin/* | /usr/sbin/* | /usr/local/bin/* | /usr/local/sbin/*) sysbin+=("file|${rel}") ;;
@@ -184,10 +193,76 @@ _fs_perms() {
   return 0
 }
 
+# Opt-in (--package-integrity): dpkg --verify compares installed files with the
+# checksums recorded by their packages. Read-only, but it hashes every packaged file.
+# Output rows: "??5??????   /path", "??5?????? c /conffile", "missing     /path".
+_fs_pkg() {
+  if ! bo_have dpkg || [[ ! -r "$(bo_path /var/lib/dpkg/status)" ]]; then
+    bo_error PKG_UNSUPPORTED "--package-integrity needs a Debian-family system with dpkg; check skipped" "FS-PKG-001"
+    return 0
+  fi
+  if ! bo_is_root && [[ -z "${BO_ROOT:-}" ]]; then
+    # dpkg cannot read root-only files (e.g. /etc/sudoers) and reports them as changed.
+    bo_error PKG_NEEDS_ROOT "--package-integrity needs root: dpkg --verify misreports files it cannot read; check skipped" "FS-PKG-001"
+    return 0
+  fi
+  local out="${BO_SCRATCH}/pkg.txt" err="${BO_SCRATCH}/pkg.err" kind flags path rest
+  local -a lim=()
+  if bo_have timeout; then lim=(timeout 1800); fi
+  "${lim[@]+"${lim[@]}"}" dpkg --verify >"${out}" 2>"${err}" || true
+  if [[ -s "${err}" ]]; then
+    bo_perm_error "dpkg --verify reported errors (e.g. unreadable files); results may be incomplete" "FS-PKG-001"
+  fi
+  local -a crit=() other=() sens=()
+  local nconf=0 ndoc=0
+  while IFS=' ' read -r flags rest; do
+    [[ -n "${flags}" ]] || continue
+    kind=modified
+    [[ "${flags}" == missing ]] && kind=missing
+    if [[ "${rest}" == "c "* ]]; then
+      path="${rest#c }"
+      path="${path#"${path%%[![:space:]]*}"}"
+      # Conffiles change legitimately, but not these: they are authentication, remote
+      # access, scheduling, boot and privilege configuration.
+      case "${path}" in
+        /etc/pam.d/* | /etc/pam.conf | /etc/security/* | /etc/ssh/* | /etc/sudoers | /etc/sudoers.d/* | /etc/cron* | /etc/init.d/* | /etc/systemd/* | /etc/ld.so* | /etc/profile | /etc/profile.d/* | /etc/bash.bashrc | /etc/rc.local | /etc/ssl/* | /etc/ca-certificates* | /etc/apt/* | /etc/nsswitch.conf | /etc/hosts.allow | /etc/hosts.deny)
+          sens+=("file|${path}|${kind} ${flags}")
+          ;;
+        *) nconf=$((nconf + 1)) ;;
+      esac
+      continue
+    fi
+    path="${rest#"${rest%%[![:space:]]*}"}"
+    case "${path}" in
+      /usr/share/doc/* | /usr/share/man/* | /usr/share/info/* | /usr/share/locale/*)
+        ndoc=$((ndoc + 1))
+        continue
+        ;;
+      /bin/* | /sbin/* | /usr/bin/* | /usr/sbin/* | /lib/* | /lib64/* | /usr/lib/* | /usr/lib64/* | /usr/local/bin/* | /boot/*)
+        if [[ "${kind}" == modified ]]; then crit+=("file|${path}|${flags}"); else other+=("file|${path}|${kind}"); fi
+        ;;
+      *) other+=("file|${path}|${kind} ${flags}") ;;
+    esac
+  done <"${out}"
+  bo_finding FS-PKG-003 info high filesystem "Package integrity summary" \
+    "dpkg --verify: ${#crit[@]} modified program/library file(s), ${#other[@]} other discrepancy(ies); ${#sens[@]} modified security-sensitive configuration file(s); ${nconf} other modified configuration file(s) and ${ndoc} documentation file(s) not listed (expected to change)." "" ""
+  ((${#crit[@]} > 0)) && bo_finding FS-PKG-001 high medium filesystem "Installed programs or libraries differ from their package checksums" \
+    "Flags: 5 = content (MD5) changed, S size, T mtime, U/G owner. Content changes outside a package upgrade indicate trojanized binaries." \
+    "Reinstall the package from a trusted source after preserving the file (apt install --reinstall PKG)." "T1554" "${crit[@]}"
+  ((${#sens[@]} > 0)) && bo_finding FS-PKG-004 medium low filesystem "Security-sensitive configuration differs from the package default" \
+    "Packaged configuration under PAM, SSH, sudo, cron, systemd, boot scripts and TLS trust. Local administrators change these on purpose; so do attackers." \
+    "Compare with a known-good copy (dpkg-query/apt-get download) and your change log." "T1556.003" "${sens[@]}"
+  ((${#other[@]} > 0)) && bo_finding FS-PKG-002 medium low filesystem "Other packaged files modified or missing" \
+    "Files outside the main program directories, and packaged files that were removed." \
+    "Compare with your change log; reinstall the owning package if the change is unexplained." "T1565.001" "${other[@]}"
+  return 0
+}
+
 mod_filesystem() {
   _fs_suid
   _fs_recent
   _fs_perms
+  if [[ "${BO_PKG_CHECK}" == 1 ]]; then _fs_pkg; fi
 }
 
 if [[ "${BASH_SOURCE[0]}" == "$0" ]]; then

@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 case "$*" in
 *"list-unit-files"*) printf 'ssh.service enabled enabled\ntelnet.service enabled enabled\ncron.service enabled enabled\n' ;;
-*"--state=failed"*) printf '● backup.service loaded failed failed Nightly backup\n' ;;
+*"--state=failed"*) printf '● backup.service loaded failed failed Nightly backup\n● cups.socket loaded failed failed CUPS Scheduler\n' ;;
 *"list-units"*) printf 'ssh.service loaded active running OpenBSD Secure Shell server\ncron.service loaded active running Regular background program processing\nbackup.service loaded failed failed Nightly backup\n' ;;
 *) exit 1 ;;
 esac

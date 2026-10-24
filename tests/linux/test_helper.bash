@@ -20,6 +20,8 @@ make_root() {
     chmod 644 "${ROOT}/etc/shadow" "${ROOT}/etc/passwd" "${ROOT}/etc/hosts"
     chmod 440 "${ROOT}/etc/sudoers"
     chmod 755 "${ROOT}/root" "${ROOT}/tmp/dropper"
+    chmod 755 "${ROOT}/etc/pam.d" "${ROOT}/etc/pam.d"/*
+    chmod 644 "${ROOT}/etc/pam.d"/*
     # Windows cannot check out a file named "...", so it is created here instead.
     echo x >"${ROOT}/tmp/..."
     chmod 644 "${ROOT}/tmp/..."

@@ -22,11 +22,11 @@ setup() {
   [[ "${output}" == "audit-linux "* ]]
 }
 
-@test "--list-modules lists all seven modules" {
+@test "--list-modules lists all eight modules" {
   run "${AUDIT}" --list-modules
   [ "${status}" -eq 0 ]
-  [ "${#lines[@]}" -eq 7 ]
-  [[ "${output}" == *persistence* && "${output}" == *filesystem* ]]
+  [ "${#lines[@]}" -eq 8 ]
+  [[ "${output}" == *persistence* && "${output}" == *filesystem* && "${output}" == *pam* ]]
 }
 
 @test "usage errors exit 2" {
@@ -74,7 +74,7 @@ setup() {
 
 @test "every module contributes findings in a full audit" {
   run_audit
-  for p in SYS USR PRC NET SVC PER FS; do
+  for p in SYS USR PAM PRC NET SVC PER FS; do
     [ "$(json_py "any(f['id'].startswith('${p}-') for f in d['findings'])")" = "True" ]
   done
 }
