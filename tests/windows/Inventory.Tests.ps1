@@ -53,8 +53,9 @@ Describe 'inventory shape' {
     }
 
     It 'timestamps remain ISO 8601 UTC' {
-        $script:Full.Json.run.started_at | Should -Match '^\d{4}-\d\d-\d\dT\d\d:\d\d:\d\dZ$'
-        $script:Full.Json.run.finished_at | Should -Match '^\d{4}-\d\d-\d\dT\d\d:\d\d:\d\dZ$'
+        # ConvertFrom-Json turns date strings into DateTime, so check the raw output.
+        $script:Full.Out | Should -Match '"started_at":\s*"\d{4}-\d\d-\d\dT\d\d:\d\d:\d\dZ"'
+        $script:Full.Out | Should -Match '"finished_at":\s*"\d{4}-\d\d-\d\dT\d\d:\d\d:\d\dZ"'
     }
 }
 

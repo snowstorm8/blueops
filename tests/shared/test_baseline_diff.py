@@ -706,6 +706,8 @@ def test_loader_accepts_bom_and_run_directory(tmp_path: Path) -> None:
         ("[" * 100000, "not valid JSON"),
         ("", "not valid JSON"),
     ],
+    # Short ids: the default id embeds the 100k-char string and overflows Windows path limits.
+    ids=["garbage", "duplicate-key", "nan", "top-level-array", "deep-nesting", "empty"],
 )
 def test_loader_rejects_malformed_json(tmp_path: Path, text: str, match: str) -> None:
     with pytest.raises(ReportError, match=match):
