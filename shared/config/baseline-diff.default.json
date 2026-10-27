@@ -1,11 +1,16 @@
 {
+  "fixed_ports": [],
   "transient_processes": [
     "awk",
     "cat",
     "cut",
     "find",
+    "findstr.exe",
     "grep",
     "head",
+    "hostname.exe",
+    "ipconfig.exe",
+    "netstat.exe",
     "ps",
     "readlink",
     "sed",
@@ -14,7 +19,12 @@
     "ss",
     "stat",
     "tail",
-    "tr"
+    "tasklist.exe",
+    "timeout.exe",
+    "tr",
+    "where.exe",
+    "whoami.exe",
+    "wmic.exe"
   ],
   "ignore": {}
 }

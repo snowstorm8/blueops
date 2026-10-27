@@ -68,6 +68,7 @@ Rules:
 
 - A record is **removed** only if the *current* collection of its domain/scope was `complete` or `degraded`; **added** only if the *baseline* collection was.
 - An attribute is **modified** only if both sides know it. Otherwise the record is listed under `indeterminate` with reason `ATTRIBUTE_UNKNOWN`.
+- A `complete`/`degraded` collection of `users`, `groups`, `services` or `processes` that returned **no records** while the other side had some is treated as a collector failure: nothing is concluded for that partition (a note says why; exit 6).
 - A record whose partition has no coverage declaration is treated as `partial`. An invalid record taints every partition of its domain. Duplicate coverage entries merge to the worst status. Reaching the record limit degrades all domains.
 - A module that was not run, or crashed, marks its partitions `unavailable`/`partial`; it never appears as "everything was removed".
 - Indeterminate reasons: `BASELINE_INCOMPLETE`, `CURRENT_INCOMPLETE`, `ATTRIBUTE_UNKNOWN`, `RECORD_CONFLICT` (two records with the same key but different attributes).
@@ -78,6 +79,13 @@ Rules:
 
 - **PIDs** live in `volatile`; a new PID for the same process is not a change. Processes with the same user and name are aggregated into one record (their PIDs and counts are volatile). Short-lived helpers named in `transient_processes` (default `awk cat cut find grep head ps readlink sed sleep sort ss stat tail tr`) are reported as *transient* and hidden from the text output unless `--show-transient`, but only when their executable is **known** to be in a system directory (`/bin`, `/usr/bin`, `/usr/sbin`, `/usr/lib`, `C:\\Windows\\System32`...). A helper-named process with an unknown or non-system executable (for example `/tmp/sleep`) is a normal, counted change.
 - **Ephemeral ports**: listeners whose port is at or above `ephemeral_from` (default 32768 on Linux, 49152 on Windows) are re-keyed to `listener:<proto>/<bind>/ephemeral`, with the port kept as volatile. A client service that moves from port 51234 to 51871 is therefore not reported. Override with `--ephemeral-from PORT` or in the config.
+- **Stable services on high ports.** Ephemeral bucketing compares only the process names in a bucket, so a metrics agent that always listens on 40111 is not reported when it moves, but a *second* listener from the same process on 41000 is invisible too. Name ports that are really fixed in the config file and they keep their own identity:
+
+  ```json
+  { "ephemeral_from": 32768, "fixed_ports": [40111, 50000] }
+  ```
+
+  With this, `listener:tcp/0.0.0.0/40111` is compared exactly (removed if the agent stops or moves to another port, added if a new listener appears there), while other ports at or above 32768 still collapse into `listener:tcp/0.0.0.0/ephemeral`. Ports must be integers from 1 to 65535; anything else is a config error (exit 3). Use `python -m shared.reporting.diff A B --config diff.json`.
 - Loopback-only listeners are compared like any other (they can be backdoors), but get a lower triage priority (`low`).
 
 ## Output
@@ -96,7 +104,7 @@ Each change has `domain`, `scope`, `key`, `change` (`added|removed|modified`), `
 
 ### Findings delta
 
-Findings are compared by `id`, `severity` and file/registry evidence refs only (not by title/description text). Findings whose evidence list was truncated (`only the first N are listed`) are not compared. A finding whose check reported a coverage error in either run is listed as **unverified**, not as new or resolved. Findings missing from the current report are also **unverified** (not resolved) when the current run had a failed or missing module, or lost privileges relative to an elevated baseline.
+Findings are compared by `id`, `severity` and file/registry evidence refs only (not by title/description text). Findings whose evidence list was truncated (`only the first N are listed`) are not compared. A finding whose check reported a coverage error in either run is listed as **unverified**, not as new or resolved. Findings missing from the current report are also **unverified** (not resolved) when the current run had a failed or missing module, an error that names no check and was not already in the baseline (for example `PASSWD_UNREADABLE`), a failure/partial exit code (`1`, `3`, `6`) that the baseline did not have, or lost privileges relative to an elevated baseline. Errors present in both runs (a standing `UPTIME_UNAVAILABLE`) do not block resolutions.
 
 ## Exit codes
 
@@ -129,12 +137,13 @@ Config file (`shared/config/baseline-diff.default.json` shows the defaults):
 ```json
 {
   "ephemeral_from": 32768,
+  "fixed_ports": [40111],
   "transient_processes": ["ps", "sleep"],
   "ignore": { "processes": ["process:*:backup-agent"], "config": ["config:hosts:*"] }
 }
 ```
 
-`ignore` maps a domain to `fnmatch` glob patterns over record keys; ignored records are counted in `summary.ignored`. Unknown keys and invalid values are rejected (exit 3).
+`fixed_ports` lists ports that are compared exactly even though they are at or above `ephemeral_from`. `ignore` maps a domain to `fnmatch` glob patterns over record keys; ignored records are counted in `summary.ignored`. Unknown keys and invalid values are rejected (exit 3).
 
 ## Expected behavior (regression matrix)
 
@@ -147,18 +156,21 @@ Config file (`shared/config/baseline-diff.default.json` shows the defaults):
 | `changed`: users, group membership, services, listeners, scheduled tasks, persistence and config added, removed and modified | exactly the 15 (Linux) / 14 (Windows) records that differ, each with the changed attributes, a triage priority, evidence, related findings and the observation window; new and changed findings are listed | 4 |
 | swapping baseline and current | additions and removals invert, modifications stay modifications, `REVERSED_ORDER` warns | 4 |
 | `churn`: new PIDs, helper processes (`sleep`, `ps`, `grep`, `awk`), ephemeral ports that move or open a second socket | no counted changes; helpers are kept as `transient` and hidden from text unless `--show-transient` | 0 |
-| a helper name running from `/tmp`, `/dev/shm` or with an unknown executable | counted as a normal addition | 4 |
+| `churn` on Windows: `tasklist.exe`, `wmic.exe` from `System32` | transient | 0 |
+| a helper name running from `/tmp`, `/dev/shm`, `C:\\Users\\Public` or with an unknown executable; a non-listed `System32` tool such as `net.exe` | counted as a normal addition | 4 |
 | a *different* process on an ephemeral port | `modified` on `listener:<proto>/<bind>/ephemeral` | 4 |
 | `unprivileged`: a non-elevated re-run with partial, degraded and unavailable domains | no additions, removals or modifications; missing records are `CURRENT_INCOMPLETE`, unreadable values are `ATTRIBUTE_UNKNOWN`; unavailable partitions are not compared; `PRIVILEGE_DIFFERS`; the baseline's finding is *unverified*, not resolved | 6 |
 | an unprivileged *baseline* against a full run | no additions are concluded | 6 |
 | a real removal in a fully collected domain during an incomplete run | still reported (`removed`), alongside the indeterminate records | 4 |
 | `module-failed`: a crashed module (`MODULE_FAILED`) | its partitions are not compared; no removals; its findings are *unverified* | 6 |
+| a complete but empty `users`/`groups`/`services`/`processes` collection; a new check-less error, or a failure exit code, when findings vanish | no removals; findings unverified | 6 |
 | a domain missing from the current report with no coverage entry and no error | not compared; no mass removal | 6 |
 | a `partial` domain with zero records, or records with no coverage declaration | removals withheld (`CURRENT_INCOMPLETE`) | 6 |
 | unparseable JSON (empty, truncated, not JSON, duplicate keys, `NaN`), top level not an object, missing `run` or `host.os.family`, bad timestamp, unsupported `schema_version` (`1.0.0`, `0.3.0`), on either side | one `blueops-diff:` line on stderr, empty stdout, no `--output` file created | 3 |
 | missing path, directory without `report.json`, unreadable file | same | 3 |
 | Linux against Windows (even with `--allow-host-mismatch`); different hostnames without the flag | refused | 3 |
-| schema 0.1.0 report, or `inventory` that is not an object | loads with `NO_INVENTORY`; nothing is concluded from inventory, only findings are compared | 6 (4 if findings differ) |
+| schema 0.1.0 report (no `inventory` key) | loads with `NO_INVENTORY`; nothing is concluded from inventory, only findings are compared | 6 (4 if findings differ) |
+| `inventory`, `inventory.coverage`, `findings` or `errors` of the wrong type, or a finding/error entry that is not an object | refused | 3 |
 | a corrupt record (non-object, empty or control-character key, nested attribute value) | its domain is degraded; removals in it are withheld | 6 |
 | an unknown coverage status such as `"totally-fine"` | treated as `partial` | 6 |
 | two records with one key and different attributes | `RECORD_CONFLICT`, no change reported | 6 |
@@ -175,7 +187,7 @@ Determinism: the same two inputs produce byte-identical text and JSON across rep
 
 ## Loader hardening
 
-Reports are untrusted input. The loader enforces a 64 MiB limit, accepts a UTF-8 BOM (Windows PowerShell 5.1 writes one), rejects duplicate JSON keys, `NaN`/`Infinity`, over-deep nesting and control characters in keys, caps the record count, and validates every record; invalid records degrade coverage of their domain instead of crashing the comparison or silently disappearing.
+Reports are untrusted input. A report whose `findings` or `errors` is not a list of objects (with a string `id`/`code`), or whose `inventory` is present but not an object (including `null`) or whose `inventory.coverage` is not a list, is **rejected** (exit 3) instead of being read as if the data were absent: silently dropping an error or a finding could turn an unknown into a conclusion. Only a report with no `inventory` key at all (0.1.x) loads without inventory. The loader enforces a 64 MiB limit, accepts a UTF-8 BOM (Windows PowerShell 5.1 writes one), rejects duplicate JSON keys, `NaN`/`Infinity`, over-deep nesting and control characters in keys, caps the record count, and validates every record; invalid records degrade coverage of their domain instead of crashing the comparison or silently disappearing.
 
 ## Limitations
 
@@ -184,9 +196,9 @@ Reports are untrusted input. The loader enforces a 64 MiB limit, accepts a UTF-8
 - Windows keys are compared case-insensitively; attribute values are compared exactly.
 - Per-record change times are not available (see *Timestamps*).
 - The comparison trusts the report's own `coverage` statements. A collector (or an attacker who controls the host) that declares `complete` while omitting records produces removals; one that omits a coverage entry produces `not_compared`. Only the second is detected.
-- The default `transient_processes` list names Unix helpers only. On Windows, short-lived helpers such as `tasklist.exe` are counted as additions until they are listed in a config file (`{"transient_processes": ["tasklist.exe"]}`; matching is case-insensitive there and still requires a `System32`/`SysWOW64` executable).
-- Ephemeral listeners are aggregated per protocol and bind address. A long-lived service that happens to listen on a high port (for example 40111 on Linux) is treated as ephemeral: its port is not compared, only its process name. Raise `--ephemeral-from` to keep such a service distinct.
-- An `inventory` that is present but not an object is handled like a missing one (`NO_INVENTORY`, exit 6) rather than rejected as malformed, because the findings comparison is still useful. Other structural damage (missing `run`, `host`, bad timestamps, unsupported schema) is rejected with exit 3.
+- Windows transient helpers are a short built-in list of read-only console tools (`tasklist.exe`, `whoami.exe`, `ipconfig.exe`, ...). Anything else (including `net.exe`, `sc.exe`, `reg.exe`, `cmd.exe`) is a normal change, and a listed name outside `System32`/`SysWOW64` is too.
+- Ephemeral listeners are aggregated per protocol and bind address, and only their process names are compared. A new listener on another high port whose process name is already in the bucket is therefore invisible. List services that really listen on a stable high port in `fixed_ports` (config file) to compare them by exact port.
+- The comparison still believes a report's `coverage` statements about *which records exist*. A collector (or an attacker controlling the host) that declares `complete` while omitting some records produces removals. The engine only second-guesses implausible cases: an empty core domain, new collection errors, a failed run exit code and lost privileges (below).
 - Multi-host merge and HTML rendering are planned, not implemented ([roadmap.md](roadmap.md)).
 
 ## Developing

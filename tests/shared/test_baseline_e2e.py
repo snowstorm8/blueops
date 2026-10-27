@@ -452,21 +452,39 @@ def test_windows_dynamic_rpc_ports_raise_no_alert(capsys: pytest.CaptureFixture[
     assert d["indeterminate"] == []
 
 
-def test_windows_helpers_need_configuration_to_count_as_transient(
+def test_windows_console_helpers_are_transient_by_default(
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    res = _compare(capsys, "windows", "churn")
+    assert res.code == 0
+    assert res.diff["summary"]["transient"] == 2
+    assert _changes(res.diff) == set()
+
+
+def test_windows_helper_names_outside_system32_or_not_listed_are_still_reported(
     tmp_path: Path, capsys: pytest.CaptureFixture[str]
 ) -> None:
-    # Documented limitation: the shipped default list only names Unix helpers.
-    default = _compare(capsys, "windows", "churn")
-    assert default.code == 4
-    assert _changes(default.diff) == {
+    def disguise(data: dict[str, Any]) -> None:
+        _record(data, "process:tasklist.exe")["attrs"]["exe"] = "C:\\Users\\Public\\tasklist.exe"
+        _record(data, "process:WMIC.exe")["key"] = "process:net.exe"
+        _record(data, "process:net.exe")["attrs"]["comm"] = "net.exe"
+
+    cur = _derive(tmp_path, "windows", "churn", disguise)
+    res = _compare_files(capsys, _fx("windows", "baseline"), cur)
+    assert res.code == 4
+    assert _changes(res.diff) == {
         ("processes", "process:tasklist.exe", "added"),
-        ("processes", "process:wmic.exe", "added"),
+        ("processes", "process:net.exe", "added"),
     }
-    cfg = _put(tmp_path / "cfg.json", {"transient_processes": ["TASKLIST.EXE", "wmic.exe"]})
-    tuned = _compare(capsys, "windows", "churn", "--config", cfg)
-    assert tuned.code == 0
-    assert tuned.diff["summary"]["transient"] == 2
-    assert _changes(tuned.diff) == set()
+
+
+def test_a_config_file_replaces_the_transient_list(
+    tmp_path: Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    cfg = _put(tmp_path / "cfg.json", {"transient_processes": ["sleep"]})
+    res = _compare(capsys, "windows", "churn", "--config", cfg)
+    assert res.code == 4
+    assert len(_changes(res.diff)) == 2
 
 
 # ----------------------------------------------- permission gaps and incomplete audits
@@ -748,10 +766,10 @@ def test_host_mismatch_is_refused_unless_explicitly_allowed(
     assert "HOST_MISMATCH" in _warning_codes(allowed.diff)
 
 
-@pytest.mark.parametrize("name", ["legacy-0.1.0.json", "inventory-not-object.json"])
 def test_a_baseline_without_inventory_concludes_nothing(
-    name: str, capsys: pytest.CaptureFixture[str]
+    capsys: pytest.CaptureFixture[str],
 ) -> None:
+    name = "legacy-0.1.0.json"
     # Even against the most eventful current run, a report with no usable inventory draws no
     # additions: it has nothing to be "added" relative to.
     base = FX / "no-inventory" / name
@@ -772,7 +790,7 @@ def test_a_current_without_inventory_never_reports_removals(
     res = _cli(
         capsys,
         _fx("linux", "baseline"),
-        FX / "no-inventory" / "inventory-not-object.json",
+        FX / "no-inventory" / "legacy-0.1.0.json",
         "--json",
         "--quiet",
     )

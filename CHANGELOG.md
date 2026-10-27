@@ -4,6 +4,15 @@ All notable changes are documented here. Format: [Keep a Changelog](https://keep
 
 ## [Unreleased]
 
+### Fixed (baseline comparison conclusions)
+- A report whose `inventory` is present but not an object, whose `inventory.coverage`/`findings`/`errors` is not a list, or that holds a non-object finding or error is now rejected (exit 3) instead of being read as missing data; dropped errors could hide a failed module and report findings as resolved.
+- Findings absent from a run are *unverified*, not resolved, after a new error that names no check, or a failure/partial run exit code the baseline did not have.
+- A `complete` collection of users, groups, services or processes that is empty while the other side is not no longer yields mass removals or additions.
+- Windows console helpers (`tasklist.exe`, `whoami.exe`, ...) from `System32` are transient by default; added to `transient_processes` in `shared/config/baseline-diff.default.json`.
+
+### Added (listener comparison)
+- `fixed_ports` option (config file) compares listeners on the listed ports exactly even in the ephemeral range, so a new stable high-port listener is no longer hidden by an existing process name.
+
 ### Added (baseline end-to-end regression tests)
 - `tests/shared/test_baseline_e2e.py` and `tests/fixtures/baseline-e2e/`: sanitized synthetic Linux and Windows audit snapshots driven through the real `python -m shared.reporting.diff` CLI. They pin the behavior for identical snapshots, added/removed/modified records, transient processes and ephemeral ports, permission gaps and failed modules, malformed or incompatible input (exit 3), offline/read-only operation and deterministic output. No behavior change.
 - `docs/baseline-diff.md`: expected-behavior matrix and newly documented limitations (trust in coverage statements, Windows transient helpers need configuration, high-port services are bucketed as ephemeral, non-object `inventory` is treated as absent).
