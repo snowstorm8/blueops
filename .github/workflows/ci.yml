@@ -37,6 +37,18 @@ jobs:
           python -m shared.reporting.diff tests/fixtures/baseline/linux-baseline.json tests/fixtures/baseline/linux-current.json --json --quiet --generated-at 2026-01-02T12:00:00Z > /dev/null
           code=$?
           test "$code" -eq 4 || { echo "expected exit 4, got $code"; exit 1; }
+      - name: Detection smoke test (offline CLI)
+        shell: bash
+        run: |
+          set +e
+          for host in linux windows; do
+            python -m shared.reporting.detect tests/fixtures/baseline-e2e/$host/baseline.json tests/fixtures/baseline-e2e/$host/changed.json --json --quiet --generated-at 2026-03-02T00:00:00Z > /dev/null
+            code=$?
+            test "$code" -eq 4 || { echo "$host: expected exit 4, got $code"; exit 1; }
+            python -m shared.reporting.detect tests/fixtures/baseline-e2e/$host/baseline.json tests/fixtures/baseline-e2e/$host/identical.json --json --quiet --generated-at 2026-03-02T00:00:00Z > /dev/null
+            code=$?
+            test "$code" -eq 0 || { echo "$host: expected exit 0, got $code"; exit 1; }
+          done
 
   bash:
     name: Bash tests (Bats)

@@ -4,7 +4,7 @@
 
 1. **Independent platform collectors.** Bash (Linux) and PowerShell (Windows) tools run standalone, offline, with OS-native commands only.
 2. **Shared contracts, not shared runtime.** Platforms agree on JSON schemas, exit codes, severities, and naming (see [contracts.md](contracts.md)); they do not depend on each other or on Python being present.
-3. **Python for analysis, not collection.** `shared/reporting/` validates, merges, diffs, and renders reports, typically on an analyst machine. Baseline comparison (`python -m shared.reporting.diff`, see [baseline-diff.md](baseline-diff.md)) is implemented; merge/render are planned.
+3. **Python for analysis, not collection.** `shared/reporting/` validates, merges, diffs, and renders reports, typically on an analyst machine. Baseline comparison (`python -m shared.reporting.diff`, see [baseline-diff.md](baseline-diff.md)) and detection rules over its output (`python -m shared.reporting.detect`, see [detection-rules.md](detection-rules.md)) are implemented; merge/render are planned.
 4. **Strict separation of intent.** `audit` and `persistence` are read-only; `incident` collects evidence and offers opt-in containment; `hardening` changes state. A script lives in exactly one category.
 5. **Safety by construction.** Confirmation, dry-run, rollback records, and protected-service checks are implemented once in each platform's `lib/` and reused.
 

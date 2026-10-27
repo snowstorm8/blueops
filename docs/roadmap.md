@@ -34,6 +34,14 @@ Everything beyond Phase 0 is **planned** and subject to change.
 - [ ] Baseline allowlists in `profiles/` (accepted changes), HTML rendering, multi-host merge
 - [ ] Inventory for Windows local groups beyond Administrators/Remote Desktop Users, installed software, and Linux package state
 
+## Phase 2c — Detection validation and investigation (v0.3)
+
+- [x] Rule engine over baseline-diff data: severity, rationale, evidence, investigation steps, observed vs. heuristic basis, per-subject merging and artifact correlation (`python -m shared.reporting.detect`; see [detection-rules.md](detection-rules.md))
+- [x] Synthetic regression tests including false-positive and remediation cases; CI smoke test
+- [ ] Accepted-change allowlists in `profiles/` (shared with baseline allowlists)
+- [ ] Standing-state rules over a single report (no baseline needed), SIEM/log-based rules, Linux service binary paths in the inventory
+- [ ] Detection of changes to files/logs outside the current inventory domains
+
 ## Phase 3 — Incident response
 
 - [ ] Evidence collection with hashing/manifests (both platforms)

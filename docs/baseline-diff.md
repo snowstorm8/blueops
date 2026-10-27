@@ -88,6 +88,8 @@ Rules:
   With this, `listener:tcp/0.0.0.0/40111` is compared exactly (removed if the agent stops or moves to another port, added if a new listener appears there), while other ports at or above 32768 still collapse into `listener:tcp/0.0.0.0/ephemeral`. Ports must be integers from 1 to 65535; anything else is a config error (exit 3). Use `python -m shared.reporting.diff A B --config diff.json`.
 - Loopback-only listeners are compared like any other (they can be backdoors), but get a lower triage priority (`low`).
 
+See [detection-rules.md](detection-rules.md) for the rule layer that ranks and explains these changes (`python -m shared.reporting.detect`).
+
 ## Output
 
 ### Text (default)
