@@ -418,12 +418,17 @@ HIGH_RISK_MECHANISMS = (
 )
 
 
+# The Linux collector keys authorized keys as persist:ssh-authkey:<owner>:<id> with an ``owner``
+# attribute; persist:ssh_key:<user>:<fingerprint> with ``user`` is the older/synthetic form.
+SSH_KEY_PREFIXES = ("persist:ssh-authkey:", "persist:ssh_key:")
+
+
 @rule("BO-PER-001", "persistence")
 def _ssh_key(c: dict[str, Any], ctx: Context) -> list[Signal]:
     """SSH authorized key added."""
-    if c["change"] != "added" or not str(c["key"]).startswith("persist:ssh_key:"):
+    if c["change"] != "added" or not str(c["key"]).startswith(SSH_KEY_PREFIXES):
         return []
-    user = _one(_now(c, "user")) or "unknown user"
+    user = _one(_now(c, "owner")) or _one(_now(c, "user")) or "unknown user"
     return _sig(
         "BO-PER-001",
         "New SSH authorized key",
@@ -445,7 +450,7 @@ def _ssh_key(c: dict[str, Any], ctx: Context) -> list[Signal]:
 def _persistence(c: dict[str, Any], ctx: Context) -> list[Signal]:
     """Persistence mechanism added or its content changed."""
     key = str(c["key"])
-    if c["change"] == "removed" or key.startswith("persist:ssh_key:"):
+    if c["change"] == "removed" or key.startswith(SSH_KEY_PREFIXES):
         return []
     parts = key.split(":")
     mech = parts[1] if len(parts) > 1 else "unknown"

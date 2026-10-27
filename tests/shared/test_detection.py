@@ -196,6 +196,22 @@ FIRE = [
         id="root-ssh-key",
     ),
     pytest.param(
+        [],
+        [
+            rec(
+                "persistence",
+                "persist:ssh-authkey:root:165a5affa810318b561880f3",
+                {"owner": "root", "type": "ssh-ed25519", "file": "/root/.ssh/authorized_keys"},
+                scope="ssh-authkeys",
+            )
+        ],
+        "persist:ssh-authkey:root:165a5affa810318b561880f3",
+        "BO-PER-001",
+        "critical",
+        "observed",
+        id="root-ssh-key-collector-format",
+    ),
+    pytest.param(
         [rec("persistence", "persist:file:/etc/rc.local", {"sha256": "a"}, scope="startup")],
         [rec("persistence", "persist:file:/etc/rc.local", {"sha256": "b"}, scope="startup")],
         "persist:file:/etc/rc.local",
