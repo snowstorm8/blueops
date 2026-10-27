@@ -49,6 +49,16 @@ DEFAULT_TRANSIENT_PROCESSES = (
     "stat",
     "tail",
     "tr",
+    # Windows read-only console helpers (still required to run from System32/SysWOW64).
+    "findstr.exe",
+    "hostname.exe",
+    "ipconfig.exe",
+    "netstat.exe",
+    "tasklist.exe",
+    "timeout.exe",
+    "where.exe",
+    "whoami.exe",
+    "wmic.exe",
 )
 
 Value = Optional[Union[str, tuple[str, ...]]]
@@ -68,6 +78,7 @@ class Options:
     """Comparison options; see ``docs/baseline-diff.md`` for the config file format."""
 
     ephemeral_from: int | None = None
+    fixed_ports: frozenset[int] = frozenset()
     transient_processes: frozenset[str] = frozenset(DEFAULT_TRANSIENT_PROCESSES)
     ignore: dict[str, tuple[str, ...]] = field(default_factory=dict)
     allow_host_mismatch: bool = False
@@ -317,7 +328,7 @@ def _ephemeral_threshold(family: str, options: Options) -> int:
     return DEFAULT_EPHEMERAL_FROM.get(family, 49152)
 
 
-def _listener_identity(rec: Record, threshold: int) -> Record:
+def _listener_identity(rec: Record, threshold: int, fixed: frozenset[int]) -> Record:
     """Re-key listeners on ephemeral ports so a port that moves between runs is not a change."""
     port = as_set(rec.attrs.get("port"))
     bind = as_set(rec.attrs.get("bind"))
@@ -325,7 +336,7 @@ def _listener_identity(rec: Record, threshold: int) -> Record:
     if len(port) != 1 or len(bind) != 1 or len(proto) != 1:
         return rec
     p = next(iter(port))
-    if not p.isdigit() or int(p) < threshold:
+    if not p.isdigit() or int(p) < threshold or int(p) in fixed:
         return rec
     b, pr = next(iter(bind)), next(iter(proto))
     attrs = {k: v for k, v in rec.attrs.items() if k != "port"}
@@ -356,17 +367,19 @@ def _ignored(rec: Record, options: Options, family: str) -> bool:
     return False
 
 
-def _canonical(rec: Record, family: str, threshold: int) -> Record:
+def _canonical(rec: Record, family: str, threshold: int, fixed: frozenset[int]) -> Record:
     out = _casefold_key(rec, family)
     if out.domain == "listeners":
-        out = _listener_identity(out, threshold)
+        out = _listener_identity(out, threshold, fixed)
     return out
 
 
-def _group_records(recs: list[Record], family: str, threshold: int) -> list[Record]:
+def _group_records(
+    recs: list[Record], family: str, threshold: int, fixed: frozenset[int] = frozenset()
+) -> list[Record]:
     buckets: dict[tuple[str, str, str], list[Record]] = {}
     for raw in recs:
-        rec = _canonical(raw, family, threshold)
+        rec = _canonical(raw, family, threshold, fixed)
         buckets.setdefault((rec.domain, rec.scope, rec.key), []).append(rec)
     out: list[Record] = []
     for (domain, _scope, _key), group in buckets.items():
@@ -400,8 +413,7 @@ def _parse_coverage(inv: dict[str, Any], warnings: list[dict[str, str]]) -> Cove
     cov: Coverage = {}
     raw_cov = inv.get("coverage", [])
     if not isinstance(raw_cov, list):
-        warnings.append({"code": "BAD_COVERAGE", "message": "inventory.coverage is not a list"})
-        raw_cov = []
+        raise ReportError("inventory.coverage is not a list")
     for item in raw_cov:
         domain = item.get("domain") if isinstance(item, dict) else None
         scope = item.get("scope", "") if isinstance(item, dict) else ""
@@ -471,16 +483,29 @@ def _parse_records(
     return recs
 
 
+def _object_list(data: dict[str, Any], key: str, ident: str) -> list[dict[str, Any]]:
+    """A report list whose entries must all be objects; silently dropping one could hide a
+    finding or an error and turn an unknown into a conclusion."""
+    raw = data.get(key, [])
+    if not isinstance(raw, list):
+        raise ReportError(f"report.{key} is not a list")
+    for i, item in enumerate(raw):
+        if not isinstance(item, dict) or not isinstance(item.get(ident), str):
+            raise ReportError(f"report.{key}[{i}] is not an object with a string {ident!r}")
+    return raw
+
+
 def build_snapshot(data: dict[str, Any], options: Options, source: str = "") -> Snapshot:
     """Validate a parsed report and canonicalise its inventory."""
     meta = _parse_meta(data, source)
-    findings_raw = data.get("findings", [])
-    findings = [f for f in findings_raw if isinstance(f, dict) and isinstance(f.get("id"), str)]
-    errors = [e for e in data.get("errors", []) or [] if isinstance(e, dict)]
+    findings = _object_list(data, "findings", "id")
+    errors = _object_list(data, "errors", "code")
     warnings: list[dict[str, str]] = []
-    inv = data.get("inventory")
-    if not isinstance(inv, dict):
+    if "inventory" not in data:
         return Snapshot(meta, {}, {}, findings, warnings, has_inventory=False, errors=errors)
+    inv = data["inventory"]
+    if not isinstance(inv, dict):
+        raise ReportError("report.inventory is present but not an object")
     cov = _parse_coverage(inv, warnings)
     recs = _parse_records(inv, cov, warnings, options.max_records)
     for rec in recs:
@@ -493,7 +518,9 @@ def build_snapshot(data: dict[str, Any], options: Options, source: str = "") -> 
             ignored += 1
         else:
             kept.append(rec)
-    grouped = _group_records(kept, meta.os_family, _ephemeral_threshold(meta.os_family, options))
+    grouped = _group_records(
+        kept, meta.os_family, _ephemeral_threshold(meta.os_family, options), options.fixed_ports
+    )
     records = {(r.domain, r.scope, r.key): r for r in grouped}
     return Snapshot(meta, records, cov, findings, warnings, True, ignored=ignored, errors=errors)
 
@@ -512,7 +539,7 @@ def options_from_config(data: Any, base: Options | None = None) -> Options:
     opts = base or Options()
     if not isinstance(data, dict):
         raise ConfigError("config must be a JSON object")
-    unknown = set(data) - {"ephemeral_from", "transient_processes", "ignore"}
+    unknown = set(data) - {"ephemeral_from", "fixed_ports", "transient_processes", "ignore"}
     if unknown:
         raise ConfigError(f"unknown config key(s): {', '.join(sorted(unknown))}")
     ephemeral = opts.ephemeral_from
@@ -524,6 +551,14 @@ def options_from_config(data: Any, base: Options | None = None) -> Options:
             or not 1 <= ephemeral <= 65536
         ):
             raise ConfigError("ephemeral_from must be an integer between 1 and 65536")
+    fixed = opts.fixed_ports
+    if "fixed_ports" in data:
+        ports = data["fixed_ports"]
+        if not isinstance(ports, list) or not all(
+            isinstance(x, int) and not isinstance(x, bool) and 1 <= x <= 65535 for x in ports
+        ):
+            raise ConfigError("fixed_ports must be a list of integers between 1 and 65535")
+        fixed = frozenset(ports)
     transient = opts.transient_processes
     if "transient_processes" in data:
         names = data["transient_processes"]
@@ -539,6 +574,7 @@ def options_from_config(data: Any, base: Options | None = None) -> Options:
         ignore[domain] = tuple(patterns)
     return Options(
         ephemeral_from=ephemeral,
+        fixed_ports=fixed,
         transient_processes=transient,
         ignore=ignore,
         allow_host_mismatch=opts.allow_host_mismatch,

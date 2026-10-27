@@ -130,6 +130,15 @@ def check_compatibility(base: Snapshot, cur: Snapshot, options: Options) -> list
 # --------------------------------------------------------------------- domain plan
 
 
+# A "complete" collection of these domains that returns nothing is a collector failure, not a
+# host with no users, groups, services or processes.
+_NEVER_EMPTY = ("users", "groups", "services", "processes")
+
+
+def _count(snap: Snapshot, domain: str, scope: str) -> int:
+    return sum(1 for k in snap.records if k[0] == domain and k[1] == scope)
+
+
 def _plan_domain(domain: str, scope: str, base: Snapshot, cur: Snapshot) -> _DomainState | None:
     bc, cc = base.coverage.get((domain, scope)), cur.coverage.get((domain, scope))
     if bc is None and cc is None:
@@ -147,6 +156,14 @@ def _plan_domain(domain: str, scope: str, base: Snapshot, cur: Snapshot) -> _Dom
         return state("not_compared", "collection was unavailable on one side")
     can_add, can_remove = bc[0] in _OK_FOR_ABSENCE, cc[0] in _OK_FOR_ABSENCE
     notes = []
+    if domain in _NEVER_EMPTY:
+        nb, nc = _count(base, domain, scope), _count(cur, domain, scope)
+        if can_remove and nc == 0 < nb:
+            can_remove = False
+            notes.append("current collection is empty although the baseline was not")
+        if can_add and nb == 0 < nc:
+            can_add = False
+            notes.append("baseline collection is empty although the current one is not")
     if not can_remove:
         notes.append("current collection incomplete: removals cannot be confirmed")
     if not can_add:
@@ -456,13 +473,28 @@ def _finding_changed(
 _RUN_GAP_CODES = ("MODULE_FAILED", "MODULE_MISSING")
 
 
+def _gap_signatures(snap: Snapshot) -> set[tuple[str, str]]:
+    """Errors that do not name a check: they say something was not collected, not what."""
+    return {
+        (str(e.get("code")), str(e.get("message", "")))
+        for e in snap.errors
+        if not isinstance(e.get("check_id"), str)
+    }
+
+
 def _absence_untrusted(base: Snapshot, cur: Snapshot) -> bool:
     """True when a finding missing from the current run proves nothing.
 
-    A crashed or missing module, or a drop from elevated to unprivileged, hides findings
-    without any error carrying the finding's own check id.
+    A crashed or missing module, a new collection error that names no check, a run that
+    exited partially or with a failure the baseline did not have, or a drop from elevated
+    to unprivileged hides findings without any error carrying the finding's own check id.
     """
     if any(e.get("code") in _RUN_GAP_CODES for e in cur.errors):
+        return True
+    if _gap_signatures(cur) - _gap_signatures(base):
+        return True
+    failed = (ExitCode.ERROR, ExitCode.PRECONDITION, ExitCode.PARTIAL)
+    if cur.meta.exit_code in failed and cur.meta.exit_code != base.meta.exit_code:
         return True
     return base.meta.elevated is True and cur.meta.elevated is not True
 
