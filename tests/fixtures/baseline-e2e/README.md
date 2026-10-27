@@ -14,3 +14,5 @@ Sanitized, synthetic audit reports (schema 0.2.0) used by `tests/shared/test_bas
 | `no-inventory/` | readable reports that carry no usable inventory (schema 0.1.0; `inventory` not an object) |
 
 Adversarial variants (a helper named `sleep` running from `/tmp`, corrupt records, hostile attribute text, shuffled order) are derived from these files inside the tests so each fixture stays a realistic report. To add a scenario, add the snapshot here, then a test that names the behavior it pins; if a case needs a one-field mutation, derive it with `_derive` instead of adding a file.
+
+Files in `invalid/` that are not parseable as strict JSON (or that Python's lenient parser would accept, such as duplicate keys and `NaN`) use the `.report` extension so the repository-wide "validate every tracked `*.json`" lint step does not reject them.

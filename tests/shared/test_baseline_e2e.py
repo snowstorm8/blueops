@@ -682,7 +682,9 @@ def test_malformed_reports_fail_safely_on_either_side(
     assert not out_file.exists()  # no half-written diff that could be mistaken for a result
 
 
-@pytest.mark.parametrize("name", ["empty.json", "truncated.json", "not-json.txt", "nan-value.json"])
+@pytest.mark.parametrize(
+    "name", ["empty.report", "truncated.report", "not-json.txt", "nan-value.report"]
+)
 def test_unparseable_input_names_the_file(name: str, capsys: pytest.CaptureFixture[str]) -> None:
     res = _cli(capsys, FX / "invalid" / name, _fx("linux", "baseline"))
     assert name in res.err
