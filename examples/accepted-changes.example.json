@@ -1,0 +1,20 @@
+{
+  "schema_version": "0.1.0",
+  "kind": "accepted-changes",
+  "entries": [
+    {
+      "id": "AC-sysctl-forwarding",
+      "rules": ["BO-CFG-002"],
+      "domain": "config",
+      "scope": "sysctl",
+      "key": "config:sysctl:net.ipv4.ip_forward",
+      "change": "modified",
+      "current": { "value": "1" },
+      "max_severity": "medium",
+      "reason": "Synthetic example: change ticket CHG-0001 enabled IP forwarding for the container host role.",
+      "approved_by": "example-ops-lead",
+      "approved_at": "2026-03-01T00:00:00Z",
+      "expires": "2026-06-01T00:00:00Z"
+    }
+  ]
+}

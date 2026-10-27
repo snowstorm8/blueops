@@ -49,6 +49,10 @@ jobs:
             code=$?
             test "$code" -eq 0 || { echo "$host: expected exit 0, got $code"; exit 1; }
           done
+          python -m shared.reporting.detect tests/fixtures/baseline-e2e/linux/baseline.json tests/fixtures/baseline-e2e/linux/changed.json --accepted examples/accepted-changes.example.json --json --quiet --generated-at 2026-03-02T00:00:00Z > allow.json
+          code=$?
+          test "$code" -eq 4 || { echo "allowlist: expected exit 4, got $code"; exit 1; }
+          python -c "import json; d=json.load(open('allow.json')); s=d['summary']; assert s['accepted']==1 and s['total']==11 and d['allowlist']['entries'][0]['status']=='matched', s"
 
   bash:
     name: Bash tests (Bats)

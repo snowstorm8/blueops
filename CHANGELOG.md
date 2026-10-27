@@ -9,6 +9,10 @@ All notable changes are documented here. Format: [Keep a Changelog](https://keep
 - `shared/schemas/detections.schema.json` (`kind: "detections"`), `--from-diff`, `--min-severity`, `--list-rules`; reuses diff exit codes.
 - `tests/shared/test_detection.py`: per-rule firing and false-positive scenarios, pinned Linux/Windows end-to-end results, remediation, coverage, determinism, malformed input and read-only/offline checks. CI smoke test for the CLI.
 - `docs/detection-rules.md`: output model, rule catalogue, regression matrix, limitations.
+- Accepted-change allowlist (`--accepted FILE`, `shared/reporting/accepted.py`, `examples/accepted-changes.example.json`): per-subject, rule-scoped, severity-capped (never critical), expiring entries with reason and approver. Matches move to `accepted[]` unchanged with an `acceptance` block; `allowlist` audits every entry (matched/unused/expired and why not applied). Malformed files exit 3.
+- `unknown[]` on every detection: hash-only startup/sudoers/PAM records now state what the report cannot show (content, direction of the change).
+- Remediation false positives removed: already-down security services, ASLR raised, a listener leaving a netcat-style tool (low), temporary paths already present before the change.
+- `tests/shared/test_accepted.py`: remediation, hash-only and allowlist regression tests.
 
 ### Fixed (baseline comparison conclusions)
 - A report whose `inventory` is present but not an object, whose `inventory.coverage`/`findings`/`errors` is not a list, or that holds a non-object finding or error is now rejected (exit 3) instead of being read as missing data; dropped errors could hide a failed module and report findings as resolved.

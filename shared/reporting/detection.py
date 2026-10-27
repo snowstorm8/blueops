@@ -25,6 +25,8 @@ import re
 from dataclasses import dataclass, field
 from typing import Any, Callable
 
+from shared.reporting.accepted import Allowlist
+from shared.reporting.accepted import apply as apply_allowlist
 from shared.reporting.contracts import SCHEMA_VERSION, Severity
 
 TOOL_NAME = "blueops-detect"
@@ -63,6 +65,7 @@ class Signal:
     investigate: tuple[str, ...]
     techniques: tuple[str, ...] = ()
     tokens: tuple[str, ...] = ()
+    unknown: tuple[str, ...] = ()
 
 
 @dataclass
@@ -156,6 +159,23 @@ def _acct(c: dict[str, Any]) -> str:
 
 def _sig(rule_id: str, title: str, sev: Severity, basis: str, **kw: Any) -> list[Signal]:
     return [Signal(rule=rule_id, title=title, severity=sev, basis=basis, **kw)]
+
+
+# Records the inventory keeps only as a content digest: the report cannot say what is inside.
+_CONTENT_ATTRS = frozenset({"command", "value", "target", "path", "image_path", "actions"})
+
+
+def _hash_only(c: dict[str, Any]) -> bool:
+    """True when the change is known only through a file digest (no readable content)."""
+    names = set(_new_values(c))
+    return "sha256" in names and not names & _CONTENT_ATTRS
+
+
+def _digest(c: dict[str, Any]) -> str:
+    d = _delta(c, "sha256")
+    if d:
+        return f" (SHA-256 {_one(d[0])[:12] or 'none'}.. -> {_one(d[1])[:12]}..)"
+    return ""
 
 
 NOLOGIN = ("nologin", "false", "sync", "shutdown", "halt")
@@ -369,6 +389,19 @@ def _group_member_added(c: dict[str, Any], ctx: Context) -> list[Signal]:
 
 # --- persistence ---------------------------------------------------------------------------
 
+_HASH_UNKNOWN = {
+    "added": (
+        "What the new file contains: the report records only its SHA-256, not its content.",
+        "Which program the file starts.",
+    ),
+    "modified": (
+        "What changed inside the file: the report records only a SHA-256 of its content.",
+        "Whether the edit added, removed or restored an entry; reverting to known-good "
+        "content looks the same as tampering.",
+        "Which program the file now starts.",
+    ),
+}
+
 HIGH_RISK_MECHANISMS = (
     "winlogon",
     "ifeo",
@@ -419,12 +452,15 @@ def _persistence(c: dict[str, Any], ctx: Context) -> list[Signal]:
     risky = mech in HIGH_RISK_MECHANISMS
     sev = Severity.HIGH if (risky or c["change"] == "modified") else Severity.MEDIUM
     verb = "added" if c["change"] == "added" else "changed"
+    hashed = _hash_only(c)
     return _sig(
         "BO-PER-002",
         "Persistence entry " + verb,
         sev,
         OBSERVED,
-        observation=f"Persistence entry '{key}' ({mech}) was {verb}.",
+        observation=f"Persistence entry '{key}' ({mech}) was {verb}"
+        + (f"; only its content hash differs{_digest(c)}." if hashed else "."),
+        unknown=_HASH_UNKNOWN[c["change"]] if hashed else (),
         rationale="Autostart locations run code without a user action. A changed existing "
         "entry or a rarely-used mechanism is more suspicious than a new Run/startup item; "
         "installers also create these, so confirm against software changes.",
@@ -499,6 +535,12 @@ def _volatile_exec(c: dict[str, Any], ctx: Context) -> list[Signal]:
             continue
         for v in values:
             paths += volatile_paths(v)
+    if c["change"] == "modified":
+        # A path already present before the change is not something this change introduced.
+        for a in c.get("attributes") or []:
+            if isinstance(a, dict):
+                for v in _vals(a.get("before")):
+                    paths = [p for p in paths if p not in volatile_paths(v)]
     if not paths:
         return []
     paths = sorted(set(paths))
@@ -727,7 +769,7 @@ def _security_service_down(c: dict[str, Any], ctx: Context) -> list[Signal]:
             ("start_mode", {"disabled"}),
         ):
             d = _delta(c, attr)
-            if d and d[1] and d[1][0].lower() in bad:
+            if d and d[1] and d[1][0].lower() in bad and not (d[0] and d[0][0].lower() in bad):
                 how = f"{attr} is now {d[1][0]}"
                 break
     if not how:
@@ -758,6 +800,10 @@ WELL_KNOWN_PORTS = frozenset({"22", "23", "80", "443", "445", "3389", "5985", "5
 
 def _loopback(binds: list[str]) -> bool:
     return bool(binds) and all(b.startswith(("127.", "::1", "localhost")) for b in binds)
+
+
+def _tool_name(proc: str) -> str:
+    return proc.lower().removesuffix(".exe")
 
 
 @rule("BO-NET-001", "listeners")
@@ -824,12 +870,20 @@ def _listener_owner_changed(c: dict[str, Any], ctx: Context) -> list[Signal]:
     if c["change"] != "modified" or not d or _name(c).endswith("/ephemeral"):
         return []
     port = _name(c).rsplit("/", 1)[-1]
+    was_tool = any(_tool_name(p) in REMOTE_TOOLS for p in d[0])
+    is_tool = any(_tool_name(p) in REMOTE_TOOLS for p in d[1])
+    fix = was_tool and not is_tool
     return _sig(
         "BO-NET-003",
         "Listener taken over by another process",
-        Severity.HIGH if port in WELL_KNOWN_PORTS else Severity.MEDIUM,
+        Severity.LOW if fix else (Severity.HIGH if port in WELL_KNOWN_PORTS else Severity.MEDIUM),
         OBSERVED,
-        observation=f"{_name(c)} was served by {', '.join(d[0])}, now by {', '.join(d[1])}.",
+        observation=f"{_name(c)} was served by {', '.join(d[0])}, now by {', '.join(d[1])}."
+        + (
+            " The previous owner was a netcat-style tool, which looks like remediation."
+            if fix
+            else ""
+        ),
         rationale="A different program answering on an established port can be a service "
         "replacement or hijack; upgrades and renamed binaries do this as well.",
         investigate=(
@@ -882,6 +936,16 @@ WEAKENINGS = (
 )
 
 
+def _lowered(d: tuple[list[str], list[str]], frag: str) -> bool:
+    """For graded settings (ASLR 0/1/2) only a drop counts; raising 0 -> 1 is an improvement."""
+    if frag != "kernel.randomize_va_space" or not d[0]:
+        return True
+    try:
+        return int(d[1][0]) < int(d[0][0])
+    except ValueError:
+        return True
+
+
 @rule("BO-CFG-002", "config")
 def _hardening_weakened(c: dict[str, Any], ctx: Context) -> list[Signal]:
     """Known hardening setting moved to its weak value."""
@@ -892,7 +956,7 @@ def _hardening_weakened(c: dict[str, Any], ctx: Context) -> list[Signal]:
         return []
     key = str(c["key"])
     for frag, bad, sev, why in WEAKENINGS:
-        if frag in key and d[1][0] in bad and d[0][:1] != d[1][:1]:
+        if frag in key and d[1][0] in bad and d[0][:1] != d[1][:1] and _lowered(d, frag):
             return _sig(
                 "BO-CFG-002",
                 "Hardening setting weakened",
@@ -1007,12 +1071,23 @@ def _auth_config(c: dict[str, Any], ctx: Context) -> list[Signal]:
         return []
     kind = "sudoers" if key.startswith("config:sudoers:") else "PAM"
     verb = "added" if c["change"] == "added" else "changed"
+    hashed = _hash_only(c)
     return _sig(
         "BO-CFG-005",
         f"{kind} configuration {verb}",
         Severity.HIGH,
         OBSERVED,
-        observation=f"{key} was {verb}.",
+        observation=f"{key} was {verb}"
+        + (f"; only its content hash differs{_digest(c)}." if hashed else "."),
+        unknown=_HASH_UNKNOWN[c["change"]][:1]
+        + (
+            (
+                "Whether access was widened (NOPASSWD, wildcard) or narrowed; a restore to a "
+                "known-good file looks the same as an attack.",
+            )
+            if hashed
+            else ()
+        ),
         rationale="sudoers and PAM define who can become root and how logins are checked; "
         "attackers edit them for passwordless root or authentication bypass.",
         investigate=(
@@ -1159,8 +1234,13 @@ def detect(
     diff: dict[str, Any],
     generated_at: str,
     min_severity: Severity = Severity.INFO,
+    allow: Allowlist | None = None,
 ) -> dict[str, Any]:
-    """Apply every rule to ``diff`` and return a ``detections`` document."""
+    """Apply every rule to ``diff`` and return a ``detections`` document.
+
+    ``allow`` moves explicitly accepted detections, unchanged, into ``accepted`` (see
+    ``shared.reporting.accepted``); nothing else is suppressed.
+    """
     validate_diff(diff)
     ctx = _context(diff)
     groups: dict[tuple[str, str, str], _Group] = {}
@@ -1234,6 +1314,7 @@ def detect(
                 "artifacts": sorted(t for t in tokens[det_id] if not t.startswith("name:")),
                 "techniques": sorted({t for s in sigs for t in s.techniques}),
                 "investigation": list(dict.fromkeys(i for s in sigs for i in s.investigate)),
+                "unknown": list(dict.fromkeys(u for s in sigs for u in s.unknown)),
                 "correlated": [],
             }
         )
@@ -1254,6 +1335,10 @@ def detect(
             {"id": i, "key": by_id[i]["subject"]["key"], "severity": by_id[i]["severity"]}
             for i in d["correlated"]
         ]
+    accepted: list[dict[str, Any]] = []
+    audit = None
+    if allow is not None:
+        detections, accepted, audit = apply_allowlist(detections, allow, generated_at)
     shown = [d for d in detections if sev_rank[d["severity"]] >= int(min_severity)]
 
     gaps = [
@@ -1299,8 +1384,11 @@ def detect(
             ],
         },
         "detections": shown,
+        "accepted": accepted,
+        "allowlist": audit,
         "summary": {
             "total": len(shown),
+            "accepted": len(accepted),
             "suppressed_below_min_severity": len(detections) - len(shown),
             "by_severity": by_sev,
             "by_basis": by_basis,

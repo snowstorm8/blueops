@@ -5,7 +5,7 @@
   "description": "Explainable detections derived from a baseline diff (shared/reporting/detect.py). See docs/detection-rules.md.",
   "type": "object",
   "additionalProperties": false,
-  "required": ["schema_version", "kind", "generated_at", "tool", "baseline", "current", "window", "coverage", "detections", "summary"],
+  "required": ["schema_version", "kind", "generated_at", "tool", "baseline", "current", "window", "coverage", "detections", "accepted", "allowlist", "summary"],
   "properties": {
     "schema_version": { "type": "string", "pattern": "^0\\.\\d+\\.\\d+$" },
     "kind": { "const": "detections" },
@@ -59,12 +59,22 @@
       }
     },
     "detections": { "type": "array", "items": { "$ref": "#/$defs/detection" } },
+    "accepted": {
+      "type": "array",
+      "description": "Detections moved here by an accepted-change entry: the unmodified detection plus an acceptance block. Not counted in summary.total and not reflected in the exit code.",
+      "items": { "$ref": "#/$defs/accepted" }
+    },
+    "allowlist": {
+      "description": "Audit of the allowlist used for this run (null when none was given).",
+      "oneOf": [{ "type": "null" }, { "$ref": "#/$defs/allowlist" }]
+    },
     "summary": {
       "type": "object",
       "additionalProperties": false,
-      "required": ["total", "suppressed_below_min_severity", "by_severity", "by_basis", "changes_evaluated", "changes_without_detection", "rules"],
+      "required": ["total", "accepted", "suppressed_below_min_severity", "by_severity", "by_basis", "changes_evaluated", "changes_without_detection", "rules"],
       "properties": {
         "total": { "type": "integer", "minimum": 0 },
+        "accepted": { "type": "integer", "minimum": 0 },
         "suppressed_below_min_severity": { "type": "integer", "minimum": 0 },
         "by_severity": {
           "type": "object",
@@ -109,10 +119,46 @@
         { "type": "object", "additionalProperties": { "$ref": "#/$defs/value" } }
       ]
     },
+    "accepted": {
+      "allOf": [{ "$ref": "#/$defs/detection" }],
+      "required": ["acceptance"]
+    },
+    "allowlist": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["source", "sha256", "entries"],
+      "properties": {
+        "source": { "type": "string" },
+        "sha256": { "type": "string", "pattern": "^[0-9a-f]{64}$" },
+        "entries": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["id", "status", "expires", "matched", "not_applied"],
+            "properties": {
+              "id": { "type": "string" },
+              "status": { "enum": ["matched", "unused", "expired"] },
+              "expires": { "$ref": "#/$defs/timestamp" },
+              "matched": { "type": "array", "items": { "type": "string" } },
+              "not_applied": {
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "additionalProperties": false,
+                  "required": ["detection", "why"],
+                  "properties": { "detection": { "type": "string" }, "why": { "type": "string" } }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "detection": {
       "type": "object",
       "additionalProperties": false,
-      "required": ["id", "title", "severity", "basis", "subject", "summary", "reasons", "before", "after", "attributes", "evidence", "observed", "related_findings", "artifacts", "techniques", "investigation", "correlated"],
+      "required": ["id", "title", "severity", "basis", "subject", "summary", "reasons", "before", "after", "attributes", "evidence", "observed", "related_findings", "artifacts", "techniques", "investigation", "unknown", "correlated"],
       "properties": {
         "id": { "type": "string", "pattern": "^DET-[0-9a-f]{10}$", "description": "Stable for a given domain/scope/key, so the same subject keeps its id across runs." },
         "title": { "type": "string" },
@@ -184,6 +230,19 @@
         "artifacts": { "type": "array", "items": { "type": "string" }, "description": "Normalised paths that link this detection to others." },
         "techniques": { "type": "array", "items": { "type": "string", "pattern": "^T\\d{4}(\\.\\d{3})?$" }, "description": "MITRE ATT&CK technique ids, for orientation only." },
         "investigation": { "type": "array", "items": { "type": "string" }, "minItems": 1 },
+        "acceptance": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["entry", "reason", "approved_by", "approved_at", "expires"],
+          "properties": {
+            "entry": { "type": "string" },
+            "reason": { "type": "string" },
+            "approved_by": { "type": "string" },
+            "approved_at": { "$ref": "#/$defs/timestamp" },
+            "expires": { "$ref": "#/$defs/timestamp" }
+          }
+        },
+        "unknown": { "type": "array", "items": { "type": "string" }, "description": "What the report cannot show about this change, e.g. the content of a file recorded only as a SHA-256." },
         "correlated": {
           "description": "Other detections that share an artifact. Linked, not merged.",
           "type": "array",

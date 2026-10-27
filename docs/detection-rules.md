@@ -30,8 +30,9 @@ Text (default) groups everything under one heading per detection. JSON conforms 
 | `correlated[]` | other detections that share an artifact (linked, not merged) |
 | `techniques[]` | MITRE ATT&CK ids, for orientation only |
 | `investigation[]` | read-only next steps |
+| `unknown[]` | what the report cannot show about this change (see [Hash-only records](#hash-only-records-what-is-and-is-not-known)) |
 
-The document also carries `coverage` (below) and a `summary`.
+The document also carries `coverage` (below), `accepted` and `allowlist` (see [Accepted changes](#accepted-changes-allowlist)), and a `summary`.
 
 ### Confirmed observation vs. heuristic suspicion
 
@@ -77,22 +78,22 @@ A detection's `basis` follows the reason that sets its severity, so an `observed
 | `BO-GRP-001` | observed | member added to a privileged group (`sudo`, `wheel`, `admin`, `root`, Administrators; weaker: `docker`, `lxd`, `disk`, `shadow`, Server/Account/Backup Operators, Remote Desktop Users) | high or medium by group; **critical** if the member was created in the same window |
 | `BO-PER-001` | observed | new SSH authorized key (fingerprint only) | high; critical for `root` |
 | `BO-PER-002` | observed | persistence entry added or its content changed | medium for a new Run/startup item; high for a changed entry or a high-risk mechanism (Winlogon, IFEO, accessibility, AppInit/AppCert, LSA, netsh, port monitors, time providers, WMI, BootExecute) |
-| `BO-EXE-001` | heuristic | new job/service/persistence value (or process) runs from `/tmp`, `/var/tmp`, `/dev/shm`, `/run/user`, or `Users\Public`, `AppData`, `Windows\Temp`, `Temp`, `$Recycle.Bin`, `PerfLogs` | high; medium for processes |
+| `BO-EXE-001` | heuristic | new job/service/persistence value (or process) runs from `/tmp`, `/var/tmp`, `/dev/shm`, `/run/user`, or `Users\Public`, `AppData`, `Windows\Temp`, `Temp`, `$Recycle.Bin`, `PerfLogs` | high; medium for processes. Only paths introduced by the change count: a path already in the baseline value is not re-reported |
 | `BO-SCH-001` | observed | new cron/at/scheduled task | medium |
 | `BO-SCH-002` | heuristic | new scheduled task flagged hidden | high |
 | `BO-SCH-003` | observed | command of an existing job changed | high; low if it moved *out of* a temporary location (looks like remediation) |
 | `BO-SVC-001` | observed | new service | medium; low if disabled |
 | `BO-SVC-002` | observed | service binary changed, or account changed to LocalSystem | high; low if the binary moved out of a temporary location |
 | `BO-SVC-003` | heuristic | telnet/rsh/rlogin/rexec/tftp service installed or started | medium |
-| `BO-SVC-004` | observed | logging/security service stopped, disabled or removed (`auditd`, `rsyslog`, `fail2ban`, `ufw`, `firewalld`, `eventlog`, `sysmon`, `windefend`, `mpssvc`, ...) | high for audit/event log/Sysmon/Defender/firewall core; else medium |
+| `BO-SVC-004` | observed | logging/security service stopped, disabled or removed (`auditd`, `rsyslog`, `fail2ban`, `ufw`, `firewalld`, `eventlog`, `sysmon`, `windefend`, `mpssvc`, ...) | high for audit/event log/Sysmon/Defender/firewall core; else medium. Not reported when the service was already down in the baseline |
 | `BO-NET-001` | observed | new listener reachable beyond loopback | medium |
 | `BO-NET-002` | heuristic | new listener owned by `nc`/`ncat`/`socat`-style tool or on 4444/4445/1337/31337/6666/12345 | high; medium on loopback |
-| `BO-NET-003` | observed | different process now owns an existing listener (not ephemeral) | high on well-known ports (22, 23, 80, 443, 445, 3389, 5985/6), else medium |
+| `BO-NET-003` | observed | different process now owns an existing listener (not ephemeral) | high on well-known ports (22, 23, 80, 443, 445, 3389, 5985/6), else medium; low when the previous owner was a netcat-style tool and the new one is not (looks like remediation) |
 | `BO-CFG-001` | observed | firewall profile disabled or default inbound set to Allow | high |
-| `BO-CFG-002` | observed | known hardening value weakened: UAC `EnableLUA`, `RestrictAnonymous`, `kernel.randomize_va_space`, `net.ipv4.ip_forward` | high or medium |
+| `BO-CFG-002` | observed | known hardening value weakened: UAC `EnableLUA`, `RestrictAnonymous`, `kernel.randomize_va_space`, `net.ipv4.ip_forward` | high or medium; graded settings (ASLR) fire only when the value drops, so raising 0 to 1 is quiet |
 | `BO-CFG-003` | observed | new set-UID/set-GID file | medium |
 | `BO-CFG-004` | heuristic | new set-ID file that is a shell-capable tool (`find`, `vim`, `python`, `bash`, ...) or sits in a temporary directory | high |
-| `BO-CFG-005` | observed | sudoers or PAM file added or changed | high |
+| `BO-CFG-005` | observed | sudoers or PAM file added or changed | high; lists what is unknown when only a hash was recorded |
 | `BO-CFG-006` | observed | antivirus exclusion added | high |
 | `BO-CFG-007` | observed | hosts-file entry or DNS server added/changed | medium |
 
@@ -111,19 +112,55 @@ False-positive controls that are pinned by tests: a UID 0 account that was alrea
 | e2e `identical` and `churn` fixtures | no detections, coverage complete, exit 0 |
 | e2e `unprivileged` and `module-failed` fixtures | no detections, `coverage.complete=false`, exit 6 |
 | comparison reversed (remediation) | no heuristic alerts, no criticals; commands/binaries moved out of `/tmp` or `Users\Public` are `low` |
+| remediation false positives (`tests/shared/test_accepted.py`) | already-down security service, ASLR raised, listener leaving `nc`, unchanged temporary path, removed hash-only files: all quiet or `low` |
+| hash-only persistence/sudoers records | `unknown[]` says what the report cannot show; readable-content records have none |
+| allowlist | exact match moves the unchanged detection to `accepted`; wrong key/scope/change/hash, extra rules, higher severity, expired, critical and wildcard keys suppress nothing; malformed files exit 3 |
 | shuffled input, other `PYTHONHASHSEED`/`TZ`/`LC_ALL` | byte-identical JSON |
 | malformed diff, wrong kind or schema version, bad change entry | exit 3, nothing on stdout |
 | a rule that raises | recorded in `coverage.rule_errors`; other rules still run; exit 4/6, never a crash |
 | attacker-controlled escape sequences and newlines in values | shown as `\xNN` in text, cannot forge lines |
 | inputs after the run; sockets/subprocesses | unchanged; none created |
 
+## Hash-only records: what is and is not known
+
+Startup scripts, sudoers and PAM files are inventoried as a SHA-256 (plus mode/owner), never as content. For `BO-PER-002` and `BO-CFG-005` on such a record the detection says so instead of implying more:
+
+* **Known:** the file exists/was added/was changed, and the old and new digests (first 12 hex digits in the summary, full values under `attributes`).
+* **Not known** (`unknown[]`, printed as `not known:` in text): what changed inside the file; whether the edit added, removed or *restored* an entry (a revert to known-good content looks the same as tampering); which program a startup file now starts; for sudoers/PAM, whether access was widened (NOPASSWD, wildcards, `pam_permit`) or narrowed.
+
+The severity stays `high` because an unknown direction is not evidence of safety; use the investigation steps (diff against the distribution default or configuration management), and, once a reviewer has confirmed the change, accept it with a hash-pinned entry below. Records that carry readable content (cron command, registry value, service binary) have an empty `unknown[]`.
+
+## Accepted changes (allowlist)
+
+`--accepted FILE` takes a JSON file of reviewed changes (`kind: "accepted-changes"`; example: [`examples/accepted-changes.example.json`](../examples/accepted-changes.example.json)). It is deliberately narrow: an entry accepts **one subject, for named rules, until a date**.
+
+| Field | Required | Meaning |
+|---|---|---|
+| `id` | yes | unique label shown in the output (`[A-Za-z0-9._-]`, max 64) |
+| `rules` | yes | rule ids the entry accepts; **every** rule that fired on the detection must be listed, or nothing is suppressed |
+| `domain`, `key` | yes | exact match on the detection subject (no wildcards: `*` is a literal character) |
+| `scope`, `change` | no | additionally require this scope / `added`/`modified`/`removed` |
+| `current` | no | attribute values the current record must carry exactly, e.g. `{"sha256": "..."}`. Pin the hash and a *later, different* edit to the same file is reported again |
+| `max_severity` | yes | highest severity the entry covers (`info`..`high`). A detection above it is not accepted, so an acceptance cannot silently cover an escalation. **Critical detections can never be accepted** |
+| `reason`, `approved_by`, `approved_at` | yes | who accepted it, when, and why (ticket reference) |
+| `expires` | yes | UTC timestamp after `approved_at`; compared with the run's `generated_at`. An expired entry suppresses nothing |
+
+What happens on a match:
+
+* The detection is moved, **unchanged** (same id, reasons, attributes, evidence), to `accepted[]` with an `acceptance` block (`entry`, `reason`, `approved_by`, `approved_at`, `expires`). It is not counted in `summary.total` and does not affect the exit code (0 when nothing else was detected and coverage is complete); `summary.accepted` counts it. Text output lists accepted changes in their own section.
+* `allowlist` audits the file: its name and SHA-256, and for every entry its `status` (`matched`, `unused` = nothing matched, so it may be stale, or `expired`), the detections it matched, and `not_applied` with the reason when it matched a subject but did not suppress (`expired`, `other rules also fired`, `severity above max_severity`). The audit does not depend on `--min-severity`.
+* Anything that is not explicitly matched is reported as before. Correlation to accepted detections is kept.
+* A malformed file (unknown field, missing reason/approver/expiry, unknown rule id, duplicate id, bad timestamp, critical `max_severity`) is an error, exit 3, never silently ignored. The file is only read.
+
+An accepted change is a statement by a person, not evidence of safety; review `unused` and soon-to-expire entries each run, and keep the file under change control.
+
 ## Limitations
 
 * **Change-based only.** A backdoor that was already on the host when the baseline was taken is invisible to detection, and a host compromised before the baseline passes. Standing-state checks belong to the audit findings.
 * **Only as good as the inventory.** Rules see the attributes the collectors record. Examples: Linux services carry no binary path (so `BO-EXE-001`/`BO-SVC-002` mostly help on Windows services and on cron/persistence), listeners carry a process name and not an executable path, and sudoers/PAM/startup files are compared by hash so the rule can say *changed* but not *what* changed.
-* **Remediation is also a change.** Reverting a modification is reported as a modification (e.g. a restored `rc.local` shows as `BO-PER-002`); only the cases the rules can recognise as moving away from a temporary location are lowered to `low`.
+* **Remediation is also a change.** Reverting a modification is reported as a modification (e.g. a restored `rc.local` shows as `BO-PER-002`, a restored `sudoers` drop-in as `BO-CFG-005`) because a hash cannot show direction; this is stated in `unknown[]` and resolved with a hash-pinned accepted-change entry. Cases the rules *can* recognise are lowered or skipped: a command/binary leaving a temporary location (`low`), a listener leaving a netcat-style tool (`low`), a security service that was already down, ASLR raised, a temporary path already present before the change.
 * **Heuristics are lists.** Volatile paths, netcat-style tool names, payload ports, cleartext service names, set-ID tools and security services are short built-in lists. They can miss renamed tools and will flag portable or per-user installers (AppData is common for legitimate updaters).
-* **No allowlist yet.** Accepted changes cannot yet be suppressed with a profile (planned with the baseline allowlists in [roadmap.md](roadmap.md)); use `--min-severity` for triage.
+* **The allowlist is per-subject.** There are no pattern, tag or group entries by design; a fleet-wide profile of accepted changes is future work in [roadmap.md](roadmap.md). A service or file that is removed and re-created is a new `added` subject and needs its own entry.
 * **Account correlation is by name/SID.** Escalating "new account added to an admin group" needs both records in the same comparison.
 * **ATT&CK ids are orientation, not classification.** A reasonable technique mapping is given; do not treat it as a coverage claim.
 * A compromised host can lie to its own audit (see [security-model.md](security-model.md)); a clean detection run is not proof of integrity.

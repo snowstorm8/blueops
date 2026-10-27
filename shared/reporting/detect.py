@@ -19,6 +19,8 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
 
+from shared.reporting.accepted import AllowlistError
+from shared.reporting.accepted import load as load_allowlist
 from shared.reporting.baseline import IncompatibleReportsError, compare
 from shared.reporting.baseline_render import clean
 from shared.reporting.contracts import ExitCode, Severity
@@ -61,6 +63,12 @@ def _parser() -> argparse.ArgumentParser:
         default="info",
         help="hide detections below this severity (they are still counted)",
     )
+    p.add_argument(
+        "--accepted",
+        metavar="FILE",
+        help="accepted-changes allowlist (docs/detection-rules.md); matches move to 'accepted' "
+        "with the evidence intact",
+    )
     p.add_argument("--config", metavar="FILE", help="diff comparison config (see baseline-diff.md)")
     p.add_argument("--ephemeral-from", type=int, metavar="PORT")
     p.add_argument("--allow-host-mismatch", action="store_true")
@@ -82,6 +90,62 @@ def _load_diff(path: str) -> dict[str, Any]:
         raise DiffInputError(f"cannot read diff {path}: {exc}") from None
 
 
+def _detection_lines(d: dict[str, Any]) -> list[str]:
+    out: list[str] = []
+    sub = d["subject"]
+    out += [
+        "",
+        f"[{d['severity'].upper()}] {d['id']}  {clean(d['title'])}  ({d['basis']})",
+        f"  subject:  {clean(sub['domain'])} {clean(sub['key'])} ({sub['change']})",
+        f"  what:     {clean(d['summary'], 300)}",
+        "  because:",
+    ]
+    for r in d["reasons"]:
+        out.append(f"    - {r['rule']} [{r['basis']}, {r['severity']}] {clean(r['title'])}")
+        out.append(f"        saw:  {clean(r['observation'], 300)}")
+        out.append(f"        why:  {clean(r['rationale'], 400)}")
+    for a in d["attributes"]:
+        out.append(f"  changed:  {clean(a['name'])}: {clean(a['before'])} -> {clean(a['after'])}")
+    for e in d["evidence"][:3]:
+        out.append(f"  evidence: {clean(e['type'])} {clean(e['ref'])}")
+    if d["related_findings"]:
+        out.append(f"  also flagged by audit finding(s): {clean(d['related_findings'])}")
+    if d["correlated"]:
+        out.append(
+            "  linked to: "
+            + ", ".join(f"{c['id']} ({clean(c['key'], 60)})" for c in d["correlated"])
+        )
+    if d["techniques"]:
+        out.append(f"  ATT&CK:   {', '.join(d['techniques'])}")
+    out += [f"  not known: {clean(u, 300)}" for u in d["unknown"]]
+    out.append("  investigate:")
+    out += [f"    {n}. {clean(step, 300)}" for n, step in enumerate(d["investigation"], 1)]
+    return out
+
+
+def _allowlist_lines(doc: dict[str, Any]) -> list[str]:
+    out: list[str] = []
+    if doc["accepted"]:
+        out += ["", "Accepted changes (suppressed from the count; evidence is in the JSON):"]
+        for d in doc["accepted"]:
+            a = d["acceptance"]
+            out.append(
+                f"  {d['id']} [{d['severity']}] {clean(d['subject']['key'], 120)} "
+                f"- {a['entry']} by {clean(a['approved_by'], 60)}, expires {a['expires']}: "
+                f"{clean(a['reason'], 200)}"
+            )
+    al = doc["allowlist"]
+    if al:
+        out += ["", f"Allowlist {clean(al['source'])} (sha256 {al['sha256'][:16]}..):"]
+        for e in al["entries"]:
+            line = f"  {clean(e['id'])}: {e['status']}"
+            if e["status"] != "matched":
+                line += " - nothing was suppressed by it"
+            out.append(line)
+            out += [f"      not applied to {n['detection']}: {n['why']}" for n in e["not_applied"]]
+    return out
+
+
 def render_text(doc: dict[str, Any]) -> str:
     s = doc["summary"]
     cov = doc["coverage"]
@@ -93,6 +157,8 @@ def render_text(doc: dict[str, Any]) -> str:
         + "  ".join(f"{k}={v}" for k, v in s["by_severity"].items() if v)
         + f"  | observed={s['by_basis']['observed']} heuristic={s['by_basis']['heuristic']}",
     ]
+    if s["accepted"]:
+        out.append(f"  accepted: {s['accepted']} detection(s) allowlisted (listed below)")
     if s["suppressed_below_min_severity"]:
         out.append(f"  hidden:   {s['suppressed_below_min_severity']} below --min-severity")
     out.append(
@@ -111,35 +177,8 @@ def render_text(doc: dict[str, Any]) -> str:
             f"      rule error: {clean(e['rule'])} on {clean(e['key'])}: {clean(e['error'])}"
         )
     for d in doc["detections"]:
-        sub = d["subject"]
-        out += [
-            "",
-            f"[{d['severity'].upper()}] {d['id']}  {clean(d['title'])}  ({d['basis']})",
-            f"  subject:  {clean(sub['domain'])} {clean(sub['key'])} ({sub['change']})",
-            f"  what:     {clean(d['summary'], 300)}",
-            "  because:",
-        ]
-        for r in d["reasons"]:
-            out.append(f"    - {r['rule']} [{r['basis']}, {r['severity']}] {clean(r['title'])}")
-            out.append(f"        saw:  {clean(r['observation'], 300)}")
-            out.append(f"        why:  {clean(r['rationale'], 400)}")
-        for a in d["attributes"]:
-            out.append(
-                f"  changed:  {clean(a['name'])}: {clean(a['before'])} -> {clean(a['after'])}"
-            )
-        for e in d["evidence"][:3]:
-            out.append(f"  evidence: {clean(e['type'])} {clean(e['ref'])}")
-        if d["related_findings"]:
-            out.append(f"  also flagged by audit finding(s): {clean(d['related_findings'])}")
-        if d["correlated"]:
-            out.append(
-                "  linked to: "
-                + ", ".join(f"{c['id']} ({clean(c['key'], 60)})" for c in d["correlated"])
-            )
-        if d["techniques"]:
-            out.append(f"  ATT&CK:   {', '.join(d['techniques'])}")
-        out.append("  investigate:")
-        out += [f"    {n}. {clean(step, 300)}" for n, step in enumerate(d["investigation"], 1)]
+        out += _detection_lines(d)
+    out += _allowlist_lines(doc)
     out += ["", *("note: " + n for n in cov["notes"])]
     return "\n".join(out) + "\n"
 
@@ -177,8 +216,19 @@ def main(argv: list[str] | None = None) -> int:
                 opts,
                 generated,
             )
-        doc = detect(diff, generated, Severity.parse(args.min_severity))
-    except (ReportError, ConfigError, IncompatibleReportsError, DiffInputError) as exc:
+        allow = (
+            load_allowlist(args.accepted, frozenset(r.rule_id for r in RULES))
+            if args.accepted
+            else None
+        )
+        doc = detect(diff, generated, Severity.parse(args.min_severity), allow)
+    except (
+        ReportError,
+        ConfigError,
+        IncompatibleReportsError,
+        DiffInputError,
+        AllowlistError,
+    ) as exc:
         sys.stderr.write(f"blueops-detect: {exc}\n")
         return int(ExitCode.PRECONDITION)
     text = json.dumps(doc, indent=2) + "\n" if args.format == "json" else render_text(doc)
