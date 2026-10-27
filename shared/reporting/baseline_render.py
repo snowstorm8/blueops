@@ -128,7 +128,8 @@ def _findings_lines(f: dict[str, Any]) -> list[str]:
             out.append(f"      - evidence {clean(ref)}")
     for x in f["unverified"]:
         out.append(
-            f"  ? {clean(x['id'])} appears {x['state']} but its check reported a coverage gap; "
+            f"  ? {clean(x['id'])} appears {x['state']} but the audit coverage behind that "
+            "conclusion is incomplete (check error, failed module or lost privileges); "
             "no conclusion drawn"
         )
     return out

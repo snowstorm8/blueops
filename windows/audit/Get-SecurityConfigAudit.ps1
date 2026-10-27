@@ -250,7 +250,8 @@ function Invoke-BoSecurityModule {
     if ([int](Get-BoRegValue -Path $au -Name 'NoAutoUpdate' -Default 0) -eq 1) { Add-BoHit -Id 'SEC-UPDATE-001' -Type 'registry' -Ref "$au :: NoAutoUpdate" -Excerpt 'automatic updates disabled' }
 
     # Security-relevant registry settings as structured config records. An unset value is the
-    # string '<unset>' (a real, comparable state); an unreadable key is already a coverage gap.
+    # string '<unset>' (a real, comparable state); an unreadable key is unknown (null) and a
+    # coverage gap.
     $secSettings = @(
         @($sysPol, 'EnableLUA'), @($sysPol, 'ConsentPromptBehaviorAdmin'), @($sysPol, 'LocalAccountTokenFilterPolicy'),
         @($lsaPath, 'RunAsPPL'), @($lsaPath, 'LmCompatibilityLevel'), @($lsaPath, 'NoLMHash'), @($lsaPath, 'LimitBlankPasswordUse'),
@@ -265,7 +266,13 @@ function Invoke-BoSecurityModule {
         @(($sysPol + '\Audit'), 'ProcessCreationIncludeCmdLine_Enabled')
     )
     foreach ($ss in $secSettings) {
-        $sv = Get-BoRegValue -Path $ss[0] -Name $ss[1] -Default '<unset>'
+        # Get-BoRegValue hides access errors behind the default; a permission gap must stay
+        # unknown ($null), never become the comparable value '<unset>'.
+        $errBefore = $script:Bo.Errors.Count
+        $sk = Get-BoRegKeyChecked -Path $ss[0] -CheckId 'SEC-INFO-001'
+        if ($script:Bo.Errors.Count -gt $errBefore) { $sv = $null }
+        elseif ($null -ne $sk -and $sk.Values.ContainsKey($ss[1])) { $sv = $sk.Values[$ss[1]] }
+        else { $sv = '<unset>' }
         Add-BoInventory -Domain 'config' -Scope 'security' -Key "config:security:reg:$($ss[0].ToLowerInvariant())::$($ss[1].ToLowerInvariant())" -Attrs @{ value = $sv } -EvidenceType 'registry' -EvidenceRef "$($ss[0]) :: $($ss[1])"
     }
 

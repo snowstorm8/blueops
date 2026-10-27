@@ -31,5 +31,6 @@ try {
     $changes = @(Get-WinEvent -FilterHashtable @{ LogName = 'System'; Id = 7040; StartTime = (Get-Date).AddMinutes(-30) } -ErrorAction Stop |
         ForEach-Object { [ordered]@{ at = $_.TimeCreated.ToUniversalTime().ToString('o'); message = ($_.Message -replace '\s+', ' ') } })
 } catch { Write-Verbose "no 7040 events: $($_.Exception.Message)" }
-$o.diag = [ordered]@{ at = (Get-Date).ToUniversalTime().ToString('o'); start_type_changes = $changes }
+$bitsSvc = Get-Service -Name BITS -ErrorAction SilentlyContinue
+$o.diag = [ordered]@{ at = (Get-Date).ToUniversalTime().ToString('o'); bits_status = [string]$bitsSvc.Status; start_type_changes = $changes }
 $o | ConvertTo-Json -Depth 4

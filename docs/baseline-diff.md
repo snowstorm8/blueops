@@ -76,7 +76,7 @@ Rules:
 
 ### Transient data
 
-- **PIDs** live in `volatile`; a new PID for the same process is not a change. Processes with the same user and name are aggregated into one record (their PIDs and counts are volatile). Short-lived helpers named in `transient_processes` (default `awk cat cut find grep head ps readlink sed sleep sort ss stat tail tr`) are reported as *transient* and hidden from the text output unless `--show-transient`.
+- **PIDs** live in `volatile`; a new PID for the same process is not a change. Processes with the same user and name are aggregated into one record (their PIDs and counts are volatile). Short-lived helpers named in `transient_processes` (default `awk cat cut find grep head ps readlink sed sleep sort ss stat tail tr`) are reported as *transient* and hidden from the text output unless `--show-transient`, but only when their executable is **known** to be in a system directory (`/bin`, `/usr/bin`, `/usr/sbin`, `/usr/lib`, `C:\\Windows\\System32`...). A helper-named process with an unknown or non-system executable (for example `/tmp/sleep`) is a normal, counted change.
 - **Ephemeral ports**: listeners whose port is at or above `ephemeral_from` (default 32768 on Linux, 49152 on Windows) are re-keyed to `listener:<proto>/<bind>/ephemeral`, with the port kept as volatile. A client service that moves from port 51234 to 51871 is therefore not reported. Override with `--ephemeral-from PORT` or in the config.
 - Loopback-only listeners are compared like any other (they can be backdoors), but get a lower triage priority (`low`).
 
@@ -96,7 +96,7 @@ Each change has `domain`, `scope`, `key`, `change` (`added|removed|modified`), `
 
 ### Findings delta
 
-Findings are compared by `id`, `severity` and file/registry evidence refs only (not by title/description text). Findings whose evidence list was truncated (`only the first N are listed`) are not compared. A finding whose check reported a coverage error in either run is listed as **unverified**, not as new or resolved.
+Findings are compared by `id`, `severity` and file/registry evidence refs only (not by title/description text). Findings whose evidence list was truncated (`only the first N are listed`) are not compared. A finding whose check reported a coverage error in either run is listed as **unverified**, not as new or resolved. Findings missing from the current report are also **unverified** (not resolved) when the current run had a failed or missing module, or lost privileges relative to an elevated baseline.
 
 ## Exit codes
 

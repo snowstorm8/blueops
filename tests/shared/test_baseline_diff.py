@@ -809,3 +809,111 @@ def test_invalid_record_taints_every_scope_of_its_domain() -> None:
     snap = build_snapshot(report(recs), Options())
     assert snap.coverage[("config", "one")][0] == "partial"
     assert snap.coverage[("config", "two")][0] == "partial"
+
+
+# ------------------------------------------------ review regressions (PR 9)
+
+
+def test_helper_named_process_outside_system_dirs_is_not_hidden() -> None:
+    cur = standard_baseline() + [
+        rec(
+            "processes",
+            "process:root:sleep",
+            {"user": "root", "comm": "sleep", "exe": "/tmp/sleep"},
+        )
+    ]
+    d = run_diff(*pair(standard_baseline(), cur))
+    assert d["changes"][0]["transient"] is False
+    assert d["summary"]["added"] == 1
+    assert exit_code_for(d) is ExitCode.FINDINGS
+    assert "process:root:sleep" in render_text(d)
+
+
+def test_swapped_helper_binary_is_a_counted_modification() -> None:
+    def cat(exe: str) -> dict:
+        return rec("processes", "process:root:cat", {"user": "root", "comm": "cat", "exe": exe})
+
+    d = run_diff(
+        *pair(standard_baseline() + [cat("/bin/cat")], standard_baseline() + [cat("/tmp/c")])
+    )
+    assert d["summary"]["modified"] == 1
+    assert d["summary"]["transient"] == 0
+
+
+def test_helper_process_with_unknown_exe_stays_visible() -> None:
+    cur = standard_baseline() + [
+        rec("processes", "process:root:ps", {"user": "root", "comm": "ps", "exe": None})
+    ]
+    d = run_diff(*pair(standard_baseline(), cur))
+    assert d["summary"]["transient"] == 0
+    assert d["summary"]["added"] == 1
+
+
+def test_same_key_in_two_scopes_is_not_overwritten() -> None:
+    base = [
+        rec("config", "config:x:shared", {"v": "1"}, scope="a"),
+        rec("config", "config:x:shared", {"v": "1"}, scope="b"),
+    ]
+    cur = [
+        rec("config", "config:x:shared", {"v": "1"}, scope="a"),
+        rec("config", "config:x:shared", {"v": "2"}, scope="b"),
+    ]
+    d = run_diff(*pair(base, cur))
+    assert [(c["scope"], c["change"]) for c in d["changes"]] == [("b", "modified")]
+    assert d["summary"]["unchanged"] == 1
+
+
+def test_ignore_globs_match_mixed_case_windows_keys() -> None:
+    base = [rec("processes", "process:Backup-Agent.exe", {"exe": "C:\\a.exe"})]
+    cur = [*base, rec("processes", "process:Backup-Agent2.exe", {"exe": "C:\\b.exe"})]
+    d = run_diff(
+        *pair(base, cur, family="windows"), ignore={"processes": ("process:backup-agent2*",)}
+    )
+    assert d["summary"]["added"] == 0
+    assert d["summary"]["ignored"] == 1
+
+
+@pytest.mark.parametrize(
+    "errors",
+    [
+        [{"code": "MODULE_FAILED", "message": "users crashed"}],
+        [{"code": "MODULE_MISSING", "message": "x"}],
+    ],
+    ids=["failed", "missing"],
+)
+def test_findings_are_not_resolved_when_a_module_failed(errors: list[dict]) -> None:
+    base = report(standard_baseline(), findings=[finding("USR-UID0-001", "high")])
+    cur = report(
+        standard_baseline(),
+        findings=[],
+        errors=errors,
+        **{"run": "run-2", "start": LATER["start"], "end": LATER["end"]},
+    )
+    d = run_diff(base, cur)
+    assert d["findings"]["resolved"] == []
+    assert [f["id"] for f in d["findings"]["unverified"]] == ["USR-UID0-001"]
+    assert exit_code_for(d) is ExitCode.PARTIAL
+
+
+def test_findings_are_not_resolved_after_losing_privileges() -> None:
+    base = report(standard_baseline(), findings=[finding("USR-UID0-001", "high")], elevated=True)
+    cur = report(
+        standard_baseline(),
+        findings=[],
+        elevated=False,
+        **{"run": "run-2", "start": LATER["start"], "end": LATER["end"]},
+    )
+    d = run_diff(base, cur)
+    assert d["findings"]["resolved"] == []
+    assert len(d["findings"]["unverified"]) == 1
+
+
+def test_new_findings_are_still_reported_without_privileges() -> None:
+    base = report(standard_baseline(), elevated=True)
+    cur = report(
+        standard_baseline(),
+        findings=[finding("PER-NEW-001", "high")],
+        elevated=False,
+        **{"run": "run-2", "start": LATER["start"], "end": LATER["end"]},
+    )
+    assert [f["id"] for f in run_diff(base, cur)["findings"]["new"]] == ["PER-NEW-001"]

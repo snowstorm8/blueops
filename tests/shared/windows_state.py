@@ -4,8 +4,9 @@ The live audit test must stay strict: the audit may not change host state. But W
 some services by itself. Measured on fresh GitHub runners, BITS demotes itself from automatic
 (delayed) to demand start about one to three minutes after it was started, with nothing else
 running, and logs a System event 7040 ("changed from auto start to demand start"). A difference
-is therefore tolerated only for that exact transition and only when the host logged it inside
-the snapshot window. Anything else, including the opposite transition that starting BITS would
+is therefore tolerated only for that exact transition, only when the host logged it inside
+the snapshot window and only if the service ended up stopped (every observed demotion stops
+the service). Anything else, including the opposite transition that starting BITS would
 cause, is reported as caused by the audit.
 """
 
@@ -75,7 +76,8 @@ def explained_by_host(
         if not rule or mode != rule[0]:
             continue
         twin = f"{name}|{rule[1]}|{path}"
-        if twin in svc["added"] and _logged(before, after, rule[2]):
+        stopped = after["diag"].get("bits_status") == "Stopped"
+        if twin in svc["added"] and stopped and _logged(before, after, rule[2]):
             svc["removed"].remove(gone)
             svc["added"].remove(twin)
             explained.append(f"{name}: {rule[0]} -> {rule[1]} logged by the host (event 7040)")

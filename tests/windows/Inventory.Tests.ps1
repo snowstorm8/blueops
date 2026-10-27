@@ -147,4 +147,13 @@ Describe 'inventory coverage' {
             @($r.Json.inventory.coverage | Where-Object { $_.domain -eq 'services' -and $_.status -ne 'complete' }).Count | Should -BeGreaterThan 0
         }
     }
+
+    It 'an unreadable registry is an unknown value, never the comparable string <unset>' {
+        $r = Invoke-BoAuditJson -Fixture $script:Fx -Modules @('security') -Environment @{ BO_FORCE_MISSING = 'registry' }
+        $reg = @($r.Json.inventory.records | Where-Object { $_.key -like 'config:security:reg:*' })
+        $reg.Count | Should -BeGreaterThan 0
+        foreach ($x in $reg) { $x.attrs.value | Should -BeNullOrEmpty }
+        @($reg | Where-Object { $_.attrs.value -eq '<unset>' }).Count | Should -Be 0
+        @($r.Json.inventory.coverage | Where-Object { $_.domain -eq 'config' -and $_.scope -eq 'security' -and $_.status -eq 'complete' }).Count | Should -Be 0
+    }
 }

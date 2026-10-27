@@ -192,13 +192,37 @@ def _diff_attrs(b: Record, c: Record) -> tuple[list[dict[str, Any]], list[str]]:
     return modified, unverified
 
 
-def _is_transient(rec: Record, options: Options, family: str) -> bool:
-    if rec.domain != "processes":
+_SYSTEM_DIRS = (
+    "/bin/",
+    "/sbin/",
+    "/usr/bin/",
+    "/usr/sbin/",
+    "/lib/",
+    "/usr/lib/",
+    "/usr/libexec/",
+    "c:\\windows\\system32\\",
+    "c:\\windows\\syswow64\\",
+)
+
+
+def _is_transient(recs: list[Record], options: Options, family: str) -> bool:
+    """A helper-named process whose executable is *known* to be in a system directory.
+
+    The name alone is attacker-controlled (``/tmp/sleep``), so an unknown or non-system
+    executable on either side keeps the change visible and counted.
+    """
+    if any(r.domain != "processes" for r in recs):
         return False
-    names = as_set(rec.attrs.get("comm")) or {rec.key.rsplit(":", 1)[-1]}
     fold = str.casefold if family == "windows" else str
     wanted = {fold(n) for n in options.transient_processes}
-    return all(fold(n) in wanted for n in names)
+    for rec in recs:
+        names = as_set(rec.attrs.get("comm")) or {rec.key.rsplit(":", 1)[-1]}
+        exes = as_set(rec.attrs.get("exe"))
+        if not all(fold(n) in wanted for n in names):
+            return False
+        if not exes or not all(fold(e).startswith(_SYSTEM_DIRS) for e in exes):
+            return False
+    return True
 
 
 def _priority(domain: str, change: str, rec: Record) -> str:
@@ -279,7 +303,9 @@ def _make_change(
         related.append((b, ctx.base_refs, ctx.fold))
     if c is not None:
         related.append((c, ctx.cur_refs, ctx.fold))
-    transient = _is_transient(rec, ctx.options, ctx.cur.meta.os_family)
+    transient = _is_transient(
+        [r for r in (b, c) if r is not None], ctx.options, ctx.cur.meta.os_family
+    )
     return {
         "domain": rec.domain,
         "scope": rec.scope,
@@ -348,8 +374,8 @@ def _diff_key(
 def _in_partition(snap: Snapshot, state: _DomainState) -> dict[str, Record]:
     return {
         key: rec
-        for (dom, key), rec in snap.records.items()
-        if dom == state.domain and rec.scope == state.scope
+        for (dom, scope, key), rec in snap.records.items()
+        if dom == state.domain and scope == state.scope
     }
 
 
@@ -427,8 +453,23 @@ def _finding_changed(
     return out
 
 
+_RUN_GAP_CODES = ("MODULE_FAILED", "MODULE_MISSING")
+
+
+def _absence_untrusted(base: Snapshot, cur: Snapshot) -> bool:
+    """True when a finding missing from the current run proves nothing.
+
+    A crashed or missing module, or a drop from elevated to unprivileged, hides findings
+    without any error carrying the finding's own check id.
+    """
+    if any(e.get("code") in _RUN_GAP_CODES for e in cur.errors):
+        return True
+    return base.meta.elevated is True and cur.meta.elevated is not True
+
+
 def diff_findings(base: Snapshot, cur: Snapshot) -> dict[str, Any]:
     """Compare findings by id, severity and stable (file/registry) evidence refs only."""
+    untrusted = _absence_untrusted(base, cur)
     bmap = {f["id"]: f for f in base.findings}
     cmap = {f["id"]: f for f in cur.findings}
     berr, cerr = _error_checks(base), _error_checks(cur)
@@ -439,7 +480,7 @@ def diff_findings(base: Snapshot, cur: Snapshot) -> dict[str, Any]:
     for fid in sorted(set(bmap) | set(cmap)):
         if fid not in bmap or fid not in cmap:
             f = cmap.get(fid) or bmap[fid]
-            gap = (fid in berr) if fid in cmap else (fid in cerr)
+            gap = (fid in berr) if fid in cmap else (untrusted or fid in cerr)
             entry = _finding_summary(f)
             if gap:
                 entry["state"] = "new" if fid in cmap else "resolved"

@@ -105,7 +105,7 @@ class RunMeta:
 @dataclass
 class Snapshot:
     meta: RunMeta
-    records: dict[tuple[str, str], Record]
+    records: dict[tuple[str, str, str], Record]
     coverage: dict[tuple[str, str], tuple[str, str]]  # (domain, scope) -> (status, reason)
     findings: list[dict[str, Any]]
     warnings: list[dict[str, str]]
@@ -308,7 +308,7 @@ def _merge_group(records: list[Record]) -> Record:
         merged = _merge_values(list(vals))
         volatile[n] = merged[:20] if isinstance(merged, tuple) else merged  # type: ignore[assignment]
     ev = tuple(sorted({e for r in records for e in r.evidence}))
-    return Record(first.domain, first.key, attrs, volatile, ev)
+    return Record(first.domain, first.key, attrs, volatile, ev, scope=first.scope)
 
 
 def _ephemeral_threshold(family: str, options: Options) -> int:
@@ -331,7 +331,9 @@ def _listener_identity(rec: Record, threshold: int) -> Record:
     attrs = {k: v for k, v in rec.attrs.items() if k != "port"}
     volatile = dict(rec.volatile)
     volatile["port"] = p
-    return Record(rec.domain, f"listener:{pr}/{b}/ephemeral", attrs, volatile, rec.evidence)
+    return Record(
+        rec.domain, f"listener:{pr}/{b}/ephemeral", attrs, volatile, rec.evidence, scope=rec.scope
+    )
 
 
 def _casefold_key(rec: Record, family: str) -> Record:
@@ -346,9 +348,10 @@ def is_loopback_listener(rec: Record) -> bool:
 
 
 def _ignored(rec: Record, options: Options, family: str) -> bool:
+    key = rec.key.casefold() if family == "windows" else rec.key
     for pattern in options.ignore.get(rec.domain, ()):
         pat = pattern.casefold() if family == "windows" else pattern
-        if fnmatch.fnmatchcase(rec.key, pat):
+        if fnmatch.fnmatchcase(key, pat):
             return True
     return False
 
@@ -361,12 +364,12 @@ def _canonical(rec: Record, family: str, threshold: int) -> Record:
 
 
 def _group_records(recs: list[Record], family: str, threshold: int) -> list[Record]:
-    buckets: dict[tuple[str, str], list[Record]] = {}
+    buckets: dict[tuple[str, str, str], list[Record]] = {}
     for raw in recs:
         rec = _canonical(raw, family, threshold)
-        buckets.setdefault((rec.domain, rec.key), []).append(rec)
+        buckets.setdefault((rec.domain, rec.scope, rec.key), []).append(rec)
     out: list[Record] = []
-    for (domain, _key), group in buckets.items():
+    for (domain, _scope, _key), group in buckets.items():
         if domain in MERGEABLE_DOMAINS:
             out.append(_merge_group(group))
         else:
@@ -491,7 +494,7 @@ def build_snapshot(data: dict[str, Any], options: Options, source: str = "") -> 
         else:
             kept.append(rec)
     grouped = _group_records(kept, meta.os_family, _ephemeral_threshold(meta.os_family, options))
-    records = {(r.domain, r.key): r for r in grouped}
+    records = {(r.domain, r.scope, r.key): r for r in grouped}
     return Snapshot(meta, records, cov, findings, warnings, True, ignored=ignored, errors=errors)
 
 

@@ -16,13 +16,17 @@ BITS_TEXT = (
 
 
 def snap(
-    services: list[str], at: str, changes: list[tuple[str, str]] | None = None
+    services: list[str],
+    at: str,
+    changes: list[tuple[str, str]] | None = None,
+    bits: str = "Stopped",
 ) -> dict[str, Any]:
     return {
         "services": services,
         "hosts": "abc",
         "diag": {
             "at": at,
+            "bits_status": bits,
             "start_type_changes": [{"at": t, "message": m} for t, m in (changes or [])],
         },
     }
@@ -90,3 +94,12 @@ def test_diag_key_is_never_compared() -> None:
     before = snap(["A|Auto|x"], BEFORE)
     after = snap(["A|Auto|x"], AFTER, [(INSIDE, "something")])
     assert host_changes(before, after) == {}
+
+
+def test_a_running_service_after_the_change_is_not_a_self_demotion() -> None:
+    # Demotion always stops BITS; a still-running service with the same diff is suspicious.
+    before = snap([f"BITS|Auto|{PATH}"], BEFORE)
+    after = snap([f"BITS|Manual|{PATH}"], AFTER, [(INSIDE, BITS_TEXT)], bits="Running")
+    changed = host_changes(before, after)
+    assert explained_by_host(changed, before, after) == []
+    assert "services" in changed
