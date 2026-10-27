@@ -79,6 +79,13 @@ Rules:
 
 - **PIDs** live in `volatile`; a new PID for the same process is not a change. Processes with the same user and name are aggregated into one record (their PIDs and counts are volatile). Short-lived helpers named in `transient_processes` (default `awk cat cut find grep head ps readlink sed sleep sort ss stat tail tr`) are reported as *transient* and hidden from the text output unless `--show-transient`, but only when their executable is **known** to be in a system directory (`/bin`, `/usr/bin`, `/usr/sbin`, `/usr/lib`, `C:\\Windows\\System32`...). A helper-named process with an unknown or non-system executable (for example `/tmp/sleep`) is a normal, counted change.
 - **Ephemeral ports**: listeners whose port is at or above `ephemeral_from` (default 32768 on Linux, 49152 on Windows) are re-keyed to `listener:<proto>/<bind>/ephemeral`, with the port kept as volatile. A client service that moves from port 51234 to 51871 is therefore not reported. Override with `--ephemeral-from PORT` or in the config.
+- **Stable services on high ports.** Ephemeral bucketing compares only the process names in a bucket, so a metrics agent that always listens on 40111 is not reported when it moves, but a *second* listener from the same process on 41000 is invisible too. Name ports that are really fixed in the config file and they keep their own identity:
+
+  ```json
+  { "ephemeral_from": 32768, "fixed_ports": [40111, 50000] }
+  ```
+
+  With this, `listener:tcp/0.0.0.0/40111` is compared exactly (removed if the agent stops or moves to another port, added if a new listener appears there), while other ports at or above 32768 still collapse into `listener:tcp/0.0.0.0/ephemeral`. Ports must be integers from 1 to 65535; anything else is a config error (exit 3). Use `python -m shared.reporting.diff A B --config diff.json`.
 - Loopback-only listeners are compared like any other (they can be backdoors), but get a lower triage priority (`low`).
 
 ## Output
