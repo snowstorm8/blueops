@@ -32,6 +32,7 @@ function Invoke-BoServicesModule {
         Get-CimInstance -ClassName Win32_Service -ErrorAction Stop
     }
     $svcs = @()
+    $svcFull = $true
     if ($res.Ok) { $svcs = @($res.Data) }
     else {
         $fb = Invoke-BoProvider -Name 'services.fallback' -ErrorCode 'SERVICES_UNAVAILABLE' -Message 'Get-Service fallback also failed; no service inventory' -CheckId 'SVC-INFO-001' -Live {
@@ -39,6 +40,8 @@ function Invoke-BoServicesModule {
         }
         if ($fb.Ok) {
             $svcs = @($fb.Data)
+            $svcFull = $false
+            Add-BoCoverage -Domain 'services' -Status 'degraded' -Reason 'Get-Service fallback: image paths and accounts unknown'
             Add-BoError -Code 'SERVICE_PATHS_UNKNOWN' -Message 'image paths and accounts unavailable (Get-Service fallback); path checks skipped' -CheckId 'SVC-PATH-001' -Material $false
         }
     }
@@ -60,6 +63,12 @@ function Invoke-BoServicesModule {
         $acct = [string](Get-BoProp $s 'StartName' '')
         $ref = "service:$name"
         Add-BoHit -Id 'SVC-INFO-001' -Type 'other' -Ref $ref -Excerpt "state=$state start=$mode account=$acct path=$path"
+        if ($name) {
+            # The fallback cannot see the image path or account: unknown, not empty.
+            $invPath = $null; $invAcct = $null
+            if ($svcFull) { $invPath = Protect-BoText $path 500; $invAcct = $acct }
+            Add-BoInventory -Domain 'services' -Key "service:$lname" -Attrs @{ name = $name; state = $state; start_mode = $mode; account = $invAcct; image_path = $invPath }
+        }
         if ($acct -and $acct -notmatch '^(LocalSystem|NT AUTHORITY\\|NT SERVICE\\)') {
             Add-BoHit -Id 'SVC-ACCOUNT-001' -Type 'other' -Ref $ref -Excerpt "account=$acct state=$state"
         }

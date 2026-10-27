@@ -55,7 +55,7 @@ setup() {
 @test "full audit emits schema-shaped JSON and exit code 4 when findings exist" {
   run_audit
   [ "${status}" -eq 4 ]
-  [ "$(json_py "d['schema_version']")" = "0.1.0" ]
+  [ "$(json_py "d['schema_version']")" = "0.2.0" ]
   [ "$(json_py "d['tool']['name']")" = "audit-linux" ]
   [ "$(json_py "d['tool']['category']")" = "audit" ]
   [ "$(json_py "d['run']['mode']")" = "read-only" ]

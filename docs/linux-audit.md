@@ -46,6 +46,10 @@ Reports conform to `shared/schemas/audit-report.schema.json` (0.1.0), which has 
 | persistence | PER-* | systemd units (system and user) and drop-ins, cron/anacron/at, `rc.local`, init scripts, `ld.so.preload`, shell profiles/rc files, XDG autostart, udev `RUN`, APT hooks, `pam_exec`, `sshrc`; suspicious-command patterns (reverse shells, download-and-execute, world-writable paths, setuid, alias hijack, `LD_PRELOAD`) |
 | filesystem | FS-* | SUID/SGID inventory with known-package and GTFOBins-style classification; recently modified files; world-writable files/dirs; executables in temp dirs; orphaned files; deceptive names; modes of `passwd`, `shadow`, `sudoers`, `sshd_config`, etc.; with `--package-integrity`: modified programs/libraries (`FS-PKG-001`), other discrepancies (`FS-PKG-002`), summary (`FS-PKG-003`) |
 
+## Inventory for baseline comparison (schema 0.2.0)
+
+Besides findings, every run emits `inventory` (records with stable keys plus per-domain coverage) for [baseline-diff.md](baseline-diff.md). Modules contribute: users (`user:`, `group:`, sudoers `config:sudoers:`, SSH keys `persist:ssh-authkey:` fingerprinted by key blob), processes (`process:<user>:<comm>`, PIDs volatile), network (`listener:`, sysctl/DNS/hosts `config:`), services (`service:`), persistence (`cron:`, `persist:<scope>:`), pam (`config:pam:`), filesystem (`config:suid:`). Coverage is `partial` when not root for protected paths, when `find` reported errors or `--fs-path` narrows the scan, and when a module is missing or aborts; unknown executables are `null`, never empty. Key material and password hashes are never emitted.
+
 ## Contextual heuristics (false-positive control)
 
 - Housekeeping commands that only *name* a path (`rm`, `ls`, `chmod`, `mkdir`, `test`, `tmpreaper`, ...) are not "execution from a world-writable directory". `find ... -exec CMD`, `cp`, `mv` and `tar` are deliberately **not** exempt, because they run or stage files from `/tmp`.

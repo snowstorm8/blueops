@@ -13,7 +13,7 @@
 # the audited host (only the optional --OutputDir run directory is written).
 
 $script:BoVersion = '0.1.0'
-$script:BoSchemaVersion = '0.1.0'
+$script:BoSchemaVersion = '0.2.0'
 $script:BoSeverityRank = @{ info = 0; low = 1; medium = 2; high = 3; critical = 4 }
 $script:BoAllModules = @('system', 'users', 'processes', 'network', 'services', 'tasks',
     'autoruns', 'persistence', 'firewall', 'security', 'filesystem')
@@ -95,6 +95,113 @@ function Get-BoSeverityRank {
 
 # ----------------------------------------------------------------------------- run state
 
+$script:BoInvDomains = @('users', 'groups', 'services', 'processes', 'listeners', 'scheduled_tasks', 'persistence', 'config')
+# Inventory partitions (domain:scope) each module is responsible for; used when a module fails.
+$script:BoModulePartitions = @{
+    users       = @('users:', 'groups:')
+    processes   = @('processes:')
+    network     = @('listeners:', 'config:network')
+    services    = @('services:')
+    tasks       = @('scheduled_tasks:tasks')
+    autoruns    = @('persistence:autoruns')
+    persistence = @('persistence:registry')
+    firewall    = @('config:firewall')
+    security    = @('config:security')
+}
+
+function ConvertTo-BoInvValue {
+    # Inventory attribute value: $null (unknown), bool, int, string, or a set of strings.
+    # A collection that contains $null is unknown as a whole (a partial set must not be compared).
+    param([AllowNull()]$Value)
+    if ($null -eq $Value) { return $null }
+    if ($Value -is [bool] -or $Value -is [int]) { return $Value }
+    if ($Value -is [long]) { return [string]$Value }
+    if ($Value -is [System.Collections.IEnumerable] -and $Value -isnot [string]) {
+        $items = New-Object System.Collections.Generic.List[string]
+        foreach ($i in $Value) {
+            if ($null -eq $i) { return $null }
+            $items.Add((ConvertTo-BoSafeString $i))
+        }
+        return , $items.ToArray()
+    }
+    return (ConvertTo-BoSafeString $Value)
+}
+
+function Add-BoInventory {
+    # Records one structured inventory item. Key must be stable across runs (no PIDs, no free text).
+    # Attrs are compared between runs; Volatile values are shown but never compared.
+    [CmdletBinding()]
+    param(
+        [Parameter(Mandatory)][ValidateSet('users', 'groups', 'services', 'processes', 'listeners', 'scheduled_tasks', 'persistence', 'config')][string]$Domain,
+        [string]$Scope = '',
+        [Parameter(Mandatory)][string]$Key,
+        [System.Collections.IDictionary]$Attrs = @{},
+        [System.Collections.IDictionary]$Volatile = @{},
+        [string]$EvidenceType = '',
+        [string]$EvidenceRef = ''
+    )
+    $k = ConvertTo-BoSafeString $Key
+    if ($k.Length -gt 1000) { $k = $k.Substring(0, 1000) }
+    $a = [ordered]@{}
+    foreach ($n in @($Attrs.Keys | Sort-Object)) { $a[[string]$n] = ConvertTo-BoInvValue $Attrs[$n] }
+    $r = [ordered]@{ domain = $Domain }
+    if ($Scope) { $r['scope'] = $Scope }
+    $r['key'] = $k
+    $r['attrs'] = $a
+    if ($Volatile.Count -gt 0) {
+        $v = [ordered]@{}
+        foreach ($n in @($Volatile.Keys | Sort-Object)) { $v[[string]$n] = ConvertTo-BoInvValue $Volatile[$n] }
+        $r['volatile'] = $v
+    }
+    if ($EvidenceType -and $EvidenceRef) {
+        $r['evidence'] = @([ordered]@{ type = $EvidenceType; ref = (ConvertTo-BoSafeString $EvidenceRef) })
+    }
+    [void]$script:Bo.Inventory.Add($r)
+}
+
+function Add-BoCoverage {
+    # Declares how completely a domain (optionally a scope of it) was collected. Duplicate
+    # declarations are merged by the comparison engine to the worst status.
+    [CmdletBinding()]
+    param(
+        [Parameter(Mandatory)][ValidateSet('users', 'groups', 'services', 'processes', 'listeners', 'scheduled_tasks', 'persistence', 'config')][string]$Domain,
+        [string]$Scope = '',
+        [Parameter(Mandatory)][ValidateSet('complete', 'degraded', 'partial', 'unavailable')][string]$Status,
+        [string]$Reason = ''
+    )
+    $c = [ordered]@{ domain = $Domain }
+    if ($Scope) { $c['scope'] = $Scope }
+    $c['status'] = $Status
+    if ($Reason) { $c['reason'] = (ConvertTo-BoSafeString $Reason) }
+    [void]$script:Bo.Coverage.Add($c)
+}
+
+function Add-BoModuleCoverage {
+    # Declares coverage for every partition of a module: complete when no error was recorded
+    # since the module started, otherwise partial (some records may be missing).
+    param([Parameter(Mandatory)][string]$Module, [int]$ErrorsBefore = 0)
+    if (-not $script:BoModulePartitions.ContainsKey($Module)) { return }
+    $status = 'complete'; $reason = ''
+    if ($script:Bo.Errors.Count -gt $ErrorsBefore) {
+        $status = 'partial'
+        $reason = 'a data source was unreadable or access was denied'
+        if (-not $script:Bo.Elevated) { $reason += ' (not elevated)' }
+    }
+    foreach ($part in $script:BoModulePartitions[$Module]) {
+        $d, $s = $part.Split(':', 2)
+        Add-BoCoverage -Domain $d -Scope $s -Status $status -Reason $reason
+    }
+}
+
+function Add-BoModuleUnavailable {
+    param([Parameter(Mandatory)][string]$Module, [Parameter(Mandatory)][string]$Reason, [string]$Status = 'unavailable')
+    if (-not $script:BoModulePartitions.ContainsKey($Module)) { return }
+    foreach ($part in $script:BoModulePartitions[$Module]) {
+        $d, $s = $part.Split(':', 2)
+        Add-BoCoverage -Domain $d -Scope $s -Status $Status -Reason $Reason
+    }
+}
+
 function Initialize-BoRun {
     [CmdletBinding()]
     param(
@@ -134,6 +241,8 @@ function Initialize-BoRun {
         Findings   = New-Object System.Collections.ArrayList
         Errors     = New-Object System.Collections.ArrayList
         Log        = New-Object System.Collections.ArrayList
+        Inventory  = New-Object System.Collections.ArrayList
+        Coverage   = New-Object System.Collections.ArrayList
         Module     = ''
         FsPath     = @()
         NoColor    = $false
@@ -823,6 +932,7 @@ function ConvertTo-BoReportObject {
         host           = (Get-BoHostInfo)
         findings       = @($script:Bo.Findings)
         errors         = @($errs)
+        inventory      = [ordered]@{ coverage = @($script:Bo.Coverage); records = @($script:Bo.Inventory) }
         summary        = [ordered]@{ total = $script:Bo.Findings.Count; by_severity = $by }
     }
     return $report
@@ -994,10 +1104,18 @@ function Invoke-BoCli {
         Write-BoLog 'INFO' "module start $m"
         if (-not (Get-Command -Name $fn -CommandType Function -ErrorAction SilentlyContinue)) {
             Add-BoError -Code 'MODULE_MISSING' -Message "module '$m' is not loaded" -Material $true
+            Add-BoModuleUnavailable -Module $m -Reason "module '$m' is not loaded"
             continue
         }
-        try { & $fn }
-        catch { Add-BoError -Code 'MODULE_FAILED' -Message "module '$m' crashed: $($_.Exception.Message)" -Material $true }
+        $errBefore = $script:Bo.Errors.Count
+        try {
+            & $fn
+            Add-BoModuleCoverage -Module $m -ErrorsBefore $errBefore
+        }
+        catch {
+            Add-BoError -Code 'MODULE_FAILED' -Message "module '$m' crashed: $($_.Exception.Message)" -Material $true
+            Add-BoModuleUnavailable -Module $m -Reason "module '$m' crashed" -Status 'partial'
+        }
         $script:BoChecks = @{}
     }
     $script:Bo.Module = ''

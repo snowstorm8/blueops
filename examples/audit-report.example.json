@@ -1,6 +1,10 @@
 {
-  "schema_version": "0.1.0",
-  "tool": { "name": "example-audit", "version": "0.0.0", "category": "audit" },
+  "schema_version": "0.2.0",
+  "tool": {
+    "name": "example-audit",
+    "version": "0.0.0",
+    "category": "audit"
+  },
   "run": {
     "id": "00000000-0000-4000-8000-000000000000",
     "started_at": "2026-01-01T12:00:00Z",
@@ -11,7 +15,11 @@
   },
   "host": {
     "hostname": "host-example",
-    "os": { "family": "linux", "name": "ExampleOS", "version": "1.0" },
+    "os": {
+      "family": "linux",
+      "name": "ExampleOS",
+      "version": "1.0"
+    },
     "arch": "x86_64",
     "user": "analyst",
     "elevated": true
@@ -24,14 +32,105 @@
       "confidence": "low",
       "category": "persistence",
       "description": "Synthetic example showing the report shape. Not produced by any BlueOps tool.",
-      "evidence": [{ "type": "file", "ref": "/etc/example", "sha256": "0000000000000000000000000000000000000000000000000000000000000000" }],
+      "evidence": [
+        {
+          "type": "file",
+          "ref": "/etc/example",
+          "sha256": "0000000000000000000000000000000000000000000000000000000000000000"
+        }
+      ],
       "remediation": "None; example only.",
-      "mitre_attack": ["T1053.003"]
+      "mitre_attack": [
+        "T1053.003"
+      ]
     }
   ],
   "errors": [],
+  "inventory": {
+    "coverage": [
+      {
+        "domain": "users",
+        "status": "complete"
+      },
+      {
+        "domain": "processes",
+        "status": "degraded",
+        "reason": "1 process(es) with unreadable executable path (needs root)"
+      },
+      {
+        "domain": "scheduled_tasks",
+        "scope": "cron",
+        "status": "complete"
+      }
+    ],
+    "records": [
+      {
+        "domain": "users",
+        "key": "user:alice",
+        "attrs": {
+          "uid": "1000",
+          "gid": "1000",
+          "home": "/home/alice",
+          "shell": "/bin/bash",
+          "password": "set"
+        },
+        "evidence": [
+          {
+            "type": "file",
+            "ref": "/etc/passwd"
+          }
+        ]
+      },
+      {
+        "domain": "processes",
+        "key": "process:root:sshd",
+        "attrs": {
+          "user": "root",
+          "comm": "sshd",
+          "exe": "/usr/sbin/sshd"
+        },
+        "volatile": {
+          "pid": "812",
+          "cmdline": "sshd -D"
+        }
+      },
+      {
+        "domain": "processes",
+        "key": "process:www-data:nginx",
+        "attrs": {
+          "user": "www-data",
+          "comm": "nginx",
+          "exe": null
+        },
+        "volatile": {
+          "pid": "930"
+        }
+      },
+      {
+        "domain": "scheduled_tasks",
+        "scope": "cron",
+        "key": "cron:/etc/cron.d/example#0123456789abcdef",
+        "attrs": {
+          "file": "/etc/cron.d/example",
+          "entry": "0 3 * * * root /usr/local/bin/backup.sh"
+        },
+        "evidence": [
+          {
+            "type": "file",
+            "ref": "/etc/cron.d/example"
+          }
+        ]
+      }
+    ]
+  },
   "summary": {
     "total": 1,
-    "by_severity": { "info": 0, "low": 0, "medium": 1, "high": 0, "critical": 0 }
+    "by_severity": {
+      "info": 0,
+      "low": 0,
+      "medium": 1,
+      "high": 0,
+      "critical": 0
+    }
   }
 }

@@ -76,6 +76,7 @@ function Invoke-BoPersistenceModule {
             $nm = [string](Get-BoProp $c 'Name' '')
             $cmd = [string](Get-BoProp $c 'Command' '')
             Add-BoHit -Id 'PER-WMI-002' -Type 'other' -Ref "wmi:$cls/$nm" -Excerpt $cmd
+            Add-BoInventory -Domain 'persistence' -Scope 'registry' -Key "persist:wmi:$($cls.ToLowerInvariant())/$($nm.ToLowerInvariant())" -Attrs @{ class = $cls; name = $nm; command = (Protect-BoText $cmd 500) } -EvidenceType 'other' -EvidenceRef "wmi:$cls/$nm"
             if ($cls -eq 'CommandLineEventConsumer' -or $cls -eq 'ActiveScriptEventConsumer') {
                 Add-BoHit -Id 'PER-WMI-001' -Type 'other' -Ref "wmi:$cls/$nm" -Excerpt $cmd
             }
@@ -93,6 +94,7 @@ function Invoke-BoPersistenceModule {
                 $dbg = [string](Get-BoProp $k.Values 'Debugger' '')
                 if ($dbg.Trim() -ne '' -and $dbg -notmatch '(?i)vsjitdebugger\.exe') {
                     Add-BoHit -Id 'PER-IFEO-001' -Type 'registry' -Ref "$base\Image File Execution Options\$img :: Debugger" -Excerpt $dbg
+                    Add-BoInventory -Domain 'persistence' -Scope 'registry' -Key "persist:ifeo:$($base.ToLowerInvariant()):$($img.ToLowerInvariant())" -Attrs @{ debugger = (Protect-BoText $dbg 500) } -EvidenceType 'registry' -EvidenceRef "$base\Image File Execution Options\$img :: Debugger"
                 }
             }
         }
@@ -103,6 +105,7 @@ function Invoke-BoPersistenceModule {
             $k = Get-BoRegKeyChecked -Path ($nt + '\SilentProcessExit\' + $img) -CheckId 'PER-SILENT-001'
             if ($null -ne $k -and ([string](Get-BoProp $k.Values 'MonitorProcess' '')).Trim() -ne '') {
                 Add-BoHit -Id 'PER-SILENT-001' -Type 'registry' -Ref "$nt\SilentProcessExit\$img :: MonitorProcess" -Excerpt ([string]$k.Values['MonitorProcess'])
+                Add-BoInventory -Domain 'persistence' -Scope 'registry' -Key "persist:silentprocessexit:$($img.ToLowerInvariant())" -Attrs @{ monitor = (Protect-BoText ([string]$k.Values['MonitorProcess']) 500) } -EvidenceType 'registry' -EvidenceRef "$nt\SilentProcessExit\$img :: MonitorProcess"
             }
         }
     }
@@ -114,15 +117,21 @@ function Invoke-BoPersistenceModule {
             $sev = 'medium'
             if ([int](Get-BoProp $w.Values 'LoadAppInit_DLLs' 0) -eq 1) { $sev = 'high' }
             Add-BoHit -Id 'PER-APPINIT-001' -Type 'registry' -Ref "$base :: AppInit_DLLs" -Excerpt "LoadAppInit_DLLs=$([string](Get-BoProp $w.Values 'LoadAppInit_DLLs' 0)) $dlls" -Severity $sev
+            Add-BoInventory -Domain 'persistence' -Scope 'registry' -Key "persist:appinit:$($base.ToLowerInvariant())" -Attrs @{ dlls = (Protect-BoText $dlls 500); enabled = ([int](Get-BoProp $w.Values 'LoadAppInit_DLLs' 0) -eq 1) } -EvidenceType 'registry' -EvidenceRef "$base :: AppInit_DLLs"
         }
     }
     $sm = $script:HKLM + '\SYSTEM\CurrentControlSet\Control\Session Manager'
     $ac = Get-BoRegKeyChecked -Path ($sm + '\AppCertDLLs') -CheckId 'PER-APPCERT-001'
-    if ($null -ne $ac) { foreach ($n in $ac.Values.Keys) { Add-BoHit -Id 'PER-APPCERT-001' -Type 'registry' -Ref "$sm\AppCertDLLs :: $n" -Excerpt ([string]$ac.Values[$n]) } }
+    if ($null -ne $ac) {
+        foreach ($n in $ac.Values.Keys) {
+            Add-BoHit -Id 'PER-APPCERT-001' -Type 'registry' -Ref "$sm\AppCertDLLs :: $n" -Excerpt ([string]$ac.Values[$n])
+            Add-BoInventory -Domain 'persistence' -Scope 'registry' -Key "persist:appcertdlls:$($n.ToLowerInvariant())" -Attrs @{ dll = (Protect-BoText ([string]$ac.Values[$n]) 500) } -EvidenceType 'registry' -EvidenceRef "$sm\AppCertDLLs :: $n"
+        }
+    }
     $smk = Get-BoRegKeyChecked -Path $sm -CheckId 'PER-BOOT-001'
     if ($null -ne $smk) {
         $be = Get-BoRegStringList (Get-BoProp $smk.Values 'BootExecute' @())
-        foreach ($b in $be) { if ($b.Trim() -notmatch '(?i)^autocheck autochk( /[a-z])* ?\*$') { Add-BoHit -Id 'PER-BOOT-001' -Type 'registry' -Ref "$sm :: BootExecute" -Excerpt $b } }
+        foreach ($b in $be) { if ($b.Trim() -notmatch '(?i)^autocheck autochk( /[a-z])* ?\*$') { Add-BoHit -Id 'PER-BOOT-001' -Type 'registry' -Ref "$sm :: BootExecute" -Excerpt $b; Add-BoInventory -Domain 'persistence' -Scope 'registry' -Key "persist:bootexecute:$($b.Trim().ToLowerInvariant())" -Attrs @{ entry = (Protect-BoText $b 500) } -EvidenceType 'registry' -EvidenceRef "$sm :: BootExecute" } }
         foreach ($nme in @('SetupExecute', 'PlatformExecute')) {
             foreach ($b in (Get-BoRegStringList (Get-BoProp $smk.Values $nme @()))) { Add-BoHit -Id 'PER-BOOT-001' -Type 'registry' -Ref "$sm :: $nme" -Excerpt $b }
         }
@@ -140,7 +149,7 @@ function Invoke-BoPersistenceModule {
         foreach ($name in $allowed.Keys) {
             foreach ($pkg in (Get-BoRegStringList (Get-BoProp $lsa.Values $name @()))) {
                 foreach ($piece in ($pkg -split '[,\s]+')) {
-                    if ($piece -and ($allowed[$name] -notcontains $piece.ToLowerInvariant())) { Add-BoHit -Id 'PER-LSA-001' -Type 'registry' -Ref "$lsaPath :: $name" -Excerpt $piece }
+                    if ($piece -and ($allowed[$name] -notcontains $piece.ToLowerInvariant())) { Add-BoHit -Id 'PER-LSA-001' -Type 'registry' -Ref "$lsaPath :: $name" -Excerpt $piece; Add-BoInventory -Domain 'persistence' -Scope 'registry' -Key "persist:lsa:$($name.ToLowerInvariant()):$($piece.ToLowerInvariant())" -Attrs @{ package = $piece } -EvidenceType 'registry' -EvidenceRef "$lsaPath :: $name" }
                 }
             }
         }
@@ -154,7 +163,7 @@ function Invoke-BoPersistenceModule {
             $dll = [string]$netsh.Values[$n]
             $leaf = ($dll -split '\\')[-1] -replace '(?i)\.dll$', ''
             $outside = ($dll -match '\\' -and $dll -notmatch '(?i)^(%systemroot%|c:\\windows)\\system32\\')
-            if ($outside -or $leaf -notmatch "(?i)^($okNetsh)$") { Add-BoHit -Id 'PER-NETSH-001' -Type 'registry' -Ref "$($script:HKLM)\SOFTWARE\Microsoft\NetSh :: $n" -Excerpt $dll }
+            if ($outside -or $leaf -notmatch "(?i)^($okNetsh)$") { Add-BoHit -Id 'PER-NETSH-001' -Type 'registry' -Ref "$($script:HKLM)\SOFTWARE\Microsoft\NetSh :: $n" -Excerpt $dll; Add-BoInventory -Domain 'persistence' -Scope 'registry' -Key "persist:netsh:$($n.ToLowerInvariant())" -Attrs @{ dll = (Protect-BoText $dll 500) } -EvidenceType 'registry' -EvidenceRef "$($script:HKLM)\SOFTWARE\Microsoft\NetSh :: $n" }
         }
     }
     $tp = $script:HKLM + '\SYSTEM\CurrentControlSet\Services\W32Time\TimeProviders'
@@ -163,7 +172,7 @@ function Invoke-BoPersistenceModule {
         foreach ($sub in $tpk.SubKeys) {
             $k = Get-BoRegKeyChecked -Path ($tp + '\' + $sub) -CheckId 'PER-TIMEPROV-001'
             $dll = [string](Get-BoProp $k.Values 'DllName' '')
-            if ($dll -and $dll -notmatch '(?i)^(%systemroot%|c:\\windows)\\system32\\(w32time|vmictimeprovider)\.dll$') { Add-BoHit -Id 'PER-TIMEPROV-001' -Type 'registry' -Ref "$tp\$sub :: DllName" -Excerpt $dll }
+            if ($dll -and $dll -notmatch '(?i)^(%systemroot%|c:\\windows)\\system32\\(w32time|vmictimeprovider)\.dll$') { Add-BoHit -Id 'PER-TIMEPROV-001' -Type 'registry' -Ref "$tp\$sub :: DllName" -Excerpt $dll; Add-BoInventory -Domain 'persistence' -Scope 'registry' -Key "persist:timeprovider:$($sub.ToLowerInvariant())" -Attrs @{ dll = (Protect-BoText $dll 500) } -EvidenceType 'registry' -EvidenceRef "$tp\$sub :: DllName" }
         }
     }
     $pm = $script:HKLM + '\SYSTEM\CurrentControlSet\Control\Print\Monitors'
@@ -172,7 +181,7 @@ function Invoke-BoPersistenceModule {
         foreach ($sub in $pmk.SubKeys) {
             $k = Get-BoRegKeyChecked -Path ($pm + '\' + $sub) -CheckId 'PER-PORTMON-001'
             $dll = [string](Get-BoProp $k.Values 'Driver' '')
-            if ($dll -and ($dll -notmatch '(?i)^(localspl|tcpmon|usbmon|wsdmon|appmon|mfmon|pjlmon|lprmon|fxsmon|hpmon|virtualmon|apmon)\.dll$')) { Add-BoHit -Id 'PER-PORTMON-001' -Type 'registry' -Ref "$pm\$sub :: Driver" -Excerpt $dll }
+            if ($dll -and ($dll -notmatch '(?i)^(localspl|tcpmon|usbmon|wsdmon|appmon|mfmon|pjlmon|lprmon|fxsmon|hpmon|virtualmon|apmon)\.dll$')) { Add-BoHit -Id 'PER-PORTMON-001' -Type 'registry' -Ref "$pm\$sub :: Driver" -Excerpt $dll; Add-BoInventory -Domain 'persistence' -Scope 'registry' -Key "persist:portmonitor:$($sub.ToLowerInvariant())" -Attrs @{ driver = (Protect-BoText $dll 500) } -EvidenceType 'registry' -EvidenceRef "$pm\$sub :: Driver" }
         }
     }
 
@@ -181,19 +190,21 @@ function Invoke-BoPersistenceModule {
     $cpm = Get-BoRegKeyChecked -Path ($script:HKLM + '\SOFTWARE\Microsoft\Command Processor') -CheckId 'PER-CMDAUTORUN-001'
     if ($null -ne $cpm -and ([string](Get-BoProp $cpm.Values 'AutoRun' '')).Trim() -ne '') {
         Add-BoHit -Id 'PER-CMDAUTORUN-001' -Type 'registry' -Ref "$($script:HKLM)\SOFTWARE\Microsoft\Command Processor :: AutoRun" -Excerpt ([string]$cpm.Values['AutoRun'])
+        Add-BoInventory -Domain 'persistence' -Scope 'registry' -Key 'persist:cmdautorun:machine' -Attrs @{ command = (Protect-BoText ([string]$cpm.Values['AutoRun']) 500) } -EvidenceType 'registry' -EvidenceRef "$($script:HKLM)\SOFTWARE\Microsoft\Command Processor :: AutoRun"
     }
     foreach ($h in (Get-BoUserHive)) {
         $root = $script:HKU + '\' + $h.Sid
         $ck = Get-BoRegKeyChecked -Path ($root + $cp) -CheckId 'PER-CMDAUTORUN-001'
-        if ($null -ne $ck -and ([string](Get-BoProp $ck.Values 'AutoRun' '')).Trim() -ne '') { Add-BoHit -Id 'PER-CMDAUTORUN-001' -Type 'registry' -Ref "$root$cp :: AutoRun" -Excerpt ([string]$ck.Values['AutoRun']) }
+        if ($null -ne $ck -and ([string](Get-BoProp $ck.Values 'AutoRun' '')).Trim() -ne '') { Add-BoHit -Id 'PER-CMDAUTORUN-001' -Type 'registry' -Ref "$root$cp :: AutoRun" -Excerpt ([string]$ck.Values['AutoRun']); Add-BoInventory -Domain 'persistence' -Scope 'registry' -Key "persist:cmdautorun:$($h.Sid.ToLowerInvariant())" -Attrs @{ command = (Protect-BoText ([string]$ck.Values['AutoRun']) 500) } -EvidenceType 'registry' -EvidenceRef "$root$cp :: AutoRun" }
         $env1 = Get-BoRegKeyChecked -Path ($root + '\Environment') -CheckId 'PER-LOGON-001'
         if ($null -ne $env1 -and ([string](Get-BoProp $env1.Values 'UserInitMprLogonScript' '')).Trim() -ne '') {
             Add-BoHit -Id 'PER-LOGON-001' -Type 'registry' -Ref "$root\Environment :: UserInitMprLogonScript" -Excerpt ([string]$env1.Values['UserInitMprLogonScript'])
+            Add-BoInventory -Domain 'persistence' -Scope 'registry' -Key "persist:logonscript:$($h.Sid.ToLowerInvariant())" -Attrs @{ command = (Protect-BoText ([string]$env1.Values['UserInitMprLogonScript']) 500) } -EvidenceType 'registry' -EvidenceRef "$root\Environment :: UserInitMprLogonScript"
         }
         $dsk = Get-BoRegKeyChecked -Path ($root + '\Control Panel\Desktop') -CheckId 'PER-SCRSAVE-001'
         if ($null -ne $dsk) {
             $scr = [string](Get-BoProp $dsk.Values 'SCRNSAVE.EXE' '')
-            if ($scr -and (Get-BoPathZone (Get-BoExecutablePath $scr)) -ne 'system') { Add-BoHit -Id 'PER-SCRSAVE-001' -Type 'registry' -Ref "$root\Control Panel\Desktop :: SCRNSAVE.EXE" -Excerpt $scr }
+            if ($scr -and (Get-BoPathZone (Get-BoExecutablePath $scr)) -ne 'system') { Add-BoHit -Id 'PER-SCRSAVE-001' -Type 'registry' -Ref "$root\Control Panel\Desktop :: SCRNSAVE.EXE" -Excerpt $scr; Add-BoInventory -Domain 'persistence' -Scope 'registry' -Key "persist:screensaver:$($h.Sid.ToLowerInvariant())" -Attrs @{ path = (Protect-BoText $scr 500) } -EvidenceType 'registry' -EvidenceRef "$root\Control Panel\Desktop :: SCRNSAVE.EXE" }
         }
         $clsRoot = $root + '\Software\Classes\CLSID'
         $cls = Get-BoRegKeyChecked -Path $clsRoot -CheckId 'PER-COM-001'
@@ -229,7 +240,9 @@ function Invoke-BoPersistenceModule {
         catch { Add-BoPermError -Message "cannot read profile $p" -CheckId 'PER-PROFILE-001' }
         $trim = ($content -replace '(?m)^\s*#.*$', '').Trim()
         if ($trim -eq '') { continue }
+        $profHash = Get-BoFileSha256 $p
         Add-BoHit -Id 'PER-PROFILE-001' -Type 'file' -Ref $p -Excerpt "$($trim.Length) bytes of script"
+        Add-BoInventory -Domain 'persistence' -Scope 'registry' -Key "persist:psprofile:$($p.ToLowerInvariant())" -Attrs @{ sha256 = $(if ($profHash) { $profHash } else { $null }) } -EvidenceType 'file' -EvidenceRef $p
         $reasons = Get-BoCommandReason ($trim -replace '\r?\n', ' ')
         if ($reasons.Strong.Count -gt 0) { Add-BoHit -Id 'PER-PROFILE-002' -Type 'file' -Ref $p -Excerpt ($reasons.Strong -join '; ') }
     }
@@ -262,6 +275,7 @@ function Invoke-BoPersistenceModule {
     foreach ($bin in @('sethc', 'utilman', 'osk', 'narrator', 'magnify', 'displayswitch', 'atbroker')) {
         $p = "C:\Windows\System32\$bin.exe"
         $hh = Get-BoFileSha256 $p
+        if ($hh) { Add-BoInventory -Domain 'persistence' -Scope 'registry' -Key "persist:accessibility:$bin" -Attrs @{ sha256 = $hh } -EvidenceType 'file' -EvidenceRef $p }
         if ($hh -and $shellHashes.ContainsKey($hh)) { Add-BoHit -Id 'PER-ACCESS-001' -Type 'file' -Ref $p -Excerpt "sha256 equals $($shellHashes[$hh])" }
     }
     Publish-BoCheck

@@ -1,0 +1,651 @@
+{
+  "schema_version": "0.2.0",
+  "kind": "baseline-diff",
+  "generated_at": "2026-01-02T12:00:00Z",
+  "tool": {
+    "name": "blueops-diff",
+    "version": "0.2.0"
+  },
+  "baseline": {
+    "run_id": "run-1",
+    "tool": "synthetic-audit",
+    "tool_version": "0.0.0",
+    "schema_version": "0.2.0",
+    "started_at": "2026-01-01T10:00:00Z",
+    "finished_at": "2026-01-01T10:05:00Z",
+    "hostname": "web01",
+    "os_family": "linux",
+    "os_name": "Synthetic",
+    "os_version": "1",
+    "elevated": true,
+    "has_inventory": true
+  },
+  "current": {
+    "run_id": "run-2",
+    "tool": "synthetic-audit",
+    "tool_version": "0.0.0",
+    "schema_version": "0.2.0",
+    "started_at": "2026-01-02T10:00:00Z",
+    "finished_at": "2026-01-02T10:05:00Z",
+    "hostname": "web01",
+    "os_family": "linux",
+    "os_name": "Synthetic",
+    "os_version": "1",
+    "elevated": true,
+    "has_inventory": true
+  },
+  "window": {
+    "from": "2026-01-01T10:05:00Z",
+    "to": "2026-01-02T10:00:00Z"
+  },
+  "warnings": [],
+  "domains": [
+    {
+      "domain": "users",
+      "scope": "",
+      "status": "compared",
+      "baseline_coverage": {
+        "status": "complete",
+        "reason": ""
+      },
+      "current_coverage": {
+        "status": "complete",
+        "reason": ""
+      },
+      "note": ""
+    },
+    {
+      "domain": "groups",
+      "scope": "",
+      "status": "compared",
+      "baseline_coverage": {
+        "status": "complete",
+        "reason": ""
+      },
+      "current_coverage": {
+        "status": "complete",
+        "reason": ""
+      },
+      "note": ""
+    },
+    {
+      "domain": "services",
+      "scope": "",
+      "status": "compared",
+      "baseline_coverage": {
+        "status": "complete",
+        "reason": ""
+      },
+      "current_coverage": {
+        "status": "complete",
+        "reason": ""
+      },
+      "note": ""
+    },
+    {
+      "domain": "processes",
+      "scope": "",
+      "status": "compared",
+      "baseline_coverage": {
+        "status": "complete",
+        "reason": ""
+      },
+      "current_coverage": {
+        "status": "complete",
+        "reason": ""
+      },
+      "note": ""
+    },
+    {
+      "domain": "listeners",
+      "scope": "",
+      "status": "compared",
+      "baseline_coverage": {
+        "status": "complete",
+        "reason": ""
+      },
+      "current_coverage": {
+        "status": "complete",
+        "reason": ""
+      },
+      "note": ""
+    },
+    {
+      "domain": "scheduled_tasks",
+      "scope": "",
+      "status": "compared",
+      "baseline_coverage": {
+        "status": "complete",
+        "reason": ""
+      },
+      "current_coverage": {
+        "status": "complete",
+        "reason": ""
+      },
+      "note": ""
+    },
+    {
+      "domain": "persistence",
+      "scope": "",
+      "status": "compared",
+      "baseline_coverage": {
+        "status": "complete",
+        "reason": ""
+      },
+      "current_coverage": {
+        "status": "complete",
+        "reason": ""
+      },
+      "note": ""
+    },
+    {
+      "domain": "persistence",
+      "scope": "systemd",
+      "status": "compared",
+      "baseline_coverage": {
+        "status": "complete",
+        "reason": ""
+      },
+      "current_coverage": {
+        "status": "complete",
+        "reason": ""
+      },
+      "note": ""
+    },
+    {
+      "domain": "config",
+      "scope": "",
+      "status": "compared",
+      "baseline_coverage": {
+        "status": "complete",
+        "reason": ""
+      },
+      "current_coverage": {
+        "status": "complete",
+        "reason": ""
+      },
+      "note": ""
+    },
+    {
+      "domain": "config",
+      "scope": "suid",
+      "status": "partial",
+      "baseline_coverage": {
+        "status": "complete",
+        "reason": ""
+      },
+      "current_coverage": {
+        "status": "partial",
+        "reason": "find reported errors"
+      },
+      "note": "current collection incomplete: removals cannot be confirmed"
+    }
+  ],
+  "changes": [
+    {
+      "domain": "users",
+      "scope": "",
+      "key": "user:alice",
+      "change": "modified",
+      "priority": "high",
+      "transient": false,
+      "attributes": [
+        {
+          "name": "shell",
+          "before": "/bin/bash",
+          "after": "/bin/sh"
+        }
+      ],
+      "unverified_attributes": [],
+      "observed": {
+        "baseline_at": "2026-01-01T10:05:00Z",
+        "current_at": "2026-01-02T10:05:00Z"
+      },
+      "baseline": {
+        "attrs": {
+          "home": "/home/alice",
+          "shell": "/bin/bash",
+          "uid": "1000"
+        },
+        "volatile": {},
+        "evidence": []
+      },
+      "current": {
+        "attrs": {
+          "home": "/home/alice",
+          "shell": "/bin/sh",
+          "uid": "1000"
+        },
+        "volatile": {},
+        "evidence": []
+      },
+      "related_findings": []
+    },
+    {
+      "domain": "users",
+      "scope": "",
+      "key": "user:bob",
+      "change": "removed",
+      "priority": "medium",
+      "transient": false,
+      "attributes": [],
+      "unverified_attributes": [],
+      "observed": {
+        "baseline_at": "2026-01-01T10:05:00Z",
+        "current_at": null
+      },
+      "baseline": {
+        "attrs": {
+          "home": "/home/bob",
+          "shell": "/usr/sbin/nologin",
+          "uid": "1001"
+        },
+        "volatile": {},
+        "evidence": []
+      },
+      "current": null,
+      "related_findings": []
+    },
+    {
+      "domain": "users",
+      "scope": "",
+      "key": "user:mallory",
+      "change": "added",
+      "priority": "high",
+      "transient": false,
+      "attributes": [],
+      "unverified_attributes": [],
+      "observed": {
+        "baseline_at": null,
+        "current_at": "2026-01-02T10:05:00Z"
+      },
+      "baseline": null,
+      "current": {
+        "attrs": {
+          "home": "/home/mallory",
+          "shell": "/bin/bash",
+          "uid": "0"
+        },
+        "volatile": {},
+        "evidence": [
+          {
+            "type": "file",
+            "ref": "/etc/passwd"
+          }
+        ]
+      },
+      "related_findings": [
+        "USR-UID0-001"
+      ]
+    },
+    {
+      "domain": "services",
+      "scope": "",
+      "key": "service:evil.service",
+      "change": "added",
+      "priority": "medium",
+      "transient": false,
+      "attributes": [],
+      "unverified_attributes": [],
+      "observed": {
+        "baseline_at": null,
+        "current_at": "2026-01-02T10:05:00Z"
+      },
+      "baseline": null,
+      "current": {
+        "attrs": {
+          "active": "running",
+          "enabled": "enabled"
+        },
+        "volatile": {},
+        "evidence": []
+      },
+      "related_findings": []
+    },
+    {
+      "domain": "listeners",
+      "scope": "",
+      "key": "listener:tcp/0.0.0.0/4444",
+      "change": "added",
+      "priority": "high",
+      "transient": false,
+      "attributes": [],
+      "unverified_attributes": [],
+      "observed": {
+        "baseline_at": null,
+        "current_at": "2026-01-02T10:05:00Z"
+      },
+      "baseline": null,
+      "current": {
+        "attrs": {
+          "bind": [
+            "0.0.0.0"
+          ],
+          "port": [
+            "4444"
+          ],
+          "process": [
+            "nc"
+          ],
+          "proto": [
+            "tcp"
+          ]
+        },
+        "volatile": {
+          "count": "1",
+          "pid": [
+            "4100"
+          ]
+        },
+        "evidence": []
+      },
+      "related_findings": []
+    },
+    {
+      "domain": "listeners",
+      "scope": "",
+      "key": "listener:tcp/0.0.0.0/ephemeral",
+      "change": "added",
+      "priority": "high",
+      "transient": false,
+      "attributes": [],
+      "unverified_attributes": [],
+      "observed": {
+        "baseline_at": null,
+        "current_at": "2026-01-02T10:05:00Z"
+      },
+      "baseline": null,
+      "current": {
+        "attrs": {
+          "bind": [
+            "0.0.0.0"
+          ],
+          "process": [
+            "curl"
+          ],
+          "proto": [
+            "tcp"
+          ]
+        },
+        "volatile": {
+          "count": "1",
+          "port": [
+            "51234"
+          ]
+        },
+        "evidence": []
+      },
+      "related_findings": []
+    },
+    {
+      "domain": "scheduled_tasks",
+      "scope": "",
+      "key": "cron:/etc/cron.d/backup",
+      "change": "modified",
+      "priority": "high",
+      "transient": false,
+      "attributes": [
+        {
+          "name": "command",
+          "before": "/usr/local/bin/backup.sh",
+          "after": "/tmp/.x/backup.sh"
+        }
+      ],
+      "unverified_attributes": [],
+      "observed": {
+        "baseline_at": "2026-01-01T10:05:00Z",
+        "current_at": "2026-01-02T10:05:00Z"
+      },
+      "baseline": {
+        "attrs": {
+          "command": "/usr/local/bin/backup.sh",
+          "schedule": "0 2 * * *",
+          "user": "root"
+        },
+        "volatile": {},
+        "evidence": [
+          {
+            "type": "file",
+            "ref": "/etc/cron.d/backup"
+          }
+        ]
+      },
+      "current": {
+        "attrs": {
+          "command": "/tmp/.x/backup.sh",
+          "schedule": "0 2 * * *",
+          "user": "root"
+        },
+        "volatile": {},
+        "evidence": [
+          {
+            "type": "file",
+            "ref": "/etc/cron.d/backup"
+          }
+        ]
+      },
+      "related_findings": []
+    },
+    {
+      "domain": "persistence",
+      "scope": "",
+      "key": "persist:file:/etc/rc.local",
+      "change": "modified",
+      "priority": "high",
+      "transient": false,
+      "attributes": [
+        {
+          "name": "sha256",
+          "before": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+          "after": "dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd"
+        }
+      ],
+      "unverified_attributes": [],
+      "observed": {
+        "baseline_at": "2026-01-01T10:05:00Z",
+        "current_at": "2026-01-02T10:05:00Z"
+      },
+      "baseline": {
+        "attrs": {
+          "mode": "755",
+          "sha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+        },
+        "volatile": {},
+        "evidence": [
+          {
+            "type": "file",
+            "ref": "/etc/rc.local"
+          }
+        ]
+      },
+      "current": {
+        "attrs": {
+          "mode": "755",
+          "sha256": "dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd"
+        },
+        "volatile": {},
+        "evidence": [
+          {
+            "type": "file",
+            "ref": "/etc/rc.local"
+          }
+        ]
+      },
+      "related_findings": [
+        "PER-NEW-001"
+      ]
+    },
+    {
+      "domain": "persistence",
+      "scope": "systemd",
+      "key": "persist:systemd:/etc/systemd/system/backup.service",
+      "change": "modified",
+      "priority": "high",
+      "transient": false,
+      "attributes": [
+        {
+          "name": "sha256",
+          "before": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+          "after": "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc"
+        }
+      ],
+      "unverified_attributes": [],
+      "observed": {
+        "baseline_at": "2026-01-01T10:05:00Z",
+        "current_at": "2026-01-02T10:05:00Z"
+      },
+      "baseline": {
+        "attrs": {
+          "sha256": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
+        },
+        "volatile": {},
+        "evidence": []
+      },
+      "current": {
+        "attrs": {
+          "sha256": "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc"
+        },
+        "volatile": {},
+        "evidence": []
+      },
+      "related_findings": []
+    },
+    {
+      "domain": "config",
+      "scope": "",
+      "key": "config:sysctl:net.ipv4.ip_forward",
+      "change": "modified",
+      "priority": "medium",
+      "transient": false,
+      "attributes": [
+        {
+          "name": "value",
+          "before": "0",
+          "after": "1"
+        }
+      ],
+      "unverified_attributes": [],
+      "observed": {
+        "baseline_at": "2026-01-01T10:05:00Z",
+        "current_at": "2026-01-02T10:05:00Z"
+      },
+      "baseline": {
+        "attrs": {
+          "value": "0"
+        },
+        "volatile": {},
+        "evidence": []
+      },
+      "current": {
+        "attrs": {
+          "value": "1"
+        },
+        "volatile": {},
+        "evidence": []
+      },
+      "related_findings": []
+    }
+  ],
+  "indeterminate": [
+    {
+      "domain": "scheduled_tasks",
+      "scope": "",
+      "key": "cron:/etc/cron.d/dup",
+      "reason": "RECORD_CONFLICT",
+      "detail": "2 records share this key with different attributes",
+      "observed": {
+        "baseline_at": null,
+        "current_at": "2026-01-02T10:05:00Z"
+      },
+      "baseline": null,
+      "current": {
+        "attrs": {
+          "command": "/bin/a"
+        },
+        "volatile": {},
+        "evidence": []
+      }
+    }
+  ],
+  "findings": {
+    "new": [
+      {
+        "id": "PER-NEW-001",
+        "severity": "medium",
+        "category": "test",
+        "title": "Finding PER-NEW-001"
+      }
+    ],
+    "resolved": [
+      {
+        "id": "NET-OLD-001",
+        "severity": "low",
+        "category": "test",
+        "title": "Finding NET-OLD-001"
+      }
+    ],
+    "changed": [
+      {
+        "id": "USR-UID0-001",
+        "severity": "high",
+        "category": "test",
+        "title": "Finding USR-UID0-001",
+        "before_severity": "high",
+        "after_severity": "high",
+        "evidence_added": [
+          "/etc/shadow"
+        ],
+        "evidence_removed": []
+      }
+    ],
+    "unverified": []
+  },
+  "summary": {
+    "added": 4,
+    "removed": 1,
+    "modified": 5,
+    "transient": 0,
+    "indeterminate": 1,
+    "unchanged": 8,
+    "ignored": 0,
+    "by_domain": {
+      "users": {
+        "added": 1,
+        "removed": 1,
+        "modified": 1
+      },
+      "services": {
+        "added": 1,
+        "removed": 0,
+        "modified": 0
+      },
+      "listeners": {
+        "added": 2,
+        "removed": 0,
+        "modified": 0
+      },
+      "scheduled_tasks": {
+        "added": 0,
+        "removed": 0,
+        "modified": 1
+      },
+      "persistence": {
+        "added": 0,
+        "removed": 0,
+        "modified": 2
+      },
+      "config": {
+        "added": 0,
+        "removed": 0,
+        "modified": 1
+      }
+    },
+    "domains_compared": 9,
+    "domains_partial": 1,
+    "domains_not_compared": 0,
+    "findings_new": 1,
+    "findings_resolved": 1,
+    "findings_changed": 1,
+    "findings_unverified": 0
+  }
+}

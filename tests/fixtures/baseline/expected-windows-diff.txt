@@ -1,0 +1,25 @@
+BlueOps baseline diff 0.2.0 - offline, read-only comparison
+Baseline: WIN-SRV01  run run-1  finished 2026-01-01T10:05:00Z  (windows, elevated=True)
+Current : WIN-SRV01  run run-2  finished 2026-01-02T10:05:00Z  (windows, elevated=False)
+Changes occurred between 2026-01-01T10:05:00Z and 2026-01-02T10:00:00Z
+Result: 0 added, 0 removed, 2 modified; 1 indeterminate; 1 unchanged
+! PRIVILEGE_DIFFERS: baseline elevated=True, current elevated=False; attributes that need privileges may be unknown on one side
+
+Coverage:
+  users                      compared      baseline=complete current=complete
+  services                   compared      baseline=complete current=degraded  some attributes were unavailable and are not compared
+  persistence/autoruns       compared      baseline=complete current=complete
+  config/security            compared      baseline=complete current=complete
+
+== persistence ==
+  ~ persist:run:machine:\software\microsoft\windows\currentversion\run:updater  [high]
+      data: C:\Tools\up.exe -> C:\Users\Public\up.exe
+      seen: baseline 2026-01-01T10:05:00Z, current 2026-01-02T10:05:00Z
+
+== config ==
+  ~ config:security:reg:hklm\x::enablelua  [medium]
+      value: 1 -> 0
+      seen: baseline 2026-01-01T10:05:00Z, current 2026-01-02T10:05:00Z
+
+== indeterminate (no conclusion drawn) ==
+  ? service:spooler  ATTRIBUTE_UNKNOWN: attribute(s) unknown on one side (permission gap?): image_path

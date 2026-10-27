@@ -8,7 +8,26 @@ from __future__ import annotations
 
 import enum
 
-SCHEMA_VERSION = "0.1.0"
+SCHEMA_VERSION = "0.2.0"
+
+# Report schema versions (major.minor) that the baseline-diff engine can read.
+# 0.1 reports have no ``inventory`` and are compared at findings level only.
+READABLE_REPORT_VERSIONS = ("0.1", "0.2")
+
+# Inventory record domains, in report order (see docs/baseline-diff.md).
+INVENTORY_DOMAINS = (
+    "users",
+    "groups",
+    "services",
+    "processes",
+    "listeners",
+    "scheduled_tasks",
+    "persistence",
+    "config",
+)
+
+# Per-domain collection coverage, best to worst.
+COVERAGE_STATUSES = ("complete", "degraded", "partial", "unavailable")
 
 
 class Severity(enum.IntEnum):

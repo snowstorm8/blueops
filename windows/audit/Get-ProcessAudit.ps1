@@ -35,6 +35,10 @@ function Invoke-BoProcessesModule {
             Add-BoError -Code 'PARENT_UNKNOWN' -Message 'parent pids and command lines unavailable (Get-Process fallback); parentage checks skipped' -CheckId 'PRC-PARENT-001' -Material $false
         }
     }
+    $procFull = $res.Ok
+    if (-not $procFull -and $procs.Count -gt 0) {
+        Add-BoCoverage -Domain 'processes' -Status 'degraded' -Reason 'Get-Process fallback: command lines unknown'
+    }
     $byPid = @{}
     foreach ($p in $procs) { $byPid[[int](Get-BoProp $p 'ProcessId' 0)] = $p }
 
@@ -51,6 +55,12 @@ function Invoke-BoProcessesModule {
         $cmd = [string](Get-BoProp $p 'CommandLine' '')
         $ref = "pid=$procId"
         Add-BoHit -Id 'PRC-INFO-001' -Type 'process' -Ref $ref -Excerpt "ppid=$ppid name=$name path=$path cmd=$cmd"
+        if ($name -and $procId -gt 4) {
+            # Identity is the image name; pid and parent are transient and never compared.
+            $invExe = $null
+            if ($path) { $invExe = $path }
+            Add-BoInventory -Domain 'processes' -Key "process:$lname" -Attrs @{ name = $name; exe = $invExe } -Volatile @{ pid = [string]$procId; ppid = [string]$ppid }
+        }
         if ([string]::IsNullOrEmpty($path) -and $procId -gt 4) { $unreadable++ }
 
         if ($core -contains $lname -and -not [string]::IsNullOrEmpty($path)) {

@@ -73,6 +73,7 @@ _fs_suid() {
     while IFS= read -r r; do roots+=("${r}"); done < <(_fs_local_mounts)
   fi
   : >"${BO_SCRATCH}/suid.txt"
+  bo_find_failed || true # discard failures from earlier scans
   for r in ${roots[@]+"${roots[@]}"}; do
     bo_find "${r}" -xdev -type f \( -perm -4000 -o -perm -2000 \) >>"${BO_SCRATCH}/suid.txt"
   done
@@ -83,6 +84,7 @@ _fs_suid() {
     mode="$(bo_mode "${f}" || echo '?')"
     perm="mode ${mode}"
     inv+=("file|${rel}|${perm}")
+    bo_inv config suid "config:suid:${rel}" "mode=$([[ "${mode}" == "?" ]] && echo @unknown || echo "${mode}")" "^file=${rel}"
     case "${rel}" in
       /tmp/* | /var/tmp/* | /dev/shm/* | /home/* | /root/* | /var/www/* | /srv/* | /mnt/* | /media/*)
         bad+=("file|${rel}|${perm}; non-standard location")
@@ -96,6 +98,13 @@ _fs_suid() {
         ;;
     esac
   done < <(sort -u "${BO_SCRATCH}/suid.txt")
+  if bo_find_failed; then
+    bo_cov config suid partial "find hit unreadable directories; SUID/SGID files there may be missing"
+  fi
+  if ((${#BO_FS_PATHS[@]} > 0)); then
+    bo_cov config suid partial "scan limited to --fs-path roots"
+  fi
+  bo_cov config suid complete
   bo_finding FS-SUID-001 info high filesystem "SUID/SGID files" "${#inv[@]} SUID/SGID file(s) on local filesystems." "" "" ${inv[@]+"${inv[@]}"}
   ((${#bad[@]} > 0)) && bo_finding FS-SUID-002 high high filesystem "Dangerous or misplaced SUID/SGID binary" \
     "SUID/SGID on general-purpose utilities, interpreters, or files in user-writable locations enables privilege escalation." \

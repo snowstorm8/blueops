@@ -1,0 +1,95 @@
+{
+  "schema_version": "0.2.0",
+  "tool": {
+    "name": "synthetic-audit",
+    "version": "0.0.0",
+    "category": "audit"
+  },
+  "run": {
+    "id": "run-1",
+    "started_at": "2026-01-01T10:00:00Z",
+    "finished_at": "2026-01-01T10:05:00Z",
+    "mode": "read-only",
+    "dry_run": false,
+    "exit_code": 0
+  },
+  "host": {
+    "hostname": "WIN-SRV01",
+    "os": {
+      "family": "windows",
+      "name": "Synthetic",
+      "version": "1"
+    },
+    "arch": "x86_64",
+    "elevated": true
+  },
+  "findings": [],
+  "errors": [],
+  "summary": {
+    "total": 0,
+    "by_severity": {
+      "info": 0,
+      "low": 0,
+      "medium": 0,
+      "high": 0,
+      "critical": 0
+    }
+  },
+  "inventory": {
+    "coverage": [
+      {
+        "domain": "users",
+        "status": "complete"
+      },
+      {
+        "domain": "services",
+        "status": "complete"
+      },
+      {
+        "domain": "persistence",
+        "status": "complete",
+        "scope": "autoruns"
+      },
+      {
+        "domain": "config",
+        "status": "complete",
+        "scope": "security"
+      }
+    ],
+    "records": [
+      {
+        "domain": "users",
+        "key": "user:S-1-5-21-1-2-3-1001",
+        "attrs": {
+          "name": "Alice",
+          "enabled": "true"
+        }
+      },
+      {
+        "domain": "services",
+        "key": "service:spooler",
+        "attrs": {
+          "state": "Running",
+          "start_mode": "Auto",
+          "image_path": "C:\\Windows\\System32\\spoolsv.exe"
+        }
+      },
+      {
+        "domain": "persistence",
+        "key": "persist:run:machine:\\software\\microsoft\\windows\\currentversion\\run:updater",
+        "attrs": {
+          "data": "C:\\Tools\\up.exe"
+        },
+        "scope": "autoruns"
+      },
+      {
+        "domain": "config",
+        "key": "config:security:reg:hklm\\x::enablelua",
+        "attrs": {
+          "value": "1"
+        },
+        "scope": "security"
+      }
+    ]
+  }
+}

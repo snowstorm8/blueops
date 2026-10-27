@@ -1,0 +1,246 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://blueops.invalid/schemas/baseline-diff/0.2.0",
+  "title": "BlueOps baseline diff",
+  "description": "Result of comparing two BlueOps audit reports (shared/reporting/diff.py). See docs/baseline-diff.md.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema_version", "kind", "generated_at", "tool", "baseline", "current", "window", "warnings", "domains", "changes", "indeterminate", "findings", "summary"],
+  "properties": {
+    "schema_version": { "type": "string", "pattern": "^0\\.\\d+\\.\\d+$" },
+    "kind": { "const": "baseline-diff" },
+    "generated_at": { "$ref": "#/$defs/timestamp" },
+    "tool": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["name", "version"],
+      "properties": { "name": { "type": "string" }, "version": { "type": "string" } }
+    },
+    "baseline": { "$ref": "#/$defs/run_meta" },
+    "current": { "$ref": "#/$defs/run_meta" },
+    "window": {
+      "description": "Changes happened after the baseline finished and before the current run started (or while it ran).",
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["from", "to"],
+      "properties": { "from": { "$ref": "#/$defs/timestamp" }, "to": { "$ref": "#/$defs/timestamp" } }
+    },
+    "warnings": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["code", "message"],
+        "properties": { "code": { "type": "string" }, "message": { "type": "string" } }
+      }
+    },
+    "domains": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["domain", "scope", "status", "baseline_coverage", "current_coverage", "note"],
+        "properties": {
+          "domain": { "type": "string" },
+          "scope": { "type": "string" },
+          "status": { "enum": ["compared", "partial", "not_compared"] },
+          "baseline_coverage": { "$ref": "#/$defs/coverage" },
+          "current_coverage": { "$ref": "#/$defs/coverage" },
+          "note": { "type": "string" }
+        }
+      }
+    },
+    "changes": { "type": "array", "items": { "$ref": "#/$defs/change" } },
+    "indeterminate": { "type": "array", "items": { "$ref": "#/$defs/indeterminate" } },
+    "findings": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["new", "resolved", "changed", "unverified"],
+      "properties": {
+        "new": { "type": "array", "items": { "$ref": "#/$defs/finding_ref" } },
+        "resolved": { "type": "array", "items": { "$ref": "#/$defs/finding_ref" } },
+        "unverified": { "type": "array", "items": { "$ref": "#/$defs/finding_ref" } },
+        "changed": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": ["id", "before_severity", "after_severity", "evidence_added", "evidence_removed"],
+            "properties": {
+              "id": { "type": "string" },
+              "before_severity": { "type": ["string", "null"] },
+              "after_severity": { "type": ["string", "null"] },
+              "evidence_added": { "type": "array", "items": { "type": "string" } },
+              "evidence_removed": { "type": "array", "items": { "type": "string" } }
+            }
+          }
+        }
+      }
+    },
+    "summary": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["added", "removed", "modified", "transient", "indeterminate", "unchanged", "ignored", "by_domain", "domains_compared", "domains_partial", "domains_not_compared", "findings_new", "findings_resolved", "findings_changed", "findings_unverified"],
+      "properties": {
+        "added": { "type": "integer", "minimum": 0 },
+        "removed": { "type": "integer", "minimum": 0 },
+        "modified": { "type": "integer", "minimum": 0 },
+        "transient": { "type": "integer", "minimum": 0 },
+        "indeterminate": { "type": "integer", "minimum": 0 },
+        "unchanged": { "type": "integer", "minimum": 0 },
+        "ignored": { "type": "integer", "minimum": 0 },
+        "by_domain": {
+          "type": "object",
+          "additionalProperties": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["added", "removed", "modified"],
+            "properties": {
+              "added": { "type": "integer", "minimum": 0 },
+              "removed": { "type": "integer", "minimum": 0 },
+              "modified": { "type": "integer", "minimum": 0 }
+            }
+          }
+        },
+        "domains_compared": { "type": "integer", "minimum": 0 },
+        "domains_partial": { "type": "integer", "minimum": 0 },
+        "domains_not_compared": { "type": "integer", "minimum": 0 },
+        "findings_new": { "type": "integer", "minimum": 0 },
+        "findings_resolved": { "type": "integer", "minimum": 0 },
+        "findings_changed": { "type": "integer", "minimum": 0 },
+        "findings_unverified": { "type": "integer", "minimum": 0 }
+      }
+    }
+  },
+  "$defs": {
+    "timestamp": { "type": "string", "pattern": "^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}(\\.\\d+)?Z$" },
+    "coverage": {
+      "oneOf": [
+        { "type": "null" },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["status", "reason"],
+          "properties": {
+            "status": { "enum": ["complete", "degraded", "partial", "unavailable"] },
+            "reason": { "type": "string" }
+          }
+        }
+      ]
+    },
+    "run_meta": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["run_id", "tool", "tool_version", "schema_version", "started_at", "finished_at", "hostname", "os_family", "os_name", "os_version", "elevated", "has_inventory"],
+      "properties": {
+        "run_id": { "type": "string" },
+        "tool": { "type": "string" },
+        "tool_version": { "type": "string" },
+        "schema_version": { "type": "string" },
+        "started_at": { "$ref": "#/$defs/timestamp" },
+        "finished_at": { "$ref": "#/$defs/timestamp" },
+        "hostname": { "type": "string" },
+        "os_family": { "type": "string" },
+        "os_name": { "type": "string" },
+        "os_version": { "type": "string" },
+        "elevated": { "type": ["boolean", "null"] },
+        "has_inventory": { "type": "boolean" }
+      }
+    },
+    "value": {
+      "anyOf": [
+        { "type": ["string", "null"] },
+        { "type": "array", "items": { "type": "string" } }
+      ]
+    },
+    "record": {
+      "oneOf": [
+        { "type": "null" },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["attrs", "volatile", "evidence"],
+          "properties": {
+            "attrs": { "type": "object", "additionalProperties": { "$ref": "#/$defs/value" } },
+            "volatile": { "type": "object", "additionalProperties": { "$ref": "#/$defs/value" } },
+            "evidence": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "additionalProperties": false,
+                "required": ["type", "ref"],
+                "properties": { "type": { "type": "string" }, "ref": { "type": "string" } }
+              }
+            }
+          }
+        }
+      ]
+    },
+    "observed": {
+      "description": "Run end time of each side the record was present in; null where it was absent.",
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["baseline_at", "current_at"],
+      "properties": {
+        "baseline_at": { "oneOf": [{ "$ref": "#/$defs/timestamp" }, { "type": "null" }] },
+        "current_at": { "oneOf": [{ "$ref": "#/$defs/timestamp" }, { "type": "null" }] }
+      }
+    },
+    "change": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["domain", "scope", "key", "change", "priority", "transient", "attributes", "unverified_attributes", "observed", "baseline", "current", "related_findings"],
+      "properties": {
+        "domain": { "type": "string" },
+        "scope": { "type": "string" },
+        "key": { "type": "string" },
+        "change": { "enum": ["added", "removed", "modified"] },
+        "priority": { "description": "Triage hint, not a severity.", "enum": ["info", "low", "medium", "high"] },
+        "transient": { "type": "boolean" },
+        "attributes": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["name", "before", "after"],
+            "properties": {
+              "name": { "type": "string" },
+              "before": { "$ref": "#/$defs/value" },
+              "after": { "$ref": "#/$defs/value" }
+            }
+          }
+        },
+        "unverified_attributes": { "type": "array", "items": { "type": "string" } },
+        "observed": { "$ref": "#/$defs/observed" },
+        "baseline": { "$ref": "#/$defs/record" },
+        "current": { "$ref": "#/$defs/record" },
+        "related_findings": { "type": "array", "items": { "type": "string" } }
+      }
+    },
+    "indeterminate": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["domain", "scope", "key", "reason", "detail", "observed", "baseline", "current"],
+      "properties": {
+        "domain": { "type": "string" },
+        "scope": { "type": "string" },
+        "key": { "type": "string" },
+        "reason": { "enum": ["BASELINE_INCOMPLETE", "CURRENT_INCOMPLETE", "ATTRIBUTE_UNKNOWN", "RECORD_CONFLICT"] },
+        "detail": { "type": "string" },
+        "observed": { "$ref": "#/$defs/observed" },
+        "baseline": { "$ref": "#/$defs/record" },
+        "current": { "$ref": "#/$defs/record" }
+      }
+    },
+    "finding_ref": {
+      "type": "object",
+      "required": ["id", "severity", "category", "title"],
+      "properties": {
+        "id": { "type": "string" },
+        "severity": { "type": ["string", "null"] },
+        "category": { "type": ["string", "null"] },
+        "title": { "type": "string" },
+        "state": { "enum": ["new", "resolved"] }
+      }
+    }
+  }
+}

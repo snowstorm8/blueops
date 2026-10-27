@@ -93,11 +93,19 @@ _net_listen_check() {
   local tsv="${BO_SCRATCH}/listen.tsv" proto addr port peer proc pname
   _net_listeners >"${tsv}" || true
   local -a inv=() legacy=() exposed=() shells=()
-  local n=0
+  local n=0 unknown_proc=0 inv_proc
   while IFS=$'\t' read -r proto addr port peer proc; do
     n=$((n + 1))
     inv+=("network|${proto} ${addr}:${port}|process ${proc}")
     pname="${proc%%/*}"
+    # Listeners are keyed by protocol, bind address and port; the owner is a compared attribute
+    # (unknown without root) and its pid is volatile.
+    inv_proc="${pname}"
+    if [[ -z "${pname}" || "${pname}" == "-" ]]; then
+      inv_proc="@unknown"
+      unknown_proc=$((unknown_proc + 1))
+    fi
+    bo_inv listeners "" "listener:${proto}/${addr}/${port}" "proto=${proto}" "bind=${addr}" "port=${port}" "process=${inv_proc}" "~pid=${proc#*/}"
     case "${pname}" in sh | bash | dash | zsh | nc | ncat | netcat | socat | python* | perl | ruby | php) shells+=("network|${proto} ${addr}:${port}|process ${proc}") ;; *) ;; esac
     _net_is_loopback "${addr}" && continue
     case "${port}" in
@@ -108,6 +116,13 @@ _net_listen_check() {
       *) ;;
     esac
   done <"${tsv}"
+  if ! bo_have ss && ! bo_have netstat && [[ ! -r "$(bo_path /proc/net/tcp)" ]]; then
+    bo_cov listeners "" unavailable "no ss, netstat or /proc/net/tcp"
+  elif ((unknown_proc > 0)); then
+    bo_cov listeners "" degraded "${unknown_proc} listener(s) without a visible owning process (needs root, or ss/netstat missing)"
+  else
+    bo_cov listeners "" complete
+  fi
   bo_finding NET-LISTEN-001 info high network "Listening sockets" "${n} listening TCP/UDP socket(s). Process names need root; '-' means unknown." "" "" ${inv[@]+"${inv[@]}"}
   ((${#legacy[@]} > 0)) && bo_finding NET-EXPOSE-001 high medium network "Cleartext or unauthenticated admin service reachable on the network" \
     "Legacy services (ftp, telnet, tftp, r-services, Docker TCP API) listening on a non-loopback address." \
@@ -177,10 +192,16 @@ _net_route_check() {
     fi
   fi
   for f in /proc/sys/net/ipv4/ip_forward /proc/sys/net/ipv6/conf/all/forwarding; do
-    [[ -r "$(bo_path "${f}")" ]] || continue
+    [[ -e "$(bo_path "${f}")" ]] || continue # absent (e.g. IPv6 disabled) is not a coverage gap
+    if [[ ! -r "$(bo_path "${f}")" ]]; then
+      bo_cov config sysctl partial "${f} not readable"
+      continue
+    fi
     v="$(head -n 1 -- "$(bo_path "${f}")")"
+    bo_inv config sysctl "config:sysctl:$(tr / . <<<"${f#/proc/sys/}")" "value=${v}" "^file=${f}"
     [[ "${v}" == "1" ]] && fwd+="${f} "
   done
+  bo_cov config sysctl complete
   [[ -n "${fwd}" ]] && bo_finding NET-FWD-001 low medium network "IP forwarding enabled" \
     "Forwarding is expected on routers, VPN and container hosts but not on ordinary servers." \
     "Disable with sysctl if the host is not a router (check container/VPN use first)." "" "file|${fwd%% *}"
@@ -193,11 +214,14 @@ _net_dns_check() {
   if [[ -r "${rc}" ]]; then
     ns="$(awk '$1=="nameserver" {printf "%s ", $2}' "${rc}")"
     search="$(awk '$1=="search" || $1=="domain" {$1=""; printf "%s ", $0}' "${rc}")"
+    bo_inv config dns "config:dns:resolv.conf" "nameservers[]=$(tr -s ' ' ',' <<<"${ns% }")" "search[]=$(tr -s ' ' ',' <<<"$(printf '%s' "${search}" | sed 's/^ *//;s/ *$//')")" "^file=/etc/resolv.conf"
+    bo_cov config dns complete
     bo_finding NET-DNS-001 info high network "DNS configuration" "nameservers: ${ns% }; search: $(printf '%s' "${search}" | tr -s ' ' | sed 's/^ //;s/ $//')" "" "" "file|/etc/resolv.conf"
     [[ -n "${ns}" ]] || bo_finding NET-DNS-002 low medium network "No DNS nameserver configured" \
       "resolv.conf lists no nameserver (may be managed by a local stub resolver)." "Verify name resolution works." "" "file|/etc/resolv.conf"
   else
     bo_error RESOLV_UNREADABLE "/etc/resolv.conf not readable; DNS settings missing" "NET-DNS-001" 0
+    bo_cov config dns unavailable "/etc/resolv.conf not readable"
   fi
   hosts="$(bo_path /etc/hosts)"
   if [[ -r "${hosts}" ]]; then
@@ -205,13 +229,19 @@ _net_dns_check() {
     local self
     self="$(bo_hostname)"
     # Container runtimes and installers add an entry for the host's own name; ignore those.
-    while IFS= read -r extra; do ev+=("file|/etc/hosts|${extra}"); done < <(awk -v self="${self}" '!/^[[:space:]]*#/ && NF >= 2 && $1 !~ /^(127\.|::1$|fe00::|ff0[0-9]::)/ { own = 0; for (i = 2; i <= NF; i++) if ($i == self) own = 1; if (!own) print }' "${hosts}" | tr -s ' \t' ' ')
+    while IFS= read -r extra; do
+      ev+=("file|/etc/hosts|${extra}")
+      bo_inv config hosts "config:hosts:$(bo_hash_id "${extra}")" "entry=${extra}" "^file=/etc/hosts"
+    done < <(awk -v self="${self}" '!/^[[:space:]]*#/ && NF >= 2 && $1 !~ /^(127\.|::1$|fe00::|ff0[0-9]::)/ { own = 0; for (i = 2; i <= NF; i++) if ($i == self) own = 1; if (!own) print }' "${hosts}" | tr -s ' \t' ' ')
+    bo_cov config hosts complete
     ((${#ev[@]} > 0)) && bo_finding NET-HOSTS-001 low medium network "Non-loopback entries in /etc/hosts" \
       "Static host entries override DNS and can redirect update or authentication domains." "Verify each entry is intended." "T1565.001" "${ev[@]}"
     mode="$(bo_mode "${hosts}" || true)"
     if [[ -n "${mode}" ]] && bo_mode_has "${mode}" 022; then
       bo_finding NET-HOSTS-002 medium high network "/etc/hosts writable by non-root" "Mode ${mode}." "chmod 0644 /etc/hosts" "T1565.001" "file|/etc/hosts|mode ${mode}"
     fi
+  else
+    bo_cov config hosts unavailable "/etc/hosts not readable"
   fi
   return 0
 }

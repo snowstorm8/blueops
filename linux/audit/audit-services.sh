@@ -25,14 +25,19 @@ _svc_sysv() {
   for d in /etc/init.d /etc/rc.d/init.d; do
     [[ -d "$(bo_path "${d}")" ]] || continue
     for f in "$(bo_path "${d}")"/*; do
-      [[ -f "${f}" ]] && ev+=("file|$(bo_unroot "${f}")")
+      if [[ -f "${f}" ]]; then
+        ev+=("file|$(bo_unroot "${f}")")
+        bo_inv services "" "service:sysv:${f##*/}" "~file=$(bo_unroot "${f}")"
+      fi
     done
   done
   if ((${#ev[@]} > 0)); then
     bo_finding SVC-INFO-001 info medium services "SysV init scripts (systemd not detected)" \
       "${#ev[@]} init script(s). Run state is not determined without systemd." "" "" "${ev[@]}"
+    bo_cov services "" degraded "systemd not detected; only SysV init scripts are listed, run state is unknown"
   else
     bo_error NO_INIT_SYSTEM "neither systemd nor SysV init scripts found; service state unknown" "SVC-INFO-001"
+    bo_cov services "" unavailable "no init system detected"
   fi
 }
 
@@ -51,7 +56,7 @@ mod_services() {
     _svc_sysv
     return 0
   fi
-  local u active sub desc state n_run=0 n_all=0
+  local u active sub desc state n_run=0 n_all=0 est
   local -a running=() fail=() failsock=() enabled=() legacy=()
   while IFS=' ' read -r u _ active sub desc; do
     [[ -n "${u}" ]] || continue
@@ -75,6 +80,21 @@ mod_services() {
     if _svc_legacy_name "${u}"; then legacy+=("other|${u}|enabled"); fi
   done <<<"${unitfiles}"
 
+  # One record per unit (loaded or enabled); run state is compared, so a stopped or failed
+  # service shows up as a modification.
+  while IFS=' ' read -r u _ active sub _; do
+    [[ -n "${u}" ]] || continue
+    u="${u#●}"
+    est="$(awk -v u="${u}" '$1 == u { print $2; exit }' <<<"${unitfiles}")"
+    bo_inv services "" "service:${u}" "active=${active}" "sub=${sub}" "enabled=${est:-no}"
+  done <<<"${units}"
+  awk '{ print $1 }' <<<"${units}" >"${BO_SCRATCH}/loaded-units.txt"
+  while IFS=' ' read -r u state _; do
+    [[ -n "${u}" ]] || continue
+    grep -q -F -x -e "${u}" "${BO_SCRATCH}/loaded-units.txt" && continue
+    bo_inv services "" "service:${u}" "active=@unknown" "sub=@unknown" "enabled=${state}"
+  done <<<"${unitfiles}"
+  bo_cov services "" complete
   bo_finding SVC-INFO-001 info high services "Service inventory" \
     "${n_all} service units loaded, ${n_run} running, ${#enabled[@]} enabled at boot, ${#fail[@]} failed, ${#failsock[@]} failed socket unit(s)." "" "" ${running[@]+"${running[@]}"}
   bo_finding SVC-ENABLED-001 info high services "Enabled services" "${#enabled[@]} unit(s) start at boot." "" "" ${enabled[@]+"${enabled[@]}"}

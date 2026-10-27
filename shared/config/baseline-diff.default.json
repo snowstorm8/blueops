@@ -1,0 +1,20 @@
+{
+  "transient_processes": [
+    "awk",
+    "cat",
+    "cut",
+    "find",
+    "grep",
+    "head",
+    "ps",
+    "readlink",
+    "sed",
+    "sleep",
+    "sort",
+    "ss",
+    "stat",
+    "tail",
+    "tr"
+  ],
+  "ignore": {}
+}

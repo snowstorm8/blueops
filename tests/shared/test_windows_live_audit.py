@@ -13,10 +13,13 @@ import re
 import shutil
 import subprocess
 import sys
+import warnings
 from pathlib import Path
 
 import pytest
 from jsonschema import Draft202012Validator
+
+from tests.shared.windows_state import explained_by_host, host_changes
 
 ROOT = Path(__file__).resolve().parents[2]
 SCHEMA = json.loads((ROOT / "shared" / "schemas" / "audit-report.schema.json").read_text("utf-8"))
@@ -82,18 +85,12 @@ def test_live_audit_is_valid_and_read_only(shell: str, script: Path) -> None:
     assert not re.search(r"(?i)(password|passwd|secret|token)\s*=\s*[^\s<*]{4,}", res.stdout)
 
     after = _snapshot(shell)
-    changed = {}
-    for key in before:
-        if before[key] != after[key]:
-            old, new = before[key], after[key]
-            if isinstance(old, list) and isinstance(new, list):
-                changed[key] = {
-                    "removed": [x for x in old if x not in new],
-                    "added": [x for x in new if x not in old],
-                }
-            else:
-                changed[key] = "differs"
-    assert not changed, f"audit changed host state: {changed}"
+    changed = host_changes(before, after)
+    for note in explained_by_host(changed, before, after):
+        warnings.warn(f"host changed itself during the audit: {note}", stacklevel=1)
+    assert not changed, (
+        f"audit changed host state: {changed} (before={before['diag']}, after={after['diag']})"
+    )
     assert _tree(ROOT / "windows") == repo_before
 
 

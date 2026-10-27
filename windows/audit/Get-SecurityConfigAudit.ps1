@@ -168,6 +168,7 @@ function Invoke-BoSecurityModule {
             if ($null -eq $k) { continue }
             foreach ($n in $k.Values.Keys) {
                 Add-BoHit -Id 'SEC-DEF-003' -Type 'registry' -Ref "$root :: $n" -Excerpt "$($ex[1]) exclusion"
+                Add-BoInventory -Domain 'config' -Scope 'security' -Key "config:security:defender-exclusion:$($root.ToLowerInvariant())::$($n.ToLowerInvariant())" -Attrs @{ kind = $ex[1]; value = $n } -EvidenceType 'registry' -EvidenceRef "$root :: $n"
                 $x = $n.ToLowerInvariant().Trim()
                 $broad = $false
                 if ($ex[1] -eq 'path') {
@@ -229,6 +230,7 @@ function Invoke-BoSecurityModule {
             if ($pol.MinLength -lt 8) { Add-BoHit -Id 'SEC-PWD-001' -Type 'command' -Ref 'net accounts' -Excerpt "minimum password length $($pol.MinLength)" -Severity 'medium' }
             elseif ($pol.MinLength -lt 12) { Add-BoHit -Id 'SEC-PWD-001' -Type 'command' -Ref 'net accounts' -Excerpt "minimum password length $($pol.MinLength)" }
             if ($pol.LockoutThreshold -eq 0) { Add-BoHit -Id 'SEC-PWD-002' -Type 'command' -Ref 'net accounts' -Excerpt 'lockout threshold Never' }
+            Add-BoInventory -Domain 'config' -Scope 'security' -Key 'config:security:password-policy' -Attrs @{ min_length = $pol.MinLength; lockout_threshold = $pol.LockoutThreshold } -EvidenceType 'command' -EvidenceRef 'net accounts'
             $sum.Add("PasswordPolicy minLength=$($pol.MinLength) lockout=$($pol.LockoutThreshold) (local policy; domain policy applies on domain accounts)")
         }
     }
@@ -246,6 +248,33 @@ function Invoke-BoSecurityModule {
     if ([int](Get-BoRegValue -Path $wr -Name 'AllowBasic' -Default 0) -eq 1) { Add-BoHit -Id 'SEC-WINRM-001' -Type 'registry' -Ref "$wr :: AllowBasic" -Excerpt 'Basic authentication allowed' }
     $au = $script:HKLM + '\SOFTWARE\Policies\Microsoft\Windows\WindowsUpdate\AU'
     if ([int](Get-BoRegValue -Path $au -Name 'NoAutoUpdate' -Default 0) -eq 1) { Add-BoHit -Id 'SEC-UPDATE-001' -Type 'registry' -Ref "$au :: NoAutoUpdate" -Excerpt 'automatic updates disabled' }
+
+    # Security-relevant registry settings as structured config records. An unset value is the
+    # string '<unset>' (a real, comparable state); an unreadable key is unknown (null) and a
+    # coverage gap.
+    $secSettings = @(
+        @($sysPol, 'EnableLUA'), @($sysPol, 'ConsentPromptBehaviorAdmin'), @($sysPol, 'LocalAccountTokenFilterPolicy'),
+        @($lsaPath, 'RunAsPPL'), @($lsaPath, 'LmCompatibilityLevel'), @($lsaPath, 'NoLMHash'), @($lsaPath, 'LimitBlankPasswordUse'),
+        @($lsaPath, 'RestrictAnonymous'), @($lsaPath, 'RestrictAnonymousSAM'), @($lsaPath, 'EveryoneIncludesAnonymous'),
+        @($wd, 'UseLogonCredential'), @($lm, 'SMB1'), @($lm, 'RequireSecuritySignature'), @($m10, 'Start'),
+        @($ts, 'fDenyTSConnections'), @(($ts + '\WinStations\RDP-Tcp'), 'UserAuthentication'), @(($ts + '\WinStations\RDP-Tcp'), 'SecurityLayer'),
+        @($wl, 'AutoAdminLogon'), @($wl, 'DefaultUserName'), @($dnsPol, 'EnableMulticast'),
+        @($defPol, 'DisableAntiSpyware'), @($defKey, 'DisableAntiSpyware'),
+        @(($defPol + '\Real-Time Protection'), 'DisableRealtimeMonitoring'), @(($defKey + '\Real-Time Protection'), 'DisableRealtimeMonitoring'),
+        @(($psPol + '\ScriptBlockLogging'), 'EnableScriptBlockLogging'), @(($psPol + '\ModuleLogging'), 'EnableModuleLogging'),
+        @($wr, 'AllowUnencryptedTraffic'), @($wr, 'AllowBasic'), @($au, 'NoAutoUpdate'),
+        @(($sysPol + '\Audit'), 'ProcessCreationIncludeCmdLine_Enabled')
+    )
+    foreach ($ss in $secSettings) {
+        # Get-BoRegValue hides access errors behind the default; a permission gap must stay
+        # unknown ($null), never become the comparable value '<unset>'.
+        $errBefore = $script:Bo.Errors.Count
+        $sk = Get-BoRegKeyChecked -Path $ss[0] -CheckId 'SEC-INFO-001'
+        if ($script:Bo.Errors.Count -gt $errBefore) { $sv = $null }
+        elseif ($null -ne $sk -and $sk.Values.ContainsKey($ss[1])) { $sv = $sk.Values[$ss[1]] }
+        else { $sv = '<unset>' }
+        Add-BoInventory -Domain 'config' -Scope 'security' -Key "config:security:reg:$($ss[0].ToLowerInvariant())::$($ss[1].ToLowerInvariant())" -Attrs @{ value = $sv } -EvidenceType 'registry' -EvidenceRef "$($ss[0]) :: $($ss[1])"
+    }
 
     foreach ($line in $sum) { Add-BoHit -Id 'SEC-INFO-001' -Type 'other' -Ref 'summary' -Excerpt $line }
     Publish-BoCheck
