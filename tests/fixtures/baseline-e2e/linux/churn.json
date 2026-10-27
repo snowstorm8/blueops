@@ -1,0 +1,524 @@
+{
+  "schema_version": "0.2.0",
+  "tool": {
+    "name": "blueops-audit-linux",
+    "version": "0.2.0",
+    "category": "audit"
+  },
+  "run": {
+    "id": "lin-churn",
+    "started_at": "2026-03-01T12:00:00Z",
+    "finished_at": "2026-03-01T12:04:02Z",
+    "mode": "read-only",
+    "dry_run": false,
+    "exit_code": 0
+  },
+  "host": {
+    "hostname": "web01.example.test",
+    "os": {
+      "family": "linux",
+      "name": "Debian GNU/Linux",
+      "version": "12"
+    },
+    "arch": "x86_64",
+    "elevated": true
+  },
+  "findings": [
+    {
+      "id": "SSH-CFG-004",
+      "title": "Finding SSH-CFG-004",
+      "severity": "medium",
+      "category": "test",
+      "description": "PermitRootLogin is not 'no'",
+      "evidence": [
+        {
+          "type": "file",
+          "ref": "/etc/ssh/sshd_config"
+        }
+      ]
+    }
+  ],
+  "errors": [],
+  "summary": {
+    "total": 1,
+    "by_severity": {
+      "info": 0,
+      "low": 0,
+      "medium": 1,
+      "high": 0,
+      "critical": 0
+    }
+  },
+  "inventory": {
+    "coverage": [
+      {
+        "domain": "users",
+        "status": "complete"
+      },
+      {
+        "domain": "groups",
+        "status": "complete"
+      },
+      {
+        "domain": "services",
+        "status": "complete"
+      },
+      {
+        "domain": "processes",
+        "status": "complete"
+      },
+      {
+        "domain": "listeners",
+        "status": "complete"
+      },
+      {
+        "domain": "scheduled_tasks",
+        "status": "complete"
+      },
+      {
+        "domain": "persistence",
+        "status": "complete",
+        "scope": "systemd"
+      },
+      {
+        "domain": "persistence",
+        "status": "complete",
+        "scope": "ssh_keys"
+      },
+      {
+        "domain": "persistence",
+        "status": "complete",
+        "scope": "startup_scripts"
+      },
+      {
+        "domain": "config",
+        "status": "complete",
+        "scope": "sysctl"
+      },
+      {
+        "domain": "config",
+        "status": "complete",
+        "scope": "sudoers"
+      },
+      {
+        "domain": "config",
+        "status": "complete",
+        "scope": "suid"
+      }
+    ],
+    "records": [
+      {
+        "domain": "users",
+        "key": "user:root",
+        "attrs": {
+          "uid": "0",
+          "gid": "0",
+          "shell": "/bin/bash",
+          "home": "/root"
+        }
+      },
+      {
+        "domain": "users",
+        "key": "user:alice",
+        "attrs": {
+          "uid": "1000",
+          "gid": "1000",
+          "shell": "/bin/bash",
+          "home": "/home/alice"
+        }
+      },
+      {
+        "domain": "users",
+        "key": "user:bob",
+        "attrs": {
+          "uid": "1001",
+          "gid": "1001",
+          "shell": "/bin/bash",
+          "home": "/home/bob"
+        }
+      },
+      {
+        "domain": "users",
+        "key": "user:deploy",
+        "attrs": {
+          "uid": "998",
+          "gid": "998",
+          "shell": "/usr/sbin/nologin",
+          "home": "/srv/deploy"
+        }
+      },
+      {
+        "domain": "groups",
+        "key": "group:sudo",
+        "attrs": {
+          "gid": "27",
+          "members": [
+            "alice"
+          ]
+        }
+      },
+      {
+        "domain": "groups",
+        "key": "group:adm",
+        "attrs": {
+          "gid": "4",
+          "members": [
+            "alice",
+            "bob"
+          ]
+        }
+      },
+      {
+        "domain": "services",
+        "key": "service:ssh.service",
+        "attrs": {
+          "enabled": "enabled",
+          "active": "running"
+        }
+      },
+      {
+        "domain": "services",
+        "key": "service:nginx.service",
+        "attrs": {
+          "enabled": "enabled",
+          "active": "running"
+        }
+      },
+      {
+        "domain": "services",
+        "key": "service:cron.service",
+        "attrs": {
+          "enabled": "enabled",
+          "active": "running"
+        }
+      },
+      {
+        "domain": "services",
+        "key": "service:rsyslog.service",
+        "attrs": {
+          "enabled": "enabled",
+          "active": "running"
+        }
+      },
+      {
+        "domain": "processes",
+        "key": "process:root:sshd",
+        "attrs": {
+          "user": "root",
+          "comm": "sshd",
+          "exe": "/usr/sbin/sshd"
+        },
+        "volatile": {
+          "pid": "9811",
+          "cmdline": "sshd: /usr/sbin/sshd -D"
+        }
+      },
+      {
+        "domain": "processes",
+        "key": "process:root:cron",
+        "attrs": {
+          "user": "root",
+          "comm": "cron",
+          "exe": "/usr/sbin/cron"
+        },
+        "volatile": {
+          "pid": "9640",
+          "cmdline": "/usr/sbin/cron -f"
+        }
+      },
+      {
+        "domain": "processes",
+        "key": "process:alice:bash",
+        "attrs": {
+          "user": "alice",
+          "comm": "bash",
+          "exe": "/usr/bin/bash"
+        },
+        "volatile": {
+          "pid": "13101",
+          "cmdline": "-bash"
+        }
+      },
+      {
+        "domain": "processes",
+        "key": "process:www-data:nginx",
+        "attrs": {
+          "user": "www-data",
+          "comm": "nginx",
+          "exe": "/usr/sbin/nginx"
+        },
+        "volatile": {
+          "pid": "11201",
+          "cmdline": "nginx: worker process"
+        }
+      },
+      {
+        "domain": "processes",
+        "key": "process:www-data:nginx",
+        "attrs": {
+          "user": "www-data",
+          "comm": "nginx",
+          "exe": "/usr/sbin/nginx"
+        },
+        "volatile": {
+          "pid": "11202",
+          "cmdline": "nginx: worker process"
+        }
+      },
+      {
+        "domain": "listeners",
+        "key": "listener:tcp/0.0.0.0/22",
+        "attrs": {
+          "proto": "tcp",
+          "bind": "0.0.0.0",
+          "port": "22",
+          "process": "sshd"
+        },
+        "volatile": {
+          "pid": "9811"
+        }
+      },
+      {
+        "domain": "listeners",
+        "key": "listener:tcp/0.0.0.0/80",
+        "attrs": {
+          "proto": "tcp",
+          "bind": "0.0.0.0",
+          "port": "80",
+          "process": "nginx"
+        },
+        "volatile": {
+          "pid": "11201"
+        }
+      },
+      {
+        "domain": "listeners",
+        "key": "listener:tcp/127.0.0.1/5432",
+        "attrs": {
+          "proto": "tcp",
+          "bind": "127.0.0.1",
+          "port": "5432",
+          "process": "postgres"
+        },
+        "volatile": {
+          "pid": "9905"
+        }
+      },
+      {
+        "domain": "listeners",
+        "key": "listener:udp/0.0.0.0/68",
+        "attrs": {
+          "proto": "udp",
+          "bind": "0.0.0.0",
+          "port": "68",
+          "process": "dhclient"
+        },
+        "volatile": {
+          "pid": "9512"
+        }
+      },
+      {
+        "domain": "listeners",
+        "key": "listener:tcp/0.0.0.0/33901",
+        "attrs": {
+          "proto": "tcp",
+          "bind": "0.0.0.0",
+          "port": "33901",
+          "process": "metrics-agent"
+        },
+        "volatile": {
+          "pid": "10377"
+        }
+      },
+      {
+        "domain": "scheduled_tasks",
+        "key": "cron:/etc/cron.d/backup#1",
+        "attrs": {
+          "schedule": "0 2 * * *",
+          "user": "root",
+          "command": "/usr/local/bin/backup.sh"
+        },
+        "evidence": [
+          {
+            "type": "file",
+            "ref": "/etc/cron.d/backup"
+          }
+        ]
+      },
+      {
+        "domain": "scheduled_tasks",
+        "key": "cron:/etc/crontab#1",
+        "attrs": {
+          "schedule": "17 * * * *",
+          "user": "root",
+          "command": "cd / && run-parts --report /etc/cron.hourly"
+        },
+        "evidence": [
+          {
+            "type": "file",
+            "ref": "/etc/crontab"
+          }
+        ]
+      },
+      {
+        "domain": "persistence",
+        "key": "persist:systemd:/etc/systemd/system/nginx.service.d/override.conf",
+        "attrs": {
+          "sha256": "76a88033f80d1325be908afae3394a7a12807ea17246673955ae087370fc1425",
+          "mode": "644"
+        },
+        "scope": "systemd",
+        "evidence": [
+          {
+            "type": "file",
+            "ref": "/etc/systemd/system/nginx.service.d/override.conf"
+          }
+        ]
+      },
+      {
+        "domain": "persistence",
+        "key": "persist:ssh_key:alice:SHA256:synthetic-alice-key-0001",
+        "attrs": {
+          "user": "alice",
+          "type": "ssh-ed25519"
+        },
+        "scope": "ssh_keys",
+        "evidence": [
+          {
+            "type": "file",
+            "ref": "/home/alice/.ssh/authorized_keys"
+          }
+        ]
+      },
+      {
+        "domain": "persistence",
+        "key": "persist:file:/etc/rc.local",
+        "attrs": {
+          "sha256": "3f6f31521fd4ebd74ea3f535a621edc83ac8f341afd701c09584fe43f62d73ea",
+          "mode": "755"
+        },
+        "scope": "startup_scripts",
+        "evidence": [
+          {
+            "type": "file",
+            "ref": "/etc/rc.local"
+          }
+        ]
+      },
+      {
+        "domain": "config",
+        "key": "config:sysctl:net.ipv4.ip_forward",
+        "attrs": {
+          "value": "0"
+        },
+        "scope": "sysctl"
+      },
+      {
+        "domain": "config",
+        "key": "config:sysctl:kernel.randomize_va_space",
+        "attrs": {
+          "value": "2"
+        },
+        "scope": "sysctl"
+      },
+      {
+        "domain": "config",
+        "key": "config:sudoers:/etc/sudoers.d/90-ops",
+        "attrs": {
+          "sha256": "1451d494a0e75ffe8c3aa6e5bb96565bc86c1007b4790b297bc21d98391c46c2",
+          "mode": "440"
+        },
+        "scope": "sudoers",
+        "evidence": [
+          {
+            "type": "file",
+            "ref": "/etc/sudoers.d/90-ops"
+          }
+        ]
+      },
+      {
+        "domain": "config",
+        "key": "config:suid:/usr/bin/su",
+        "attrs": {
+          "mode": "4755",
+          "owner": "root"
+        },
+        "scope": "suid"
+      },
+      {
+        "domain": "config",
+        "key": "config:suid:/usr/bin/passwd",
+        "attrs": {
+          "mode": "4755",
+          "owner": "root"
+        },
+        "scope": "suid"
+      },
+      {
+        "domain": "listeners",
+        "key": "listener:tcp/0.0.0.0/60001",
+        "attrs": {
+          "proto": "tcp",
+          "bind": "0.0.0.0",
+          "port": "60001",
+          "process": "metrics-agent"
+        },
+        "volatile": {
+          "pid": "1378"
+        }
+      },
+      {
+        "domain": "processes",
+        "key": "process:root:sleep",
+        "attrs": {
+          "user": "root",
+          "comm": "sleep",
+          "exe": "/usr/bin/sleep"
+        },
+        "volatile": {
+          "pid": "7000",
+          "cmdline": "sleep"
+        }
+      },
+      {
+        "domain": "processes",
+        "key": "process:root:ps",
+        "attrs": {
+          "user": "root",
+          "comm": "ps",
+          "exe": "/usr/bin/ps"
+        },
+        "volatile": {
+          "pid": "7001",
+          "cmdline": "ps"
+        }
+      },
+      {
+        "domain": "processes",
+        "key": "process:root:grep",
+        "attrs": {
+          "user": "root",
+          "comm": "grep",
+          "exe": "/usr/bin/grep"
+        },
+        "volatile": {
+          "pid": "7002",
+          "cmdline": "grep"
+        }
+      },
+      {
+        "domain": "processes",
+        "key": "process:root:awk",
+        "attrs": {
+          "user": "root",
+          "comm": "awk",
+          "exe": "/usr/bin/awk"
+        },
+        "volatile": {
+          "pid": "7003",
+          "cmdline": "awk"
+        }
+      }
+    ]
+  }
+}

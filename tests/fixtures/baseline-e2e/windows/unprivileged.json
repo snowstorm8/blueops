@@ -1,0 +1,387 @@
+{
+  "schema_version": "0.2.0",
+  "tool": {
+    "name": "blueops-audit-windows",
+    "version": "0.2.0",
+    "category": "audit"
+  },
+  "run": {
+    "id": "win-user",
+    "started_at": "2026-03-01T13:00:00Z",
+    "finished_at": "2026-03-01T13:03:00Z",
+    "mode": "read-only",
+    "dry_run": false,
+    "exit_code": 0
+  },
+  "host": {
+    "hostname": "WIN-SRV01",
+    "os": {
+      "family": "windows",
+      "name": "Microsoft Windows Server 2022 Standard",
+      "version": "10.0.20348"
+    },
+    "arch": "AMD64",
+    "elevated": false
+  },
+  "findings": [],
+  "errors": [
+    {
+      "code": "PERM_DENIED",
+      "message": "Access denied reading scheduled tasks"
+    }
+  ],
+  "summary": {
+    "total": 0,
+    "by_severity": {
+      "info": 0,
+      "low": 0,
+      "medium": 0,
+      "high": 0,
+      "critical": 0
+    }
+  },
+  "inventory": {
+    "coverage": [
+      {
+        "domain": "users",
+        "status": "complete"
+      },
+      {
+        "domain": "groups",
+        "status": "degraded",
+        "reason": "member names need elevation"
+      },
+      {
+        "domain": "services",
+        "status": "complete"
+      },
+      {
+        "domain": "processes",
+        "status": "degraded",
+        "reason": "owner and image path of system processes are not readable"
+      },
+      {
+        "domain": "listeners",
+        "status": "degraded",
+        "reason": "owning process names are not readable"
+      },
+      {
+        "domain": "scheduled_tasks",
+        "status": "unavailable",
+        "reason": "scheduled tasks need elevation"
+      },
+      {
+        "domain": "persistence",
+        "status": "complete",
+        "scope": "autoruns"
+      },
+      {
+        "domain": "persistence",
+        "status": "partial",
+        "scope": "startup",
+        "reason": "the all-users Startup folder is not readable"
+      },
+      {
+        "domain": "config",
+        "status": "degraded",
+        "scope": "security",
+        "reason": "registry values need elevation"
+      },
+      {
+        "domain": "config",
+        "status": "unavailable",
+        "scope": "firewall",
+        "reason": "firewall policy needs elevation"
+      }
+    ],
+    "records": [
+      {
+        "domain": "users",
+        "key": "user:S-1-5-21-1004336348-1177238915-682003330-500",
+        "attrs": {
+          "name": "Administrator",
+          "enabled": true,
+          "password_required": true
+        }
+      },
+      {
+        "domain": "users",
+        "key": "user:S-1-5-21-1004336348-1177238915-682003330-501",
+        "attrs": {
+          "name": "Guest",
+          "enabled": false,
+          "password_required": false
+        }
+      },
+      {
+        "domain": "users",
+        "key": "user:S-1-5-21-1004336348-1177238915-682003330-1001",
+        "attrs": {
+          "name": "Alice",
+          "enabled": true,
+          "password_required": true
+        }
+      },
+      {
+        "domain": "users",
+        "key": "user:S-1-5-21-1004336348-1177238915-682003330-1002",
+        "attrs": {
+          "name": "Bob",
+          "enabled": true,
+          "password_required": true
+        }
+      },
+      {
+        "domain": "groups",
+        "key": "group:S-1-5-32-544",
+        "attrs": {
+          "name": "Administrators",
+          "members": [
+            "S-1-5-21-1004336348-1177238915-682003330-500",
+            "S-1-5-21-1004336348-1177238915-682003330-1001"
+          ]
+        }
+      },
+      {
+        "domain": "groups",
+        "key": "group:S-1-5-32-555",
+        "attrs": {
+          "name": "Remote Desktop Users",
+          "members": []
+        }
+      },
+      {
+        "domain": "services",
+        "key": "service:spooler",
+        "attrs": {
+          "state": "Running",
+          "start_mode": "Auto",
+          "account": "LocalSystem",
+          "image_path": "C:\\Windows\\System32\\spoolsv.exe"
+        }
+      },
+      {
+        "domain": "services",
+        "key": "service:winrm",
+        "attrs": {
+          "state": "Running",
+          "start_mode": "Auto",
+          "account": "NT AUTHORITY\\NetworkService",
+          "image_path": "C:\\Windows\\System32\\svchost.exe -k NetworkService"
+        }
+      },
+      {
+        "domain": "services",
+        "key": "service:termservice",
+        "attrs": {
+          "state": "Running",
+          "start_mode": "Manual",
+          "account": "NT AUTHORITY\\NetworkService",
+          "image_path": "C:\\Windows\\System32\\svchost.exe -k NetworkService"
+        }
+      },
+      {
+        "domain": "services",
+        "key": "service:w32time",
+        "attrs": {
+          "state": "Running",
+          "start_mode": "Manual",
+          "account": "NT AUTHORITY\\LocalService",
+          "image_path": "C:\\Windows\\System32\\svchost.exe -k LocalService"
+        }
+      },
+      {
+        "domain": "processes",
+        "key": "process:svchost.exe",
+        "attrs": {
+          "comm": "svchost.exe",
+          "exe": null,
+          "user": null
+        },
+        "volatile": {
+          "pid": "612",
+          "cmdline": "svchost.exe"
+        }
+      },
+      {
+        "domain": "processes",
+        "key": "process:svchost.exe",
+        "attrs": {
+          "comm": "svchost.exe",
+          "exe": null,
+          "user": null
+        },
+        "volatile": {
+          "pid": "704",
+          "cmdline": "svchost.exe"
+        }
+      },
+      {
+        "domain": "processes",
+        "key": "process:svchost.exe",
+        "attrs": {
+          "comm": "svchost.exe",
+          "exe": null,
+          "user": null
+        },
+        "volatile": {
+          "pid": "880",
+          "cmdline": "svchost.exe"
+        }
+      },
+      {
+        "domain": "processes",
+        "key": "process:lsass.exe",
+        "attrs": {
+          "comm": "lsass.exe",
+          "exe": null,
+          "user": null
+        },
+        "volatile": {
+          "pid": "688",
+          "cmdline": "lsass.exe"
+        }
+      },
+      {
+        "domain": "processes",
+        "key": "process:explorer.exe",
+        "attrs": {
+          "comm": "explorer.exe",
+          "exe": "C:\\Windows\\explorer.exe",
+          "user": "WIN-SRV01\\Alice"
+        },
+        "volatile": {
+          "pid": "4120",
+          "cmdline": "explorer.exe"
+        }
+      },
+      {
+        "domain": "listeners",
+        "key": "listener:tcp/0.0.0.0/135",
+        "attrs": {
+          "proto": "tcp",
+          "bind": "0.0.0.0",
+          "port": "135",
+          "process": null
+        },
+        "volatile": {
+          "pid": "612"
+        }
+      },
+      {
+        "domain": "listeners",
+        "key": "listener:tcp/0.0.0.0/445",
+        "attrs": {
+          "proto": "tcp",
+          "bind": "0.0.0.0",
+          "port": "445",
+          "process": null
+        },
+        "volatile": {
+          "pid": "4"
+        }
+      },
+      {
+        "domain": "listeners",
+        "key": "listener:tcp/0.0.0.0/3389",
+        "attrs": {
+          "proto": "tcp",
+          "bind": "0.0.0.0",
+          "port": "3389",
+          "process": null
+        },
+        "volatile": {
+          "pid": "880"
+        }
+      },
+      {
+        "domain": "listeners",
+        "key": "listener:tcp/0.0.0.0/5985",
+        "attrs": {
+          "proto": "tcp",
+          "bind": "0.0.0.0",
+          "port": "5985",
+          "process": null
+        },
+        "volatile": {
+          "pid": "4"
+        }
+      },
+      {
+        "domain": "listeners",
+        "key": "listener:tcp/0.0.0.0/49664",
+        "attrs": {
+          "proto": "tcp",
+          "bind": "0.0.0.0",
+          "port": "49664",
+          "process": null
+        },
+        "volatile": {
+          "pid": "688"
+        }
+      },
+      {
+        "domain": "listeners",
+        "key": "listener:tcp/0.0.0.0/49665",
+        "attrs": {
+          "proto": "tcp",
+          "bind": "0.0.0.0",
+          "port": "49665",
+          "process": null
+        },
+        "volatile": {
+          "pid": "540"
+        }
+      },
+      {
+        "domain": "listeners",
+        "key": "listener:tcp/0.0.0.0/49666",
+        "attrs": {
+          "proto": "tcp",
+          "bind": "0.0.0.0",
+          "port": "49666",
+          "process": null
+        },
+        "volatile": {
+          "pid": "704"
+        }
+      },
+      {
+        "domain": "persistence",
+        "key": "persist:run:machine:\\software\\microsoft\\windows\\currentversion\\run:securityhealth",
+        "attrs": {
+          "data": "C:\\Windows\\System32\\SecurityHealthSystray.exe"
+        },
+        "scope": "autoruns",
+        "evidence": [
+          {
+            "type": "registry",
+            "ref": "HKLM\\SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Run\\SecurityHealth"
+          }
+        ]
+      },
+      {
+        "domain": "config",
+        "key": "config:security:reg:hklm\\software\\microsoft\\windows\\currentversion\\policies\\system::enablelua",
+        "attrs": {
+          "value": null
+        },
+        "scope": "security",
+        "evidence": [
+          {
+            "type": "registry",
+            "ref": "HKLM\\SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Policies\\System\\EnableLUA"
+          }
+        ]
+      },
+      {
+        "domain": "config",
+        "key": "config:security:reg:hklm\\system\\currentcontrolset\\control\\lsa::restrictanonymous",
+        "attrs": {
+          "value": null
+        },
+        "scope": "security"
+      }
+    ]
+  }
+}
