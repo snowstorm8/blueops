@@ -4,6 +4,10 @@ All notable changes are documented here. Format: [Keep a Changelog](https://keep
 
 ## [Unreleased]
 
+### Added (baseline end-to-end regression tests)
+- `tests/shared/test_baseline_e2e.py` and `tests/fixtures/baseline-e2e/`: sanitized synthetic Linux and Windows audit snapshots driven through the real `python -m shared.reporting.diff` CLI. They pin the behavior for identical snapshots, added/removed/modified records, transient processes and ephemeral ports, permission gaps and failed modules, malformed or incompatible input (exit 3), offline/read-only operation and deterministic output. No behavior change.
+- `docs/baseline-diff.md`: expected-behavior matrix and newly documented limitations (trust in coverage statements, Windows transient helpers need configuration, high-port services are bucketed as ephemeral, non-object `inventory` is treated as absent).
+
 ### Added (baseline snapshots and change detection, schema 0.2.0)
 - Offline comparison engine and CLI (`python -m shared.reporting.diff`, `shared/reporting/{inventory,baseline,baseline_render,diff}.py`): additions, removals and modifications of users, groups, services, processes, listeners, scheduled tasks, persistence and configuration, with observation timestamps, evidence and related-finding links; text and JSON (`shared/schemas/baseline-diff.schema.json`) output; exit codes 0/4/6/3/2/1. See `docs/baseline-diff.md`.
 - Audit-report schema **0.2.0**: optional `inventory` (`coverage[]` + `records[]` with stable keys, compared `attrs`, `volatile` context and `evidence`). Additive: 0.1.0 reports remain valid and load (findings delta only, exit 6 with a `NO_INVENTORY` warning). `SCHEMA_VERSION` is `0.2.0`; `READABLE_REPORT_VERSIONS` lists the readable lines.

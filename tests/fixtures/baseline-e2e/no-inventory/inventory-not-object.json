@@ -1,0 +1,53 @@
+{
+  "schema_version": "0.2.0",
+  "tool": {
+    "name": "blueops-audit-linux",
+    "version": "0.2.0",
+    "category": "audit"
+  },
+  "run": {
+    "id": "lin-bad-inventory",
+    "started_at": "2026-03-01T09:00:00Z",
+    "finished_at": "2026-03-01T09:04:12Z",
+    "mode": "read-only",
+    "dry_run": false,
+    "exit_code": 0
+  },
+  "host": {
+    "hostname": "web01.example.test",
+    "os": {
+      "family": "linux",
+      "name": "Debian GNU/Linux",
+      "version": "12"
+    },
+    "arch": "x86_64",
+    "elevated": true
+  },
+  "findings": [
+    {
+      "id": "SSH-CFG-004",
+      "title": "Finding SSH-CFG-004",
+      "severity": "medium",
+      "category": "test",
+      "description": "PermitRootLogin is not 'no'",
+      "evidence": [
+        {
+          "type": "file",
+          "ref": "/etc/ssh/sshd_config"
+        }
+      ]
+    }
+  ],
+  "errors": [],
+  "summary": {
+    "total": 1,
+    "by_severity": {
+      "info": 0,
+      "low": 0,
+      "medium": 1,
+      "high": 0,
+      "critical": 0
+    }
+  },
+  "inventory": []
+}

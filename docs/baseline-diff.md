@@ -136,6 +136,36 @@ Config file (`shared/config/baseline-diff.default.json` shows the defaults):
 
 `ignore` maps a domain to `fnmatch` glob patterns over record keys; ignored records are counted in `summary.ignored`. Unknown keys and invalid values are rejected (exit 3).
 
+## Expected behavior (regression matrix)
+
+`tests/shared/test_baseline_e2e.py` drives the real CLI over complete synthetic reports in `tests/fixtures/baseline-e2e/` (a Linux host and a Windows host; each has a known-good `baseline.json` and five later runs). These are the guarantees the tests pin, so a change that breaks one is a behavior change, not a refactor:
+
+| Scenario (fixture) | Expected result | Exit |
+|---|---|---|
+| `identical`: same inventory, new run id, new PIDs, a moved ephemeral port; Windows also differs in key case, member order and dynamic RPC ports | no changes, no indeterminate, no warnings | 0 |
+| a report compared with itself | no changes, `SAME_RUN` warning | 0 |
+| `changed`: users, group membership, services, listeners, scheduled tasks, persistence and config added, removed and modified | exactly the 15 (Linux) / 14 (Windows) records that differ, each with the changed attributes, a triage priority, evidence, related findings and the observation window; new and changed findings are listed | 4 |
+| swapping baseline and current | additions and removals invert, modifications stay modifications, `REVERSED_ORDER` warns | 4 |
+| `churn`: new PIDs, helper processes (`sleep`, `ps`, `grep`, `awk`), ephemeral ports that move or open a second socket | no counted changes; helpers are kept as `transient` and hidden from text unless `--show-transient` | 0 |
+| a helper name running from `/tmp`, `/dev/shm` or with an unknown executable | counted as a normal addition | 4 |
+| a *different* process on an ephemeral port | `modified` on `listener:<proto>/<bind>/ephemeral` | 4 |
+| `unprivileged`: a non-elevated re-run with partial, degraded and unavailable domains | no additions, removals or modifications; missing records are `CURRENT_INCOMPLETE`, unreadable values are `ATTRIBUTE_UNKNOWN`; unavailable partitions are not compared; `PRIVILEGE_DIFFERS`; the baseline's finding is *unverified*, not resolved | 6 |
+| an unprivileged *baseline* against a full run | no additions are concluded | 6 |
+| a real removal in a fully collected domain during an incomplete run | still reported (`removed`), alongside the indeterminate records | 4 |
+| `module-failed`: a crashed module (`MODULE_FAILED`) | its partitions are not compared; no removals; its findings are *unverified* | 6 |
+| a domain missing from the current report with no coverage entry and no error | not compared; no mass removal | 6 |
+| a `partial` domain with zero records, or records with no coverage declaration | removals withheld (`CURRENT_INCOMPLETE`) | 6 |
+| unparseable JSON (empty, truncated, not JSON, duplicate keys, `NaN`), top level not an object, missing `run` or `host.os.family`, bad timestamp, unsupported `schema_version` (`1.0.0`, `0.3.0`), on either side | one `blueops-diff:` line on stderr, empty stdout, no `--output` file created | 3 |
+| missing path, directory without `report.json`, unreadable file | same | 3 |
+| Linux against Windows (even with `--allow-host-mismatch`); different hostnames without the flag | refused | 3 |
+| schema 0.1.0 report, or `inventory` that is not an object | loads with `NO_INVENTORY`; nothing is concluded from inventory, only findings are compared | 6 (4 if findings differ) |
+| a corrupt record (non-object, empty or control-character key, nested attribute value) | its domain is degraded; removals in it are withheld | 6 |
+| an unknown coverage status such as `"totally-fine"` | treated as `partial` | 6 |
+| two records with one key and different attributes | `RECORD_CONFLICT`, no change reported | 6 |
+| escape sequences and newlines inside an attribute value | shown as `\xNN` in text, so a report cannot forge lines; the JSON form keeps the raw value | 4 |
+
+Determinism: the same two inputs produce byte-identical text and JSON across repeated runs, shuffled record, coverage and finding order, file versus run-directory input, `--output` versus stdout, and different `PYTHONHASHSEED`, `TZ` and `LC_ALL` (only `generated_at` varies, and `--generated-at` pins it). The diff carries no file paths or host-local data. The tests also verify that the inputs are left untouched (hash, mtime, directory listing) and that no socket or subprocess is created.
+
 ## Schema versions and migration
 
 - **0.2.0** (current) adds the optional `inventory` object to the audit-report schema. It is additive: all 0.1.0 reports remain valid.
@@ -153,8 +183,12 @@ Reports are untrusted input. The loader enforces a 64 MiB limit, accepts a UTF-8
 - A compromised host can lie to its own audit (see [security-model.md](security-model.md)); a clean diff is not proof of integrity. Compare against a baseline taken before the incident, ideally cross-checked from offline media.
 - Windows keys are compared case-insensitively; attribute values are compared exactly.
 - Per-record change times are not available (see *Timestamps*).
+- The comparison trusts the report's own `coverage` statements. A collector (or an attacker who controls the host) that declares `complete` while omitting records produces removals; one that omits a coverage entry produces `not_compared`. Only the second is detected.
+- The default `transient_processes` list names Unix helpers only. On Windows, short-lived helpers such as `tasklist.exe` are counted as additions until they are listed in a config file (`{"transient_processes": ["tasklist.exe"]}`; matching is case-insensitive there and still requires a `System32`/`SysWOW64` executable).
+- Ephemeral listeners are aggregated per protocol and bind address. A long-lived service that happens to listen on a high port (for example 40111 on Linux) is treated as ephemeral: its port is not compared, only its process name. Raise `--ephemeral-from` to keep such a service distinct.
+- An `inventory` that is present but not an object is handled like a missing one (`NO_INVENTORY`, exit 6) rather than rejected as malformed, because the findings comparison is still useful. Other structural damage (missing `run`, `host`, bad timestamps, unsupported schema) is rejected with exit 3.
 - Multi-host merge and HTML rendering are planned, not implemented ([roadmap.md](roadmap.md)).
 
 ## Developing
 
-Golden files live in `tests/fixtures/baseline/` (synthetic data only). Regenerate after an intentional output change with `BLUEOPS_UPDATE_GOLDEN=1 python -m pytest tests/shared/test_baseline_cli.py` and review the diff. Producers: `bo_inv`/`bo_cov` in `linux/lib/common.sh`, `Add-BoInventory`/`Add-BoCoverage` in `windows/lib/Common.ps1`.
+End-to-end snapshots live in `tests/fixtures/baseline-e2e/` (see its README for the layout and how to add a scenario). Golden files live in `tests/fixtures/baseline/` (synthetic data only). Regenerate after an intentional output change with `BLUEOPS_UPDATE_GOLDEN=1 python -m pytest tests/shared/test_baseline_cli.py` and review the diff. Producers: `bo_inv`/`bo_cov` in `linux/lib/common.sh`, `Add-BoInventory`/`Add-BoCoverage` in `windows/lib/Common.ps1`.
