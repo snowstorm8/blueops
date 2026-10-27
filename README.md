@@ -29,6 +29,7 @@ Status per area; anything not marked implemented is **planned**.
 | Opt-in containment actions (dry-run, confirmation, rollback) | planned | planned |
 | Hardening profiles with service-dependency protection | planned | planned |
 | Baseline snapshots and offline change detection (`python -m shared.reporting.diff`) | **implemented (v0.2)** | **implemented (v0.2)** |
+| Explainable detection rules over baseline changes (`python -m shared.reporting.detect`) | **implemented (v0.3)** | **implemented (v0.3)** |
 | Shared analysis/reporting (multi-host merge, HTML render) in Python 3 | planned | planned |
 
 ## Implemented today
@@ -36,6 +37,7 @@ Status per area; anything not marked implemented is **planned**.
 - **Linux read-only audit** (`linux/audit/audit-linux.sh`): system, users, processes, network, services, persistence, filesystem; human and JSON output. See [docs/linux-audit.md](docs/linux-audit.md)
 - **Windows read-only audit** (`windows/audit/Invoke-WindowsAudit.ps1`, PowerShell 5.1+): system, users, processes, network, services, scheduled tasks, registry autoruns, persistence, Windows Firewall, security configuration, filesystem; human and JSON output. See [docs/windows-audit.md](docs/windows-audit.md)
 - **Baseline snapshots and change detection** (`python -m shared.reporting.diff BASELINE CURRENT`): offline, read-only comparison of two audit reports (users, groups, services, processes, listeners, scheduled tasks, persistence, configuration) with text and JSON output; handles transient PIDs, ephemeral ports, incomplete audits and permission gaps without false conclusions. See [docs/baseline-diff.md](docs/baseline-diff.md)
+- **Detection rules** (`python -m shared.reporting.detect BASELINE CURRENT`): offline, read-only triage of the baseline changes with 26 explainable rules (privileged accounts and groups, SSH keys, persistence, scheduled tasks, services, listeners, firewall/hardening changes). Each detection has a severity, a rationale, supporting evidence, investigation steps and an `observed`/`heuristic` basis; related detections are linked, not duplicated; reviewed changes can be accepted with a scoped, expiring, audited allowlist (`--accepted`). See [docs/detection-rules.md](docs/detection-rules.md)
 - Repository layout, CI and lint workflows, formatting rules
 - Versioned JSON audit-report schema (`shared/schemas/audit-report.schema.json`, v0.2.0, pre-stable; adds an optional `inventory`, 0.1.0 reports stay valid) with example and tests
 - Shared contracts: severity levels and exit codes (`shared/reporting/contracts.py`, [docs/contracts.md](docs/contracts.md))
@@ -88,6 +90,7 @@ Compare a later audit with a baseline (analyst machine, Python 3.9+, no network)
 ```bash
 python -m shared.reporting.diff baselines/run-a out/run-b            # text report, exit 4 if changes
 python -m shared.reporting.diff baselines/run-a out/run-b --json --output diff.json
+python -m shared.reporting.detect baselines/run-a out/run-b          # explainable detections, exit 4 if any
 ```
 
 Planned (not yet available) — remaining tools will follow the same conventions:

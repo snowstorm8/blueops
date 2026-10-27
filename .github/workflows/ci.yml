@@ -37,6 +37,22 @@ jobs:
           python -m shared.reporting.diff tests/fixtures/baseline/linux-baseline.json tests/fixtures/baseline/linux-current.json --json --quiet --generated-at 2026-01-02T12:00:00Z > /dev/null
           code=$?
           test "$code" -eq 4 || { echo "expected exit 4, got $code"; exit 1; }
+      - name: Detection smoke test (offline CLI)
+        shell: bash
+        run: |
+          set +e
+          for host in linux windows; do
+            python -m shared.reporting.detect tests/fixtures/baseline-e2e/$host/baseline.json tests/fixtures/baseline-e2e/$host/changed.json --json --quiet --generated-at 2026-03-02T00:00:00Z > /dev/null
+            code=$?
+            test "$code" -eq 4 || { echo "$host: expected exit 4, got $code"; exit 1; }
+            python -m shared.reporting.detect tests/fixtures/baseline-e2e/$host/baseline.json tests/fixtures/baseline-e2e/$host/identical.json --json --quiet --generated-at 2026-03-02T00:00:00Z > /dev/null
+            code=$?
+            test "$code" -eq 0 || { echo "$host: expected exit 0, got $code"; exit 1; }
+          done
+          python -m shared.reporting.detect tests/fixtures/baseline-e2e/linux/baseline.json tests/fixtures/baseline-e2e/linux/changed.json --accepted examples/accepted-changes.example.json --json --quiet --generated-at 2026-03-02T00:00:00Z > allow.json
+          code=$?
+          test "$code" -eq 4 || { echo "allowlist: expected exit 4, got $code"; exit 1; }
+          python -c "import json; d=json.load(open('allow.json')); s=d['summary']; assert s['accepted']==1 and s['total']==11 and d['allowlist']['entries'][0]['status']=='matched', s"
 
   bash:
     name: Bash tests (Bats)
