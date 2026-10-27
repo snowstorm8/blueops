@@ -23,4 +23,13 @@ $o.startup = (Get-ChildItem -LiteralPath "$env:ProgramData\Microsoft\Windows\Sta
 $o.hosts = (Get-FileHash -LiteralPath "$env:SystemRoot\System32\drivers\etc\hosts" -Algorithm SHA256).Hash
 $o.fwrules = @(Get-ChildItem 'HKLM:\SYSTEM\CurrentControlSet\Services\SharedAccess\Parameters\FirewallPolicy\FirewallRules').Count
 $o.wmisubs = @(Get-CimInstance -Namespace root/subscription -ClassName __EventFilter).Count
-$o | ConvertTo-Json -Depth 3
+# Diagnostics only (the test never compares this key): when the snapshot was taken and the
+# System-log start-type changes (event 7040) of the last 30 minutes, so a service difference can be
+# attributed to the host instead of guessed at.
+$changes = @()
+try {
+    $changes = @(Get-WinEvent -FilterHashtable @{ LogName = 'System'; Id = 7040; StartTime = (Get-Date).AddMinutes(-30) } -ErrorAction Stop |
+        ForEach-Object { [ordered]@{ at = $_.TimeCreated.ToUniversalTime().ToString('o'); message = ($_.Message -replace '\s+', ' ') } })
+} catch { Write-Verbose "no 7040 events: $($_.Exception.Message)" }
+$o.diag = [ordered]@{ at = (Get-Date).ToUniversalTime().ToString('o'); start_type_changes = $changes }
+$o | ConvertTo-Json -Depth 4
