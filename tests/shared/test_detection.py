@@ -1103,3 +1103,12 @@ def test_every_rule_is_documented_and_documented_rules_exist() -> None:
     documented = set(re.findall(r"`(BO-[A-Z]+-\d{3})`", text))
     assert documented == {r.rule_id for r in detection.RULES}
     assert "26" in text and len(detection.RULES) == 26
+
+
+def test_known_gap_windows_ip_forward_record_is_not_evaluated() -> None:
+    """FN-3 (docs/detection-validation.md): the Windows collector emits ``config:ip_forward`` with
+    an ``enabled`` attribute, while BO-CFG-002 reads a ``value`` on sysctl-style keys. Pinned so
+    that closing the gap is a deliberate change."""
+    off = rec("config", "config:ip_forward", {"enabled": "false"}, scope="network")
+    on = rec("config", "config:ip_forward", {"enabled": "true"}, scope="network")
+    assert run([off], [on])["detections"] == []

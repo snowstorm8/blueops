@@ -154,6 +154,10 @@ What happens on a match:
 
 An accepted change is a statement by a person, not evidence of safety; review `unused` and soon-to-expire entries each run, and keep the file under change control.
 
+## Validation
+
+The rules are validated through the real collectors on disposable synthetic hosts; expected outcomes, deviations and the known false positives/negatives are in [detection-validation.md](detection-validation.md).
+
 ## Limitations
 
 * **Change-based only.** A backdoor that was already on the host when the baseline was taken is invisible to detection, and a host compromised before the baseline passes. Standing-state checks belong to the audit findings.

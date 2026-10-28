@@ -87,4 +87,63 @@ Controlled, repeatable validation of the detection rules ([detection-rules.md](d
 
 ## Part 2 - Results
 
-_To be filled in after the scenarios are run._
+Run on 2026-10-27. Linux: 31 scenario tests in `tests/shared/test_detection_validation_linux.py`, run locally (macOS, Python 3.14; the set-ID scenario is skipped there) and on `ubuntu-latest` (Python 3.9 and 3.12, all scenarios). Windows: 6 tests in `tests/shared/test_detection_validation_windows.py`, which could **not** be run locally (no PowerShell); they ran on `windows-latest` (Python 3.9 and 3.12) and on `ubuntu-latest` with `pwsh`, and all passed. Only the first available shell (`pwsh`) is used per run.
+
+### Outcome against the plan
+
+| Area | Planned | Result |
+|---|---|---|
+| Suspicious (LS-01..08) | all fire with the stated rules, severity, basis | **7 of 8 as planned. LS-04 failed: a real false negative, fixed (below).** Key naming in the plan was also wrong for `rc.local` and cron (cosmetic, see D1) |
+| Benign (LB-01..07) | nothing above the stated ceiling | **as planned, except LB-07 whose premise was wrong (D4).** One high that is a benign change remains: FP-1 |
+| Remediation (LR-01..04) | reversal is quiet or low | LR-01, LR-03, LR-04 as planned. **LR-02 differs** (D5): medium, not low |
+| Accepted changes (LA-01..06) | suppress only exact approved matches | **as planned**; wrong hash, neighbouring key, expired, wrong rule, higher severity and critical all suppress nothing; evidence identical |
+| Coverage (LC-01..03) | never a clean bill of health | **as planned after the scenario was redesigned (D3, D6)**; two scenarios added (LC-03, LC-04) |
+| Windows (WS-01..07) | as in the plan | **all six tests passed on first CI run** (WS-01..03 share one attacked audit, WS-04/05 one benign audit) |
+
+### Deviations from the plan
+
+* **D1 - key naming.** The plan used the synthetic forms. The Linux collector emits `persist:startup:/etc/rc.local`, `cron:<file>#<hash of the line>` and `persist:ssh-authkey:<owner>:<id>`. Tests use the real keys.
+* **D2 - false negative found and fixed (LS-04).** `BO-PER-001` only matched `persist:ssh_key:<user>:...` with a `user` attribute, a form no collector emits. A new `root` authorized key was therefore reported only by the generic `BO-PER-002` at **medium** instead of **critical**. The rule now matches both key forms and reads `owner` or `user`; `test_detection.py` gained a scenario using the collector's real record.
+* **D3 - unprivileged runs are partial.** The Linux collector marks four persistence partitions `partial` when not root, so even an unchanged host exits 6. The tests add an `id` shim (the same test-double mechanism as the existing `ss` shim) so the main scenarios run as an operator would, and LC-03/LC-04 cover the real unprivileged case: a key added in a partial partition is `indeterminate`, not detected, and the run exits 6.
+* **D4 - Linux sudoers is not hash-only.** It is inventoried one rule per record (`config:sudoers:<file>#<hash>` with `file` and `rule`). A comment-only edit is correctly silent; a new or changed rule is an `added` record with readable content (`unknown[]` empty). The hash-only `unknown[]` text applies to PAM, startup, systemd and shell files (verified for `rc.local`).
+* **D5 - editing a cron line is a new job.** Cron records are keyed by the line's content, so a repair is "remove + add": the repaired job is `BO-SCH-001` medium, never the `BO-SCH-003` low the plan expected. `BO-SCH-003` can only trigger for Windows tasks, where the task name is the key.
+* **D6 - LC-01 redesigned.** With `ss` missing the collector falls back to `/proc/net` without process names (listeners `degraded`), so the original scenario never contained the listener. The test now audits the baseline with `ss` and the current host without: the listener owners become indeterminate, `complete=false`, exit 6.
+* **D7 - platform.** LS-07 (set-ID bit) needs GNU `stat`; BSD `stat` on macOS does not report the bit, so it is skipped there and runs on Linux CI.
+
+### False positives (documented, not fixed)
+
+| ID | Where | What | Mitigation |
+|---|---|---|---|
+| FP-1 | `BO-CFG-005` | any new sudoers rule is `high`, including a narrow password-protected rule for an ops group; any PAM file hash change is `high` | investigate; accept with an exact entry (rule, key, optional hash pin, expiry). A rule-content-aware grading is possible future work |
+| FP-2 | `BO-PER-002` | a restored startup/systemd/shell file shows as a modification (a hash has no direction) | `unknown[]` says so; accept with a hash-pinned entry |
+| FP-3 | `BO-SCH-001` | repaired or edited cron lines are reported as a new job (medium) | below high by design |
+| FP-4 | `BO-CFG-007`, `BO-USR-002` | an internal hosts entry is medium; a new service account is low | ceilings asserted by LB-01/LB-03 |
+| FP-5 | `BO-GRP-001` | promoting an existing user into `sudo` is high (not critical) | intended: a privilege change deserves review |
+
+### False negatives (documented)
+
+| ID | Gap | Evidence |
+|---|---|---|
+| FN-1 | compromise already present in the baseline is never reported (change-based) | LR-04: the dirty fixture yields standing-state findings but no detections |
+| FN-2 | unprivileged Linux audit cannot read other users' keys etc.; additions in partial partitions are indeterminate | LC-04: not detected, exit 6, never exit 0 |
+| FN-3 | Windows `config:ip_forward` (`enabled`) is not evaluated by `BO-CFG-002` (it reads Linux-style `value`) | pinned in `test_detection.py` |
+| FN-4 | Linux services carry no binary path, so `BO-EXE-001`/`BO-SVC-002` cannot see a replaced service binary | inventory limitation, see detection-rules.md |
+| FN-5 | listener owner names need `ss`/root; without them rules on process names are blind | LC-01: the run is incomplete (exit 6), not clean |
+| FN-6 | (fixed) new root SSH key reported as medium | D2 |
+
+### Platform coverage
+
+| | Linux | Windows |
+|---|---|---|
+| Real collector exercised | yes (`audit-linux.sh`, all modules) | yes (`Invoke-WindowsAudit.ps1`, all modules; PowerShell 7) |
+| Disposable environment | temp copy of `linux-root` + shims | temp copy of `windows-host` |
+| Suspicious / benign / remediation / coverage | 8 / 7 (+1) / 4 / 4 | 3 / 2 / 1 / 1 |
+| Allowlist | 6 scenarios | not repeated (platform-neutral logic) |
+| Locally verified | yes, except set-ID on macOS | no, verified on CI only |
+
+### Limitations of this validation
+
+* Data is synthetic and the environments are fixture copies, not real hosts: kernel, service-manager and registry behaviour is not exercised, only what the collectors read. No live mutation was done (see "out of scope").
+* The `id` and `ss` shims model an operator and a listener; real `ss`/`systemctl` output formats are covered by the existing collector tests, not re-validated here.
+* Windows runs use one shell; Windows PowerShell 5.1 is covered by the existing report-schema tests, not by these scenarios.
+* One rule set version (26 rules); scenarios pin severities, so a deliberate severity change must update this document and the tests together.

@@ -4,6 +4,13 @@ All notable changes are documented here. Format: [Keep a Changelog](https://keep
 
 ## [Unreleased]
 
+### Fixed (detection validation)
+- `BO-PER-001` now matches the Linux collector's real SSH key records (`persist:ssh-authkey:<owner>:<id>`, `owner` attribute). Before, a new `root` authorized key was reported only by `BO-PER-002` at medium instead of critical.
+
+### Added (detection validation)
+- `docs/detection-validation.md`: expected outcomes written before the runs, results, deviations, false positives, false negatives, platform coverage and limitations.
+- `tests/shared/test_detection_validation_linux.py` (real audit over disposable fixture roots) and `tests/shared/test_detection_validation_windows.py` (PowerShell collector over mutated fixture copies; needs PowerShell), with a small shared helper `tests/shared/detection_validation.py`.
+
 ### Added (detection rules, v0.3)
 - `python -m shared.reporting.detect` (`shared/reporting/{detect,detection}.py`): offline, read-only, explainable detections over the baseline comparison. 26 rules (`BO-USR/GRP/PER/EXE/SCH/SVC/NET/CFG-nnn`) each carry a severity, rationale, supporting evidence, ATT&CK orientation and investigation steps, and are labelled `observed` (fact in the report) or `heuristic` (suspicion). Rules fire on changes only; matches on one record merge into one detection and detections sharing an artifact are linked; incomplete coverage yields exit 6, never a clean result.
 - `shared/schemas/detections.schema.json` (`kind: "detections"`), `--from-diff`, `--min-severity`, `--list-rules`; reuses diff exit codes.
