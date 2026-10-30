@@ -155,6 +155,10 @@ What happens on a match:
 
 An accepted change is a statement by a person, not evidence of safety; review `unused` and soon-to-expire entries each run, and keep the file under change control.
 
+## Validation
+
+The rules are validated through the real collectors on disposable synthetic hosts; expected outcomes, deviations and the known false positives/negatives are in [detection-validation.md](detection-validation.md).
+
 ## Limitations
 
 * **Same name, new high port.** Listeners at or above the ephemeral threshold share one bucket compared by process name (ports move between runs). A *new name* in the bucket is reported (`BO-NET-003`, `BO-NET-002`); a second listener of a name already in the bucket is indistinguishable from port churn and is not. List stable high-port services in `fixed_ports` ([baseline-diff.md](baseline-diff.md)) so they are compared exactly.
