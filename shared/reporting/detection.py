@@ -45,6 +45,7 @@ _DOMAIN_ORDER = (
     "scheduled_tasks",
     "persistence",
     "config",
+    "findings",
 )
 
 
@@ -1237,6 +1238,151 @@ def _name_resolution(c: dict[str, Any], ctx: Context) -> list[Signal]:
     )
 
 
+# --- audit findings promoted to detections --------------------------------------------------
+
+FINDING_RULE = "BO-FND-001"
+PROMOTE_FINDINGS_FROM = Severity.HIGH
+
+
+@rule(FINDING_RULE, "findings")
+def _audit_finding(c: dict[str, Any], ctx: Context) -> list[Signal]:
+    """Audit finding of high or critical severity appeared or escalated (engine-evaluated)."""
+    return []  # not a per-change rule: ``_finding_detections`` reads diff["findings"] directly
+
+
+def _severity_or_none(value: Any) -> Severity | None:
+    try:
+        return Severity.parse(value) if isinstance(value, str) else None
+    except ValueError:
+        return None
+
+
+def _strs(value: Any) -> list[str]:
+    return [x for x in value if isinstance(x, str)] if isinstance(value, list) else []
+
+
+def _finding_detections(
+    diff: dict[str, Any], covering: dict[str, list[dict[str, Any]]], errors: list[dict[str, str]]
+) -> tuple[list[dict[str, Any]], dict[str, set[str]]]:
+    """Detections for audit findings that are new, or grew, at high/critical severity.
+
+    The comparison reports finding changes beside the inventory changes, but a finding can show
+    something no inventory rule sees (a suspicious cron *command*, a deleted-binary process).
+    A finding that an inventory detection already covers (same evidence, ``related_findings``)
+    at the same or a higher severity is not re-reported. A less severe cover is linked instead.
+    """
+    out: list[dict[str, Any]] = []
+    tokens: dict[str, set[str]] = {}
+    found = diff["findings"]
+    for kind, entries in (("added", found.get("new")), ("modified", found.get("changed"))):
+        for entry in entries or []:
+            if not isinstance(entry, dict):
+                errors.append({"rule": FINDING_RULE, "key": "finding:?", "error": "BadFinding"})
+                continue
+            fid = entry.get("id")
+            after = _severity_or_none(entry.get("after_severity", entry.get("severity")))
+            if not isinstance(fid, str) or after is None:
+                bad = f"finding:{fid}"[:200]
+                errors.append({"rule": FINDING_RULE, "key": bad, "error": "BadFinding"})
+                continue
+            before = _severity_or_none(entry.get("before_severity")) if kind == "modified" else None
+            gained = _strs(entry.get("evidence_added")) if kind == "modified" else []
+            if after < PROMOTE_FINDINGS_FROM or (
+                kind == "modified" and not gained and not (before is not None and after > before)
+            ):
+                continue
+            cover = covering.get(fid, [])
+            if any(_SEV_RANK[d["severity"]] >= int(after) for d in cover):
+                continue
+            det = _finding_detection(diff, kind, entry, fid, after, before, gained)
+            out.append(det)
+            tokens[det["id"]] = {f"name:finding-{fid.casefold()}"}
+            for d in cover:
+                tokens.setdefault(d["id"], set()).add(f"name:finding-{fid.casefold()}")
+    return out, tokens
+
+
+def _promote_findings(
+    diff: dict[str, Any],
+    detections: list[dict[str, Any]],
+    tokens: dict[str, set[str]],
+    errors: list[dict[str, str]],
+) -> None:
+    """Append finding detections (and their link tokens) to the inventory detections."""
+    covering: dict[str, list[dict[str, Any]]] = {}
+    for d in detections:
+        for fid in d["related_findings"]:
+            covering.setdefault(fid, []).append(d)
+    promoted, extra = _finding_detections(diff, covering, errors)
+    detections += promoted
+    for det_id, toks in extra.items():
+        tokens.setdefault(det_id, set()).update(toks)
+
+
+def _finding_detection(  # noqa: PLR0913, PLR0917 - flat inputs read clearer than a wrapper type
+    diff: dict[str, Any],
+    kind: str,
+    entry: dict[str, Any],
+    fid: str,
+    after: Severity,
+    before: Severity | None,
+    gained: list[str],
+) -> dict[str, Any]:
+    title = str(entry.get("title", ""))[:200]
+    category = str(entry.get("category", ""))[:80]
+    what = f"Audit finding {fid} ({title}) is {after.label}"
+    if kind == "added":
+        what += " and was not in the baseline report."
+    else:
+        rose = f", up from {before.label}" if before is not None and after > before else ""
+        what += f"{rose}" + (f"; it gained evidence: {', '.join(gained[:3])}." if gained else ".")
+    return {
+        "id": _detection_id("findings", "", f"finding:{fid}"),
+        "title": "Audit finding appeared or escalated",
+        "severity": after.label,
+        "basis": HEURISTIC,
+        "subject": {"domain": "findings", "scope": "", "key": f"finding:{fid}", "change": kind},
+        "summary": what,
+        "reasons": [
+            {
+                "rule": FINDING_RULE,
+                "title": "Audit finding appeared or escalated",
+                "severity": after.label,
+                "basis": HEURISTIC,
+                "observation": what,
+                "rationale": "The audit's own checks flagged this condition and it is new or "
+                "grew since the baseline, but no inventory rule rated the same evidence as "
+                "severely. Audit findings are pattern- and permission-based and the comparison "
+                "does not carry their confidence, so treat this as a suspicion.",
+            }
+        ],
+        "before": {"severity": before.label} if before is not None else None,
+        "after": {"severity": after.label, "category": category, "title": title},
+        "attributes": (
+            [{"name": "severity", "before": before.label, "after": after.label}]
+            if before is not None and before != after
+            else []
+        ),
+        "evidence": [{"type": "audit-evidence", "ref": r} for r in gained[:20]],
+        "observed": {
+            "baseline_at": diff["baseline"].get("finished_at") if kind == "modified" else None,
+            "current_at": diff["current"].get("finished_at"),
+        },
+        "related_findings": [fid],
+        "artifacts": [],
+        "techniques": [],
+        "investigation": [
+            f"Read finding {fid} in the current report: its evidence lists what triggered it.",
+            "Compare with the baseline report's finding of the same id to see what is new.",
+        ],
+        "unknown": [
+            "The finding's full evidence and confidence: the comparison carries only its id, "
+            "severity, title and the evidence references that were added."
+        ],
+        "correlated": [],
+    }
+
+
 # --- engine --------------------------------------------------------------------------------
 
 
@@ -1253,6 +1399,9 @@ def validate_diff(diff: Any) -> dict[str, Any]:
     for key in ("baseline", "current", "window", "findings", "summary"):
         if not isinstance(diff.get(key), dict):
             raise DiffInputError(f"'{key}' must be an object")
+    for part in ("new", "changed"):
+        if not isinstance(diff["findings"].get(part, []), list):
+            raise DiffInputError(f"'findings.{part}' must be a list")
     for c in diff["changes"]:
         ok = (
             isinstance(c, dict)
@@ -1265,6 +1414,9 @@ def validate_diff(diff: Any) -> dict[str, Any]:
         if not ok:
             raise DiffInputError("a change entry is malformed")
     return diff
+
+
+_SEV_RANK = {s.label: int(s) for s in Severity}
 
 
 def _detection_id(domain: str, scope: str, key: str) -> str:
@@ -1414,8 +1566,9 @@ def detect(
                 "correlated": [],
             }
         )
+    _promote_findings(diff, detections, tokens, errors)
     order = {d: i for i, d in enumerate(_DOMAIN_ORDER)}
-    sev_rank = {s.label: int(s) for s in Severity}
+    sev_rank = _SEV_RANK
     detections.sort(
         key=lambda d: (
             -sev_rank[d["severity"]],

