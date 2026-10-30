@@ -825,6 +825,52 @@ def _tool_name(proc: str) -> str:
     return proc.lower().removesuffix(".exe")
 
 
+def _ephemeral(c: dict[str, Any]) -> bool:
+    """True for the bucket record that stands for every listener above the ephemeral threshold."""
+    return str(c["key"]).endswith("/ephemeral")
+
+
+def _new_process_names(c: dict[str, Any]) -> list[str]:
+    """Process names in the current listener bucket that the baseline bucket did not have."""
+    d = _delta(c, "process")
+    if not d:
+        return []
+    before = {p.casefold() for p in d[0]}
+    return sorted({p for p in d[1] if p.casefold() not in before}, key=str.casefold)
+
+
+def _ephemeral_newcomer(c: dict[str, Any], d: tuple[list[str], list[str]]) -> list[Signal]:
+    """A process name that was not on any high-port listener of this bind now is.
+
+    The port is deliberately not compared in the bucket (ports move between runs), so the
+    owning name is the only identity left; a name leaving the bucket is quiet.
+    """
+    new = _new_process_names(c)
+    if not new:
+        return []
+    ports = _vals((c.get("current") or {}).get("volatile", {}).get("port"))
+    where = f" (port {', '.join(ports[:5])})" if ports else ""
+    return _sig(
+        "BO-NET-003",
+        "New process on a high-port listener",
+        Severity.LOW if _loopback(_vals(_now(c, "bind"))) else Severity.MEDIUM,
+        OBSERVED,
+        observation=f"{_name(c)}{where}: {', '.join(new)} now listens there; before: "
+        f"{', '.join(d[0]) or 'nothing known'}.",
+        rationale="Listeners above the ephemeral threshold are compared by process name only, "
+        "because their ports change between runs. A name that was not listening there before "
+        "is new attack surface; backdoors choose high ports because they blend in. Services "
+        "that legitimately listen on a stable high port belong in `fixed_ports`.",
+        investigate=(
+            "Identify the process, its executable and its parent, and the exact port.",
+            "If the service is legitimate and stable, list its port under fixed_ports so it is "
+            "compared exactly.",
+        ),
+        techniques=("T1571", "T1205"),
+        tokens=tuple("name:" + p.lower() for p in new),
+    )
+
+
 @rule("BO-NET-001", "listeners")
 def _new_listener(c: dict[str, Any], ctx: Context) -> list[Signal]:
     """New listener reachable from the network."""
@@ -851,9 +897,14 @@ def _new_listener(c: dict[str, Any], ctx: Context) -> list[Signal]:
 @rule("BO-NET-002", "listeners")
 def _suspicious_listener(c: dict[str, Any], ctx: Context) -> list[Signal]:
     """Listener owned by a netcat-style tool or on a port favoured by common payloads."""
-    if c["change"] != "added":
+    if c["change"] == "added":
+        procs = [p.lower().removesuffix(".exe") for p in _vals(_now(c, "process"))]
+    elif c["change"] == "modified" and _ephemeral(c):
+        # High-port listeners share one bucket whose port is not compared: judge the names
+        # that appeared, not the ones that were already there.
+        procs = [_tool_name(p) for p in _new_process_names(c)]
+    else:
         return []
-    procs = [p.lower().removesuffix(".exe") for p in _vals(_now(c, "process"))]
     ports = _vals(_now(c, "port"))
     tool = [p for p in procs if p in REMOTE_TOOLS]
     port = [p for p in ports if p in SUSPICIOUS_PORTS]
@@ -886,8 +937,10 @@ def _suspicious_listener(c: dict[str, Any], ctx: Context) -> list[Signal]:
 def _listener_owner_changed(c: dict[str, Any], ctx: Context) -> list[Signal]:
     """A different process now owns an existing listener."""
     d = _delta(c, "process")
-    if c["change"] != "modified" or not d or _name(c).endswith("/ephemeral"):
+    if c["change"] != "modified" or not d:
         return []
+    if _ephemeral(c):
+        return _ephemeral_newcomer(c, d)
     port = _name(c).rsplit("/", 1)[-1]
     was_tool = any(_tool_name(p) in REMOTE_TOOLS for p in d[0])
     is_tool = any(_tool_name(p) in REMOTE_TOOLS for p in d[1])

@@ -608,7 +608,8 @@ def test_ephemeral_listener_churn_is_not_an_alert() -> None:
         )
 
     assert run([lst("agent")], [lst("agent")])["detections"] == []
-    assert run([lst("agent")], [lst("other")])["detections"] == []  # modified, not NET-003
+    # A different name taking over the bucket is not churn: see test_detection_regressions.py
+    # (P0-1) for the high-port listener rules.
 
 
 # ------------------------------------------------------- confirmed vs heuristic, dedup, links
