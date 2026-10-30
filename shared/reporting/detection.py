@@ -418,12 +418,31 @@ HIGH_RISK_MECHANISMS = (
 )
 
 
+# Key shapes of SSH authorized-key records: the Linux collector emits ``persist:ssh-authkey:``
+# (owner in the ``owner`` attribute; ``tests/shared/test_rule_collector_contract.py`` pins it
+# against the real collector). ``persist:ssh_key:`` (``user``) is the older synthetic form.
+SSH_KEY_PREFIXES = ("persist:ssh-authkey:", "persist:ssh_key:")
+
+
+def _is_ssh_key(c: dict[str, Any]) -> bool:
+    return str(c["key"]).startswith(SSH_KEY_PREFIXES)
+
+
+def _ssh_key_owner(c: dict[str, Any]) -> str:
+    """Account the key logs in as: the ``owner``/``user`` attribute, else the key's own segment."""
+    owner = _one(_now(c, "owner")) or _one(_now(c, "user"))
+    if owner:
+        return owner
+    parts = str(c["key"]).split(":")
+    return parts[2] if len(parts) > 3 and parts[2] else "unknown user"
+
+
 @rule("BO-PER-001", "persistence")
 def _ssh_key(c: dict[str, Any], ctx: Context) -> list[Signal]:
     """SSH authorized key added."""
-    if c["change"] != "added" or not str(c["key"]).startswith("persist:ssh_key:"):
+    if c["change"] != "added" or not _is_ssh_key(c):
         return []
-    user = _one(_now(c, "user")) or "unknown user"
+    user = _ssh_key_owner(c)
     return _sig(
         "BO-PER-001",
         "New SSH authorized key",
@@ -445,8 +464,8 @@ def _ssh_key(c: dict[str, Any], ctx: Context) -> list[Signal]:
 def _persistence(c: dict[str, Any], ctx: Context) -> list[Signal]:
     """Persistence mechanism added or its content changed."""
     key = str(c["key"])
-    if c["change"] == "removed" or key.startswith("persist:ssh_key:"):
-        return []
+    if c["change"] == "removed" or (c["change"] == "added" and _is_ssh_key(c)):
+        return []  # a new key is BO-PER-001's; a changed key record is still reported here
     parts = key.split(":")
     mech = parts[1] if len(parts) > 1 else "unknown"
     risky = mech in HIGH_RISK_MECHANISMS
