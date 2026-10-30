@@ -48,7 +48,7 @@ Reports conform to `shared/schemas/audit-report.schema.json` (0.1.0), which has 
 
 ## Inventory for baseline comparison (schema 0.2.0)
 
-Besides findings, every run emits `inventory` (records with stable keys plus per-domain coverage) for [baseline-diff.md](baseline-diff.md). Modules contribute: users (`user:`, `group:`, sudoers `config:sudoers:`, SSH keys `persist:ssh-authkey:` fingerprinted by key blob), processes (`process:<user>:<comm>`, PIDs volatile), network (`listener:`, sysctl/DNS/hosts `config:`), services (`service:`), persistence (`cron:`, `persist:<scope>:`), pam (`config:pam:`), filesystem (`config:suid:`). Coverage is `partial` when not root for protected paths, when `find` reported errors or `--fs-path` narrows the scan, and when a module is missing or aborts; unknown executables are `null`, never empty. Key material and password hashes are never emitted.
+Besides findings, every run emits `inventory` (records with stable keys plus per-domain coverage) for [baseline-diff.md](baseline-diff.md). Modules contribute: users (`user:`, `group:`, sudoers `config:sudoers:`, SSH keys `persist:ssh-authkey:` fingerprinted by key blob), processes (`process:<user>:<comm>`, PIDs volatile), network (`listener:`, sysctl/DNS/hosts `config:`; sysctl covers `net.ipv4.ip_forward`, IPv6 forwarding and `kernel.randomize_va_space`), services (`service:`), persistence (`cron:`, `persist:<scope>:`), pam (`config:pam:`), filesystem (`config:suid:`). Coverage is `partial` when not root for protected paths, when `find` reported errors or `--fs-path` narrows the scan, and when a module is missing or aborts; unknown executables are `null`, never empty. Key material and password hashes are never emitted.
 
 ## Contextual heuristics (false-positive control)
 

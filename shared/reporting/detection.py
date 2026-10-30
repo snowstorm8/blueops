@@ -45,6 +45,7 @@ _DOMAIN_ORDER = (
     "scheduled_tasks",
     "persistence",
     "config",
+    "findings",
 )
 
 
@@ -418,17 +419,31 @@ HIGH_RISK_MECHANISMS = (
 )
 
 
-# The Linux collector keys authorized keys as persist:ssh-authkey:<owner>:<id> with an ``owner``
-# attribute; persist:ssh_key:<user>:<fingerprint> with ``user`` is the older/synthetic form.
+# Key shapes of SSH authorized-key records: the Linux collector emits ``persist:ssh-authkey:``
+# (owner in the ``owner`` attribute; ``tests/shared/test_rule_collector_contract.py`` pins it
+# against the real collector). ``persist:ssh_key:`` (``user``) is the older synthetic form.
 SSH_KEY_PREFIXES = ("persist:ssh-authkey:", "persist:ssh_key:")
+
+
+def _is_ssh_key(c: dict[str, Any]) -> bool:
+    return str(c["key"]).startswith(SSH_KEY_PREFIXES)
+
+
+def _ssh_key_owner(c: dict[str, Any]) -> str:
+    """Account the key logs in as: the ``owner``/``user`` attribute, else the key's own segment."""
+    owner = _one(_now(c, "owner")) or _one(_now(c, "user"))
+    if owner:
+        return owner
+    parts = str(c["key"]).split(":")
+    return parts[2] if len(parts) > 3 and parts[2] else "unknown user"
 
 
 @rule("BO-PER-001", "persistence")
 def _ssh_key(c: dict[str, Any], ctx: Context) -> list[Signal]:
     """SSH authorized key added."""
-    if c["change"] != "added" or not str(c["key"]).startswith(SSH_KEY_PREFIXES):
+    if c["change"] != "added" or not _is_ssh_key(c):
         return []
-    user = _one(_now(c, "owner")) or _one(_now(c, "user")) or "unknown user"
+    user = _ssh_key_owner(c)
     return _sig(
         "BO-PER-001",
         "New SSH authorized key",
@@ -450,8 +465,8 @@ def _ssh_key(c: dict[str, Any], ctx: Context) -> list[Signal]:
 def _persistence(c: dict[str, Any], ctx: Context) -> list[Signal]:
     """Persistence mechanism added or its content changed."""
     key = str(c["key"])
-    if c["change"] == "removed" or key.startswith(SSH_KEY_PREFIXES):
-        return []
+    if c["change"] == "removed" or (c["change"] == "added" and _is_ssh_key(c)):
+        return []  # a new key is BO-PER-001's; a changed key record is still reported here
     parts = key.split(":")
     mech = parts[1] if len(parts) > 1 else "unknown"
     risky = mech in HIGH_RISK_MECHANISMS
@@ -811,6 +826,52 @@ def _tool_name(proc: str) -> str:
     return proc.lower().removesuffix(".exe")
 
 
+def _ephemeral(c: dict[str, Any]) -> bool:
+    """True for the bucket record that stands for every listener above the ephemeral threshold."""
+    return str(c["key"]).endswith("/ephemeral")
+
+
+def _new_process_names(c: dict[str, Any]) -> list[str]:
+    """Process names in the current listener bucket that the baseline bucket did not have."""
+    d = _delta(c, "process")
+    if not d:
+        return []
+    before = {p.casefold() for p in d[0]}
+    return sorted({p for p in d[1] if p.casefold() not in before}, key=str.casefold)
+
+
+def _ephemeral_newcomer(c: dict[str, Any], d: tuple[list[str], list[str]]) -> list[Signal]:
+    """A process name that was not on any high-port listener of this bind now is.
+
+    The port is deliberately not compared in the bucket (ports move between runs), so the
+    owning name is the only identity left; a name leaving the bucket is quiet.
+    """
+    new = _new_process_names(c)
+    if not new:
+        return []
+    ports = _vals((c.get("current") or {}).get("volatile", {}).get("port"))
+    where = f" (port {', '.join(ports[:5])})" if ports else ""
+    return _sig(
+        "BO-NET-003",
+        "New process on a high-port listener",
+        Severity.LOW if _loopback(_vals(_now(c, "bind"))) else Severity.MEDIUM,
+        OBSERVED,
+        observation=f"{_name(c)}{where}: {', '.join(new)} now listens there; before: "
+        f"{', '.join(d[0]) or 'nothing known'}.",
+        rationale="Listeners above the ephemeral threshold are compared by process name only, "
+        "because their ports change between runs. A name that was not listening there before "
+        "is new attack surface; backdoors choose high ports because they blend in. Services "
+        "that legitimately listen on a stable high port belong in `fixed_ports`.",
+        investigate=(
+            "Identify the process, its executable and its parent, and the exact port.",
+            "If the service is legitimate and stable, list its port under fixed_ports so it is "
+            "compared exactly.",
+        ),
+        techniques=("T1571", "T1205"),
+        tokens=tuple("name:" + p.lower() for p in new),
+    )
+
+
 @rule("BO-NET-001", "listeners")
 def _new_listener(c: dict[str, Any], ctx: Context) -> list[Signal]:
     """New listener reachable from the network."""
@@ -837,9 +898,14 @@ def _new_listener(c: dict[str, Any], ctx: Context) -> list[Signal]:
 @rule("BO-NET-002", "listeners")
 def _suspicious_listener(c: dict[str, Any], ctx: Context) -> list[Signal]:
     """Listener owned by a netcat-style tool or on a port favoured by common payloads."""
-    if c["change"] != "added":
+    if c["change"] == "added":
+        procs = [p.lower().removesuffix(".exe") for p in _vals(_now(c, "process"))]
+    elif c["change"] == "modified" and _ephemeral(c):
+        # High-port listeners share one bucket whose port is not compared: judge the names
+        # that appeared, not the ones that were already there.
+        procs = [_tool_name(p) for p in _new_process_names(c)]
+    else:
         return []
-    procs = [p.lower().removesuffix(".exe") for p in _vals(_now(c, "process"))]
     ports = _vals(_now(c, "port"))
     tool = [p for p in procs if p in REMOTE_TOOLS]
     port = [p for p in ports if p in SUSPICIOUS_PORTS]
@@ -872,8 +938,10 @@ def _suspicious_listener(c: dict[str, Any], ctx: Context) -> list[Signal]:
 def _listener_owner_changed(c: dict[str, Any], ctx: Context) -> list[Signal]:
     """A different process now owns an existing listener."""
     d = _delta(c, "process")
-    if c["change"] != "modified" or not d or _name(c).endswith("/ephemeral"):
+    if c["change"] != "modified" or not d:
         return []
+    if _ephemeral(c):
+        return _ephemeral_newcomer(c, d)
     port = _name(c).rsplit("/", 1)[-1]
     was_tool = any(_tool_name(p) in REMOTE_TOOLS for p in d[0])
     is_tool = any(_tool_name(p) in REMOTE_TOOLS for p in d[1])
@@ -951,11 +1019,35 @@ def _lowered(d: tuple[list[str], list[str]], frag: str) -> bool:
         return True
 
 
+def _forwarding_enabled(c: dict[str, Any]) -> list[Signal]:
+    """Windows ``config:ip_forward`` has a boolean ``enabled`` (Linux uses ``sysctl`` values)."""
+    en = _delta(c, "enabled")
+    if str(c["key"]) != "config:ip_forward" or not en or en[1] != ["true"] or en[0] == ["true"]:
+        return []
+    return _sig(
+        "BO-CFG-002",
+        "Hardening setting weakened",
+        Severity.MEDIUM,
+        OBSERVED,
+        observation="config:ip_forward: false -> true; the host now forwards IP traffic.",
+        rationale="This setting is part of common hardening baselines; reverting it "
+        "removes a protection. Some changes (IP forwarding for containers/routers) "
+        "are deliberate.",
+        investigate=(
+            "Check whether the setting is required by a role on this host.",
+            "Find the change in configuration management or admin history.",
+        ),
+        techniques=("T1562",),
+    )
+
+
 @rule("BO-CFG-002", "config")
 def _hardening_weakened(c: dict[str, Any], ctx: Context) -> list[Signal]:
     """Known hardening setting moved to its weak value."""
     if c["change"] != "modified":
         return []
+    if str(c["key"]) == "config:ip_forward":
+        return _forwarding_enabled(c)
     d = _delta(c, "value")
     if not d or not d[1]:
         return []
@@ -1146,6 +1238,151 @@ def _name_resolution(c: dict[str, Any], ctx: Context) -> list[Signal]:
     )
 
 
+# --- audit findings promoted to detections --------------------------------------------------
+
+FINDING_RULE = "BO-FND-001"
+PROMOTE_FINDINGS_FROM = Severity.HIGH
+
+
+@rule(FINDING_RULE, "findings")
+def _audit_finding(c: dict[str, Any], ctx: Context) -> list[Signal]:
+    """Audit finding of high or critical severity appeared or escalated (engine-evaluated)."""
+    return []  # not a per-change rule: ``_finding_detections`` reads diff["findings"] directly
+
+
+def _severity_or_none(value: Any) -> Severity | None:
+    try:
+        return Severity.parse(value) if isinstance(value, str) else None
+    except ValueError:
+        return None
+
+
+def _strs(value: Any) -> list[str]:
+    return [x for x in value if isinstance(x, str)] if isinstance(value, list) else []
+
+
+def _finding_detections(
+    diff: dict[str, Any], covering: dict[str, list[dict[str, Any]]], errors: list[dict[str, str]]
+) -> tuple[list[dict[str, Any]], dict[str, set[str]]]:
+    """Detections for audit findings that are new, or grew, at high/critical severity.
+
+    The comparison reports finding changes beside the inventory changes, but a finding can show
+    something no inventory rule sees (a suspicious cron *command*, a deleted-binary process).
+    A finding that an inventory detection already covers (same evidence, ``related_findings``)
+    at the same or a higher severity is not re-reported. A less severe cover is linked instead.
+    """
+    out: list[dict[str, Any]] = []
+    tokens: dict[str, set[str]] = {}
+    found = diff["findings"]
+    for kind, entries in (("added", found.get("new")), ("modified", found.get("changed"))):
+        for entry in entries or []:
+            if not isinstance(entry, dict):
+                errors.append({"rule": FINDING_RULE, "key": "finding:?", "error": "BadFinding"})
+                continue
+            fid = entry.get("id")
+            after = _severity_or_none(entry.get("after_severity", entry.get("severity")))
+            if not isinstance(fid, str) or after is None:
+                bad = f"finding:{fid}"[:200]
+                errors.append({"rule": FINDING_RULE, "key": bad, "error": "BadFinding"})
+                continue
+            before = _severity_or_none(entry.get("before_severity")) if kind == "modified" else None
+            gained = _strs(entry.get("evidence_added")) if kind == "modified" else []
+            if after < PROMOTE_FINDINGS_FROM or (
+                kind == "modified" and not gained and not (before is not None and after > before)
+            ):
+                continue
+            cover = covering.get(fid, [])
+            if any(_SEV_RANK[d["severity"]] >= int(after) for d in cover):
+                continue
+            det = _finding_detection(diff, kind, entry, fid, after, before, gained)
+            out.append(det)
+            tokens[det["id"]] = {f"name:finding-{fid.casefold()}"}
+            for d in cover:
+                tokens.setdefault(d["id"], set()).add(f"name:finding-{fid.casefold()}")
+    return out, tokens
+
+
+def _promote_findings(
+    diff: dict[str, Any],
+    detections: list[dict[str, Any]],
+    tokens: dict[str, set[str]],
+    errors: list[dict[str, str]],
+) -> None:
+    """Append finding detections (and their link tokens) to the inventory detections."""
+    covering: dict[str, list[dict[str, Any]]] = {}
+    for d in detections:
+        for fid in d["related_findings"]:
+            covering.setdefault(fid, []).append(d)
+    promoted, extra = _finding_detections(diff, covering, errors)
+    detections += promoted
+    for det_id, toks in extra.items():
+        tokens.setdefault(det_id, set()).update(toks)
+
+
+def _finding_detection(  # noqa: PLR0913, PLR0917 - flat inputs read clearer than a wrapper type
+    diff: dict[str, Any],
+    kind: str,
+    entry: dict[str, Any],
+    fid: str,
+    after: Severity,
+    before: Severity | None,
+    gained: list[str],
+) -> dict[str, Any]:
+    title = str(entry.get("title", ""))[:200]
+    category = str(entry.get("category", ""))[:80]
+    what = f"Audit finding {fid} ({title}) is {after.label}"
+    if kind == "added":
+        what += " and was not in the baseline report."
+    else:
+        rose = f", up from {before.label}" if before is not None and after > before else ""
+        what += f"{rose}" + (f"; it gained evidence: {', '.join(gained[:3])}." if gained else ".")
+    return {
+        "id": _detection_id("findings", "", f"finding:{fid}"),
+        "title": "Audit finding appeared or escalated",
+        "severity": after.label,
+        "basis": HEURISTIC,
+        "subject": {"domain": "findings", "scope": "", "key": f"finding:{fid}", "change": kind},
+        "summary": what,
+        "reasons": [
+            {
+                "rule": FINDING_RULE,
+                "title": "Audit finding appeared or escalated",
+                "severity": after.label,
+                "basis": HEURISTIC,
+                "observation": what,
+                "rationale": "The audit's own checks flagged this condition and it is new or "
+                "grew since the baseline, but no inventory rule rated the same evidence as "
+                "severely. Audit findings are pattern- and permission-based and the comparison "
+                "does not carry their confidence, so treat this as a suspicion.",
+            }
+        ],
+        "before": {"severity": before.label} if before is not None else None,
+        "after": {"severity": after.label, "category": category, "title": title},
+        "attributes": (
+            [{"name": "severity", "before": before.label, "after": after.label}]
+            if before is not None and before != after
+            else []
+        ),
+        "evidence": [{"type": "audit-evidence", "ref": r} for r in gained[:20]],
+        "observed": {
+            "baseline_at": diff["baseline"].get("finished_at") if kind == "modified" else None,
+            "current_at": diff["current"].get("finished_at"),
+        },
+        "related_findings": [fid],
+        "artifacts": [],
+        "techniques": [],
+        "investigation": [
+            f"Read finding {fid} in the current report: its evidence lists what triggered it.",
+            "Compare with the baseline report's finding of the same id to see what is new.",
+        ],
+        "unknown": [
+            "The finding's full evidence and confidence: the comparison carries only its id, "
+            "severity, title and the evidence references that were added."
+        ],
+        "correlated": [],
+    }
+
+
 # --- engine --------------------------------------------------------------------------------
 
 
@@ -1162,6 +1399,9 @@ def validate_diff(diff: Any) -> dict[str, Any]:
     for key in ("baseline", "current", "window", "findings", "summary"):
         if not isinstance(diff.get(key), dict):
             raise DiffInputError(f"'{key}' must be an object")
+    for part in ("new", "changed"):
+        if not isinstance(diff["findings"].get(part, []), list):
+            raise DiffInputError(f"'findings.{part}' must be a list")
     for c in diff["changes"]:
         ok = (
             isinstance(c, dict)
@@ -1174,6 +1414,9 @@ def validate_diff(diff: Any) -> dict[str, Any]:
         if not ok:
             raise DiffInputError("a change entry is malformed")
     return diff
+
+
+_SEV_RANK = {s.label: int(s) for s in Severity}
 
 
 def _detection_id(domain: str, scope: str, key: str) -> str:
@@ -1323,8 +1566,9 @@ def detect(
                 "correlated": [],
             }
         )
+    _promote_findings(diff, detections, tokens, errors)
     order = {d: i for i, d in enumerate(_DOMAIN_ORDER)}
-    sev_rank = {s.label: int(s) for s in Severity}
+    sev_rank = _SEV_RANK
     detections.sort(
         key=lambda d: (
             -sev_rank[d["severity"]],

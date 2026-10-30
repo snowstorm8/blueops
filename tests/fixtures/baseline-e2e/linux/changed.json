@@ -458,7 +458,13 @@
           "gid": "0",
           "shell": "/bin/bash",
           "home": "/home/mallory"
-        }
+        },
+        "evidence": [
+          {
+            "type": "file",
+            "ref": "/etc/passwd"
+          }
+        ]
       },
       {
         "domain": "services",

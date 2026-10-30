@@ -4,12 +4,19 @@ All notable changes are documented here. Format: [Keep a Changelog](https://keep
 
 ## [Unreleased]
 
-### Fixed (detection validation)
-- `BO-PER-001` now matches the Linux collector's real SSH key records (`persist:ssh-authkey:<owner>:<id>`, `owner` attribute). Before, a new `root` authorized key was reported only by `BO-PER-002` at medium instead of critical.
+### Fixed (detection correctness, audit P0-1..P0-4)
+- `BO-PER-001` now matches the Linux collector's real SSH key records (`persist:ssh-authkey:<owner>:<id>`, `owner` attribute); a new `root` authorized key was reported only as a generic `BO-PER-002` at medium instead of critical. `BO-PER-002` still reports *changed* key records.
+- A new process name on a high-port listener is detected (`BO-NET-003`; `BO-NET-002` when it is a netcat-style tool). Before, an `nc` listener on `0.0.0.0:44444` produced no detection and exit 0 whenever the baseline already had a listener above the ephemeral threshold on the same bind. The same name on another high port stays quiet (documented limit; use `fixed_ports`).
+- New rule `BO-FND-001`: audit findings of `high`/`critical` severity that are new, escalated or gained evidence are detections unless an equally severe inventory detection already covers the same evidence; a less severe cover is linked. The diff already reported these but the rule layer ignored `findings`, so e.g. a reverse-shell cron job was only a medium `BO-SCH-001`. A malformed finding entry is a rule error (coverage incomplete); a non-list `findings.new`/`findings.changed` is rejected (exit 3).
+- Linux collector emits `config:sysctl:kernel.randomize_va_space` (inventory only), so the ASLR branch of `BO-CFG-002` can fire on a real host; `BO-CFG-002` also reads the Windows `config:ip_forward` record (`enabled`).
+- `tests/shared/test_rule_collector_contract.py` runs the real Linux collector and checks the PowerShell sources so rule keys and collector keys cannot drift apart; `tests/shared/test_detection_regressions.py` pins each reproduced failure with its negative cases.
+- Test data: `tests/fixtures/baseline-e2e/linux/changed.json` `user:mallory` now carries the `/etc/passwd` evidence reference that real user records have.
+- Detections schema, exit codes and the diff contract are unchanged; the rule count is now 27.
 
 ### Added (detection validation)
 - `docs/detection-validation.md`: expected outcomes written before the runs, results, deviations, false positives, false negatives, platform coverage and limitations.
 - `tests/shared/test_detection_validation_linux.py` (real audit over disposable fixture roots) and `tests/shared/test_detection_validation_windows.py` (PowerShell collector over mutated fixture copies; needs PowerShell), with a small shared helper `tests/shared/detection_validation.py`.
+- The validation found the `BO-PER-001` key mismatch (LS-04) and recorded the Windows `ip_forward` gap (FN-3); both are fixed by the detection-correctness entry above (`docs/detection-validation.md` is updated accordingly).
 
 ### Added (detection rules, v0.3)
 - `python -m shared.reporting.detect` (`shared/reporting/{detect,detection}.py`): offline, read-only, explainable detections over the baseline comparison. 26 rules (`BO-USR/GRP/PER/EXE/SCH/SVC/NET/CFG-nnn`) each carry a severity, rationale, supporting evidence, ATT&CK orientation and investigation steps, and are labelled `observed` (fact in the report) or `heuristic` (suspicion). Rules fire on changes only; matches on one record merge into one detection and detections sharing an artifact are linked; incomplete coverage yields exit 6, never a clean result.
