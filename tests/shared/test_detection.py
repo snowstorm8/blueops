@@ -443,7 +443,9 @@ def test_rule_fires_with_expected_severity_and_basis(  # noqa: PLR0913, PLR0917 
 
 
 def test_every_rule_is_exercised_by_a_scenario() -> None:
+    # BO-FND-001 reads the diff's findings, not changes: see test_detection_regressions.py
     covered = {p.values[3] for p in FIRE} | {"BO-GRP-001", "BO-SVC-001", "BO-SCH-001", "BO-PER-002"}
+    covered |= {"BO-FND-001"}
     assert {r.rule_id for r in detection.RULES} <= covered
 
 
@@ -608,7 +610,8 @@ def test_ephemeral_listener_churn_is_not_an_alert() -> None:
         )
 
     assert run([lst("agent")], [lst("agent")])["detections"] == []
-    assert run([lst("agent")], [lst("other")])["detections"] == []  # modified, not NET-003
+    # A different name taking over the bucket is not churn: see test_detection_regressions.py
+    # (P0-1) for the high-port listener rules.
 
 
 # ------------------------------------------------------- confirmed vs heuristic, dedup, links
@@ -1034,7 +1037,7 @@ def test_rule_catalogue_is_well_formed() -> None:
     assert len(ids) == len(set(ids))
     for r in detection.RULES:
         assert r.rule_id.startswith("BO-") and r.summary and r.domains
-        assert set(r.domains) <= set(INVENTORY_DOMAINS)
+        assert set(r.domains) <= set(INVENTORY_DOMAINS) | {"findings"}  # BO-FND-001
 
 
 def test_inputs_are_not_modified_and_nothing_touches_the_network(
@@ -1086,4 +1089,4 @@ def test_every_rule_is_documented_and_documented_rules_exist() -> None:
     text = (ROOT / "docs" / "detection-rules.md").read_text(encoding="utf-8")
     documented = set(re.findall(r"`(BO-[A-Z]+-\d{3})`", text))
     assert documented == {r.rule_id for r in detection.RULES}
-    assert "26" in text and len(detection.RULES) == 26
+    assert "27" in text and len(detection.RULES) == 27

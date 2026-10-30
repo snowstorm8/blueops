@@ -72,6 +72,25 @@ cov_status() { json_py "[c['status'] for c in d['inventory']['coverage'] if c['d
   [ "$(json_py "len(set(r['key'] for r in d['inventory']['records'] if r['domain']=='scheduled_tasks'))")" = "$(json_py "len([r for r in d['inventory']['records'] if r['domain']=='scheduled_tasks'])")" ]
 }
 
+@test "inventory: kernel.randomize_va_space is a compared sysctl record when present" {
+  mkdir -p "${ROOT}/proc/sys/kernel"
+  echo 2 >"${ROOT}/proc/sys/kernel/randomize_va_space"
+  run_audit
+  [ "$(json_py "[r['attrs']['value'] for r in d['inventory']['records'] if r['key']=='config:sysctl:kernel.randomize_va_space'][0]")" = "2" ]
+  # A value of 1 is a valid ASLR level, not "forwarding enabled".
+  echo 1 >"${ROOT}/proc/sys/kernel/randomize_va_space"
+  echo 0 >"${ROOT}/proc/sys/net/ipv4/ip_forward"
+  run_audit
+  no_finding NET-FWD-001
+}
+
+@test "inventory: an absent randomize_va_space file is not a coverage gap" {
+  rm -f "${ROOT}/proc/sys/kernel/randomize_va_space"
+  run_audit
+  refute inv_has_key "config:sysctl:kernel.randomize_va_space"
+  [[ "$(cov_status config sysctl)" == *complete* ]]
+}
+
 @test "inventory: collection never modifies the fixture host" {
   before="$(find "${ROOT}" -type f -exec cksum {} + | sort | cksum)"
   run_audit

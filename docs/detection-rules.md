@@ -47,7 +47,7 @@ A detection's `basis` follows the reason that sets its severity, so an `observed
 * All rules matching one record are merged into **one detection** with several reasons (a new hidden task from `Users\Public` is one detection with three reasons, not three alerts).
 * Records that share an artifact (the same normalised path, or a listener whose process name equals the file name of a suspicious path) are **linked** through `correlated` so a campaign reads as a cluster rather than as unrelated alerts. They are not merged because each is a separate thing to remove.
 * Audit findings that already cite the same file/registry evidence are listed in `related_findings`; the detection does not re-describe them.
-* Transient changes (helper processes, ephemeral ports) never reach the rules.
+* Transient changes (helper processes, ports that moved within the ephemeral range) never reach the rules. A *new process name* on a high-port listener is not transient: see `BO-NET-003`.
 
 ### Coverage: when absence of detections means nothing
 
@@ -66,7 +66,7 @@ A detection's `basis` follows the reason that sets its severity, so an `observed
 
 ## Rule catalogue
 
-`python -m shared.reporting.detect --list-rules` prints the same list. Severities are the defaults; the second column gives the adjustments.
+The catalogue has 27 rules. `python -m shared.reporting.detect --list-rules` prints the same list. Severities are the defaults; the second column gives the adjustments.
 
 | Rule | Basis | Fires on | Severity |
 |---|---|---|---|
@@ -76,7 +76,7 @@ A detection's `basis` follows the reason that sets its severity, so an `observed
 | `BO-USR-004` | observed | disabled account re-enabled | high for built-in Administrator/Guest (RID 500/501), else medium |
 | `BO-USR-005` | observed | password requirement removed / empty password | high |
 | `BO-GRP-001` | observed | member added to a privileged group (`sudo`, `wheel`, `admin`, `root`, Administrators; weaker: `docker`, `lxd`, `disk`, `shadow`, Server/Account/Backup Operators, Remote Desktop Users) | high or medium by group; **critical** if the member was created in the same window |
-| `BO-PER-001` | observed | new SSH authorized key (fingerprint only) | high; critical for `root` |
+| `BO-PER-001` | observed | new SSH authorized key (fingerprint only); matches the collector's `persist:ssh-authkey:<owner>:<id>` records (and the older `persist:ssh_key:` form) | high; critical for `root` |
 | `BO-PER-002` | observed | persistence entry added or its content changed | medium for a new Run/startup item; high for a changed entry or a high-risk mechanism (Winlogon, IFEO, accessibility, AppInit/AppCert, LSA, netsh, port monitors, time providers, WMI, BootExecute) |
 | `BO-EXE-001` | heuristic | new job/service/persistence value (or process) runs from `/tmp`, `/var/tmp`, `/dev/shm`, `/run/user`, or `Users\Public`, `AppData`, `Windows\Temp`, `Temp`, `$Recycle.Bin`, `PerfLogs` | high; medium for processes. Only paths introduced by the change count: a path already in the baseline value is not re-reported |
 | `BO-SCH-001` | observed | new cron/at/scheduled task | medium |
@@ -87,17 +87,18 @@ A detection's `basis` follows the reason that sets its severity, so an `observed
 | `BO-SVC-003` | heuristic | telnet/rsh/rlogin/rexec/tftp service installed or started | medium |
 | `BO-SVC-004` | observed | logging/security service stopped, disabled or removed (`auditd`, `rsyslog`, `fail2ban`, `ufw`, `firewalld`, `eventlog`, `sysmon`, `windefend`, `mpssvc`, ...) | high for audit/event log/Sysmon/Defender/firewall core; else medium. Not reported when the service was already down in the baseline |
 | `BO-NET-001` | observed | new listener reachable beyond loopback | medium |
-| `BO-NET-002` | heuristic | new listener owned by `nc`/`ncat`/`socat`-style tool or on 4444/4445/1337/31337/6666/12345 | high; medium on loopback |
-| `BO-NET-003` | observed | different process now owns an existing listener (not ephemeral) | high on well-known ports (22, 23, 80, 443, 445, 3389, 5985/6), else medium; low when the previous owner was a netcat-style tool and the new one is not (looks like remediation) |
+| `BO-NET-002` | heuristic | new listener owned by `nc`/`ncat`/`socat`-style tool or on 4444/4445/1337/31337/6666/12345; also a netcat-style name that newly appears in the high-port bucket | high; medium on loopback |
+| `BO-NET-003` | observed | different process now owns an existing listener; for the shared high-port bucket (`listener:<proto>/<bind>/ephemeral`) a process name that was not in the bucket before | high on well-known ports (22, 23, 80, 443, 445, 3389, 5985/6), else medium; low when the previous owner was a netcat-style tool and the new one is not (looks like remediation); a high-port newcomer is medium, low on loopback |
 | `BO-CFG-001` | observed | firewall profile disabled or default inbound set to Allow | high |
-| `BO-CFG-002` | observed | known hardening value weakened: UAC `EnableLUA`, `RestrictAnonymous`, `kernel.randomize_va_space`, `net.ipv4.ip_forward` | high or medium; graded settings (ASLR) fire only when the value drops, so raising 0 to 1 is quiet |
+| `BO-CFG-002` | observed | known hardening value weakened: UAC `EnableLUA`, `RestrictAnonymous`, `kernel.randomize_va_space` (Linux collector), `net.ipv4.ip_forward` (Linux `value`) and the Windows `config:ip_forward` (`enabled` false to true) | high or medium; graded settings (ASLR) fire only when the value drops, so raising 0 to 1 is quiet |
 | `BO-CFG-003` | observed | new set-UID/set-GID file | medium |
 | `BO-CFG-004` | heuristic | new set-ID file that is a shell-capable tool (`find`, `vim`, `python`, `bash`, ...) or sits in a temporary directory | high |
 | `BO-CFG-005` | observed | sudoers or PAM file added or changed | high; lists what is unknown when only a hash was recorded |
 | `BO-CFG-006` | observed | antivirus exclusion added | high |
 | `BO-CFG-007` | observed | hosts-file entry or DNS server added/changed | medium |
+| `BO-FND-001` | heuristic | audit finding of `high`/`critical` severity that is new, escalated or gained evidence since the baseline, and is not already covered by an equally severe inventory detection (same evidence, `related_findings`); a less severe cover is linked through `correlated` | the finding's own severity |
 
-False-positive controls that are pinned by tests: a UID 0 account that was already in the baseline is silent; "tmp" as a path component (`/home/alice/tmp/x`) or a drive-less Windows fragment is not a volatile location; restoring a stopped security service, turning IP forwarding off, enabling a firewall, removing a group member and a new loopback-only listener are silent; a new no-login or disabled account is `low`, not `high`; ephemeral listener churn is never an alert.
+False-positive controls that are pinned by tests: a UID 0 account that was already in the baseline is silent; "tmp" as a path component (`/home/alice/tmp/x`) or a drive-less Windows fragment is not a volatile location; restoring a stopped security service, turning IP forwarding off, enabling a firewall, removing a group member and a new loopback-only listener are silent; a new no-login or disabled account is `low`, not `high`; ephemeral listener churn (a known name on another high port, an extra socket of a known name, a name leaving the bucket) is not an alert.
 
 ## Expected behavior (regression matrix)
 
@@ -105,7 +106,7 @@ False-positive controls that are pinned by tests: a UID 0 account that was alrea
 
 | Scenario | Expected |
 |---|---|
-| 27 synthetic scenarios covering all 26 rules | the rule fires with the documented severity and basis |
+| 27 synthetic scenarios covering the per-change rules; `tests/shared/test_detection_regressions.py` covers `BO-FND-001`, the high-port bucket and the collector key shapes | the rule fires with the documented severity and basis |
 | 14 benign/unchanged scenarios and 3 ordinary-path cases | no detection (or no `BO-EXE-001`) |
 | e2e `changed` fixture, Linux | 12 detections: 2 critical, 7 high, 3 medium; the exact keys, severities, bases and rules are listed in the test |
 | e2e `changed` fixture, Windows | 10 detections: 1 critical, 9 high; the four records pointing at `Users\Public\upd.exe` are linked to each other |
@@ -156,6 +157,9 @@ An accepted change is a statement by a person, not evidence of safety; review `u
 
 ## Limitations
 
+* **Same name, new high port.** Listeners at or above the ephemeral threshold share one bucket compared by process name (ports move between runs). A *new name* in the bucket is reported (`BO-NET-003`, `BO-NET-002`); a second listener of a name already in the bucket is indistinguishable from port churn and is not. List stable high-port services in `fixed_ports` ([baseline-diff.md](baseline-diff.md)) so they are compared exactly.
+* **Findings are context for the rules, not a second rule set.** `BO-FND-001` promotes only `high`/`critical` findings that are new or grew, and the comparison carries a finding's id, severity, title and added evidence references, not its confidence or full evidence. Findings the comparison marks *unverified* (a gap hides whether they are new) are not promoted and do not by themselves make `coverage` incomplete.
+* **Collector contract.** A rule can only fire on records the collectors emit. `tests/shared/test_rule_collector_contract.py` runs the real Linux collector and checks the PowerShell sources so that rule keys and collector keys cannot drift apart silently; Windows rules are not executed against a real Windows collector by that test (the Pester/CI jobs cover the collector).
 * **Change-based only.** A backdoor that was already on the host when the baseline was taken is invisible to detection, and a host compromised before the baseline passes. Standing-state checks belong to the audit findings.
 * **Only as good as the inventory.** Rules see the attributes the collectors record. Examples: Linux services carry no binary path (so `BO-EXE-001`/`BO-SVC-002` mostly help on Windows services and on cron/persistence), listeners carry a process name and not an executable path, and sudoers/PAM/startup files are compared by hash so the rule can say *changed* but not *what* changed.
 * **Remediation is also a change.** Reverting a modification is reported as a modification (e.g. a restored `rc.local` shows as `BO-PER-002`, a restored `sudoers` drop-in as `BO-CFG-005`) because a hash cannot show direction; this is stated in `unknown[]` and resolved with a hash-pinned accepted-change entry. Cases the rules *can* recognise are lowered or skipped: a command/binary leaving a temporary location (`low`), a listener leaving a netcat-style tool (`low`), a security service that was already down, ASLR raised, a temporary path already present before the change.
