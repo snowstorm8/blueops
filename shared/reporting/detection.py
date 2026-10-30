@@ -965,11 +965,35 @@ def _lowered(d: tuple[list[str], list[str]], frag: str) -> bool:
         return True
 
 
+def _forwarding_enabled(c: dict[str, Any]) -> list[Signal]:
+    """Windows ``config:ip_forward`` has a boolean ``enabled`` (Linux uses ``sysctl`` values)."""
+    en = _delta(c, "enabled")
+    if str(c["key"]) != "config:ip_forward" or not en or en[1] != ["true"] or en[0] == ["true"]:
+        return []
+    return _sig(
+        "BO-CFG-002",
+        "Hardening setting weakened",
+        Severity.MEDIUM,
+        OBSERVED,
+        observation="config:ip_forward: false -> true; the host now forwards IP traffic.",
+        rationale="This setting is part of common hardening baselines; reverting it "
+        "removes a protection. Some changes (IP forwarding for containers/routers) "
+        "are deliberate.",
+        investigate=(
+            "Check whether the setting is required by a role on this host.",
+            "Find the change in configuration management or admin history.",
+        ),
+        techniques=("T1562",),
+    )
+
+
 @rule("BO-CFG-002", "config")
 def _hardening_weakened(c: dict[str, Any], ctx: Context) -> list[Signal]:
     """Known hardening setting moved to its weak value."""
     if c["change"] != "modified":
         return []
+    if str(c["key"]) == "config:ip_forward":
+        return _forwarding_enabled(c)
     d = _delta(c, "value")
     if not d or not d[1]:
         return []

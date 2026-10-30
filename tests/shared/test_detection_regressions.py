@@ -74,3 +74,34 @@ def test_legacy_synthetic_key_shape_still_works() -> None:
         scope="ssh_keys",
     )
     assert one(run([], [legacy]), "persist:ssh_key:root:SHA256:k1")["severity"] == "critical"
+
+
+# ------------------------- P0-4: Windows config:ip_forward carries `enabled`, not `value`
+
+
+def fwd(enabled: bool) -> dict[str, Any]:
+    """The Windows collector's record (Get-NetworkAudit.ps1): a boolean `enabled`."""
+    return rec("config", "config:ip_forward", {"enabled": enabled}, scope="network")
+
+
+def test_windows_ip_forwarding_turned_on_is_detected() -> None:
+    doc = run([fwd(False)], [fwd(True)])
+    det = one(doc, "config:ip_forward")
+    assert (det["severity"], det["basis"]) == ("medium", "observed")
+    assert rules_for(doc, "config:ip_forward") == {"BO-CFG-002"}
+
+
+def test_windows_ip_forwarding_turned_off_or_unchanged_is_quiet() -> None:
+    assert run([fwd(True)], [fwd(False)])["detections"] == []
+    assert run([fwd(True)], [fwd(True)])["detections"] == []
+    assert run([fwd(False)], [fwd(False)])["detections"] == []
+
+
+def test_linux_sysctl_forwarding_rule_is_unchanged() -> None:
+    def sysctl(v: str) -> dict[str, Any]:
+        return rec("config", "config:sysctl:net.ipv4.ip_forward", {"value": v}, scope="sysctl")
+
+    assert rules_for(run([sysctl("0")], [sysctl("1")]), "config:sysctl:net.ipv4.ip_forward") == {
+        "BO-CFG-002"
+    }
+    assert run([sysctl("1")], [sysctl("0")])["detections"] == []

@@ -201,6 +201,17 @@ _net_route_check() {
     bo_inv config sysctl "config:sysctl:$(tr / . <<<"${f#/proc/sys/}")" "value=${v}" "^file=${f}"
     [[ "${v}" == "1" ]] && fwd+="${f} "
   done
+  # Hardening value compared by BO-CFG-002 (0 off, 1 partial, 2 full). Inventory only: it is
+  # deliberately outside the forwarding loop above, where a value of 1 would mean "enabled".
+  f=/proc/sys/kernel/randomize_va_space
+  if [[ -e "$(bo_path "${f}")" ]]; then
+    if [[ -r "$(bo_path "${f}")" ]]; then
+      v="$(head -n 1 -- "$(bo_path "${f}")")"
+      bo_inv config sysctl "config:sysctl:kernel.randomize_va_space" "value=${v}" "^file=${f}"
+    else
+      bo_cov config sysctl partial "${f} not readable"
+    fi
+  fi
   bo_cov config sysctl complete
   [[ -n "${fwd}" ]] && bo_finding NET-FWD-001 low medium network "IP forwarding enabled" \
     "Forwarding is expected on routers, VPN and container hosts but not on ordinary servers." \
