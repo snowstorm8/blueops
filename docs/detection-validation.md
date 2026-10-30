@@ -100,10 +100,20 @@ Run on 2026-10-27. Linux: 31 scenario tests in `tests/shared/test_detection_vali
 | Coverage (LC-01..03) | never a clean bill of health | **as planned after the scenario was redesigned (D3, D6)**; two scenarios added (LC-03, LC-04) |
 | Windows (WS-01..07) | as in the plan | **all six tests passed on first CI run** (WS-01..03 share one attacked audit, WS-04/05 one benign audit) |
 
+### Re-run with the detection-correctness fixes (PR #14)
+
+The scenarios were re-run unchanged on the branch that combines this validation with PR #14 (27 rules, including `BO-FND-001`, the high-port listener rules, the ASLR record and the Windows `ip_forward` rule).
+
+* Python suite as a non-root user (what the CI runners are): 538 passed, 13 skipped (PowerShell/Windows-only), 0 failed. All 31 Linux scenarios, including LC-03/LC-04, LA-* and the collector-format `BO-PER-001` scenario, pass against the combined rules.
+* Bats: 137 ok, 0 failed, 6 skipped. ShellCheck, shfmt and ruff are clean.
+* Applying the seven attack mutations of the Linux scenarios together with an `nc` listener on 4444 yields 11 detections (3 critical, 7 high, 1 medium) and no `finding:*` detection: the `PER-CRON-002` audit finding is absorbed by the equally severe cron detection, so `BO-FND-001` adds no duplicate here.
+* LC-03/LC-04 need a non-root user: as uid 0 the collector reads every file and reports no permission gap, so those two tests fail when run as root (containers, `sudo pytest`). This predates the integration.
+* The Windows scenarios (WS-*) were **not** run: they need PowerShell. See "Platform coverage".
+
 ### Deviations from the plan
 
 * **D1 - key naming.** The plan used the synthetic forms. The Linux collector emits `persist:startup:/etc/rc.local`, `cron:<file>#<hash of the line>` and `persist:ssh-authkey:<owner>:<id>`. Tests use the real keys.
-* **D2 - false negative found and fixed (LS-04).** `BO-PER-001` only matched `persist:ssh_key:<user>:...` with a `user` attribute, a form no collector emits. A new `root` authorized key was therefore reported only by the generic `BO-PER-002` at **medium** instead of **critical**. The rule now matches both key forms and reads `owner` or `user`; `test_detection.py` gained a scenario using the collector's real record.
+* **D2 - false negative found and fixed (LS-04).** `BO-PER-001` only matched `persist:ssh_key:<user>:...` with a `user` attribute, a form no collector emits. A new `root` authorized key was therefore reported only by the generic `BO-PER-002` at **medium** instead of **critical**. The rule now matches both key forms and reads `owner` or `user`; `test_detection.py` gained a scenario using the collector's real record. The integrated implementation is the one from PR #14 (detection-correctness fixes): it additionally falls back to the owner in the key's own segment and leaves *changed* key records to `BO-PER-002` (high), so editing the options or file of an existing key is still reported.
 * **D3 - unprivileged runs are partial.** The Linux collector marks four persistence partitions `partial` when not root, so even an unchanged host exits 6. The tests add an `id` shim (the same test-double mechanism as the existing `ss` shim) so the main scenarios run as an operator would, and LC-03/LC-04 cover the real unprivileged case: a key added in a partial partition is `indeterminate`, not detected, and the run exits 6.
 * **D4 - Linux sudoers is not hash-only.** It is inventoried one rule per record (`config:sudoers:<file>#<hash>` with `file` and `rule`). A comment-only edit is correctly silent; a new or changed rule is an `added` record with readable content (`unknown[]` empty). The hash-only `unknown[]` text applies to PAM, startup, systemd and shell files (verified for `rc.local`).
 * **D5 - editing a cron line is a new job.** Cron records are keyed by the line's content, so a repair is "remove + add": the repaired job is `BO-SCH-001` medium, never the `BO-SCH-003` low the plan expected. `BO-SCH-003` can only trigger for Windows tasks, where the task name is the key.
@@ -126,7 +136,7 @@ Run on 2026-10-27. Linux: 31 scenario tests in `tests/shared/test_detection_vali
 |---|---|---|
 | FN-1 | compromise already present in the baseline is never reported (change-based) | LR-04: the dirty fixture yields standing-state findings but no detections |
 | FN-2 | unprivileged Linux audit cannot read other users' keys etc.; additions in partial partitions are indeterminate | LC-04: not detected, exit 6, never exit 0 |
-| FN-3 | Windows `config:ip_forward` (`enabled`) is not evaluated by `BO-CFG-002` (it reads Linux-style `value`) | pinned in `test_detection.py` |
+| FN-3 | (fixed) Windows `config:ip_forward` (`enabled`) was not evaluated by `BO-CFG-002` (it read Linux-style `value`) | closed by PR #14: `BO-CFG-002` now reports `enabled` false to true (medium, observed); the former pin in `test_detection.py` is replaced by `test_detection_regressions.py::test_windows_ip_forwarding_*` |
 | FN-4 | Linux services carry no binary path, so `BO-EXE-001`/`BO-SVC-002` cannot see a replaced service binary | inventory limitation, see detection-rules.md |
 | FN-5 | listener owner names need `ss`/root; without them rules on process names are blind | LC-01: the run is incomplete (exit 6), not clean |
 | FN-6 | (fixed) new root SSH key reported as medium | D2 |
@@ -146,4 +156,4 @@ Run on 2026-10-27. Linux: 31 scenario tests in `tests/shared/test_detection_vali
 * Data is synthetic and the environments are fixture copies, not real hosts: kernel, service-manager and registry behaviour is not exercised, only what the collectors read. No live mutation was done (see "out of scope").
 * The `id` and `ss` shims model an operator and a listener; real `ss`/`systemctl` output formats are covered by the existing collector tests, not re-validated here.
 * Windows runs use one shell; Windows PowerShell 5.1 is covered by the existing report-schema tests, not by these scenarios.
-* One rule set version (26 rules); scenarios pin severities, so a deliberate severity change must update this document and the tests together.
+* One rule set version: 27 rules. The 26 per-change rules are what these scenarios were written against; `BO-FND-001` (new or escalated high/critical audit findings, added by PR #14) reads the diff's findings and is covered by `tests/shared/test_detection_regressions.py` and `tests/shared/test_rule_collector_contract.py`, not by a scenario here. Scenarios pin severities, so a deliberate severity change must update this document and the tests together.
