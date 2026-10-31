@@ -24,12 +24,18 @@ _prc_collect() {
       read -r line <"${d}/stat" 2>/dev/null || continue
       comm="${line#*(}"
       comm="${comm%)*}"
+      bo_tsv_field "${comm}" >/dev/null # a comm name may contain tabs (prctl); never a new column
+      comm="${REPLY}"
       rest="${line##*) }"
       ppid="$(printf '%s' "${rest}" | awk '{print $2}')"
       uid="$(awk '/^Uid:/ {print $2; exit}' "${d}/status" 2>/dev/null || true)"
       uid="${uid:--}"
       exe="$(readlink "${d}/exe" 2>/dev/null || true)"
-      cmd="$(tr '\0' ' ' <"${d}/cmdline" 2>/dev/null | bo_redact || true)"
+      bo_tsv_field "${exe}" >/dev/null
+      exe="${REPLY}"
+      # NUL separates arguments; a tab or newline inside one must not start a new column or row of
+      # the scratch TSV (a process could otherwise plant records such as "process:root:sshd").
+      cmd="$(tr '\0\n\t\r' '    ' <"${d}/cmdline" 2>/dev/null | bo_redact || true)"
       cmd="${cmd%"${cmd##*[![:space:]]}"}"
       if [[ -z "${exe}" ]]; then
         exe="-"

@@ -1,0 +1,22 @@
+{
+  "schema_version": "0.1.0",
+  "kind": "run-manifest",
+  "hash_algorithm": "sha256",
+  "complete": true,
+  "tool": { "name": "audit-linux", "version": "0.1.0" },
+  "run": {
+    "id": "3f2b8c1e-0000-4000-8000-000000000000",
+    "started_at": "2026-03-01T09:00:00Z",
+    "finished_at": "2026-03-01T09:01:30Z",
+    "exit_code": 4
+  },
+  "host": { "hostname": "web01.example.test", "user": "root", "elevated": true },
+  "files": [
+    { "path": "report.json", "sha256": "0000000000000000000000000000000000000000000000000000000000000000", "size": 1 },
+    { "path": "report.txt", "sha256": "0000000000000000000000000000000000000000000000000000000000000000", "size": 1 },
+    { "path": "run.log", "sha256": "0000000000000000000000000000000000000000000000000000000000000000", "size": 1 }
+  ],
+  "collector": [
+    { "path": "lib/common.sh", "sha256": "0000000000000000000000000000000000000000000000000000000000000000" }
+  ]
+}

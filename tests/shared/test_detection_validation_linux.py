@@ -171,6 +171,7 @@ def _bindir(dest: Path, listener: str | None, elevated: bool = True) -> Path:
 def _audit(root: Path, bindir: Path, missing: str = FORCED_MISSING) -> dict[str, Any]:
     env = {
         **os.environ,
+        "BO_TEST_MODE": "1",
         "BO_ROOT": str(root),
         "BO_FORCE_MISSING_TOOLS": missing,
         "PATH": f"{bindir}{os.pathsep}{os.environ['PATH']}",
@@ -530,6 +531,14 @@ def test_lc02_incomplete_coverage_does_not_hide_other_detections(
     assert exit_code_for(doc) == 4
 
 
+RUNNING_AS_ROOT = hasattr(os, "geteuid") and os.geteuid() == 0
+needs_non_root = pytest.mark.skipif(
+    RUNNING_AS_ROOT,
+    reason="the unprivileged condition cannot be produced as uid 0 (root reads every file)",
+)
+
+
+@needs_non_root
 def test_lc03_unprivileged_run_is_partial_and_never_clean(
     host: Callable[..., dict[str, Any]],
 ) -> None:
@@ -539,6 +548,7 @@ def test_lc03_unprivileged_run_is_partial_and_never_clean(
     assert exit_code_for(doc) == 6
 
 
+@needs_non_root
 def test_lc04_ssh_key_added_in_a_partial_partition_is_indeterminate_not_clean(
     host: Callable[..., dict[str, Any]],
 ) -> None:

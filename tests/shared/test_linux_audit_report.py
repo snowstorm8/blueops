@@ -50,6 +50,7 @@ def fixture_root(tmp_path_factory: pytest.TempPathFactory) -> Path:
 def _run(script: str, args: list[str], root: Path) -> dict:
     env = {
         **os.environ,
+        "BO_TEST_MODE": "1",
         "BO_ROOT": str(root),
         "BO_FORCE_MISSING_TOOLS": "ip route ifconfig netstat systemd-detect-virt",
         "PATH": f"{FIXTURES / 'linux-bin'}{os.pathsep}{os.environ['PATH']}",

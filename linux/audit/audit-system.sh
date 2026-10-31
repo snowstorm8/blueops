@@ -16,6 +16,40 @@ _sys_first_line() {
   return 0
 }
 
+# Loaded kernel modules, from /proc/modules (readable without root; addresses are zeroed for
+# unprivileged readers). A loadable-module rootkit is a new module, or one flagged out-of-tree (O)
+# or unsigned (E) in /sys/module/NAME/taint. The module name is chosen by the module itself, so it
+# is used for a sysfs path only if it cannot escape the directory.
+_sys_modules() {
+  local f name taintf taint
+  local -a flagged=()
+  f="$(bo_path /proc/modules)"
+  if [[ ! -e "${f}" ]]; then
+    bo_cov config kmod complete # no module support: there is nothing to inventory
+    return 0
+  fi
+  if [[ ! -r "${f}" ]]; then
+    bo_perm_error "/proc/modules not readable; kernel modules not inventoried" "SYS-KMOD-001"
+    bo_cov config kmod partial "/proc/modules not readable"
+    return 0
+  fi
+  while IFS=' ' read -r name _; do
+    [[ -n "${name}" ]] || continue
+    taint=""
+    if [[ "${name}" =~ ^[A-Za-z0-9_.-]+$ ]]; then
+      taintf="$(bo_path "/sys/module/${name}/taint")"
+      [[ -r "${taintf}" ]] && taint="$(head -c 16 -- "${taintf}" 2>/dev/null | tr -dc '[:upper:]')"
+    fi
+    bo_inv config kmod "config:kmod:${name}" "taint=${taint:-none}" "^file=/proc/modules"
+    [[ "${taint}" == *[OE]* ]] && flagged+=("file|/sys/module/${name}/taint|module ${name}: taint flags ${taint}")
+  done <"${f}"
+  bo_cov config kmod complete
+  ((${#flagged[@]} > 0)) && bo_finding SYS-KMOD-001 low low system "Loaded modules flagged out-of-tree or unsigned" \
+    "Out-of-tree (O) or unsigned (E) modules are normal for vendor drivers (GPU, hypervisor guests) and are also how loadable-module rootkits appear." \
+    "Compare each module with the drivers the hardware needs; hash the module file before unloading anything." "T1547.006" "${flagged[@]}"
+  return 0
+}
+
 mod_system() {
   local pretty id idlike ver kernel host arch up_s up_txt ncpu cpu mem_kb virt taint
   pretty="$(bo_osrel PRETTY_NAME)"
@@ -87,6 +121,8 @@ mod_system() {
       "Uptime is ${up_txt}; kernel and library updates likely require a reboot to take effect." \
       "Plan a reboot window after confirming scored services restart cleanly." "" "file|/proc/uptime"
   fi
+
+  _sys_modules
 
   taint="$(_sys_first_line /proc/sys/kernel/tainted)"
   if [[ "${taint}" =~ ^[0-9]+$ ]] && (((taint & 12288) != 0)); then

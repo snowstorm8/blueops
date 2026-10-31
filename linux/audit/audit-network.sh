@@ -41,17 +41,60 @@ _net_listeners() {
   done
 }
 
+# Hex address from /proc/net/{tcp,udp}[6] as text. IPv4 is one 32-bit word; IPv6 is four 32-bit
+# words, each printed in host byte order (little-endian assumed, as on x86 and arm64), so the
+# bytes of every word are reversed. The result is the compressed form `ss` prints (RFC 5952:
+# lower case, the longest run of two or more zero groups becomes `::`), so a record keeps the
+# same key whichever tool produced it. IPv4-mapped addresses print as ::ffff:a.b.c.d.
 _net_hexaddr() {
-  local h="$1"
+  local h="$1" w v i
+  local -a g=()
   if ((${#h} == 8)); then
     printf '%d.%d.%d.%d' "$((16#${h:6:2}))" "$((16#${h:4:2}))" "$((16#${h:2:2}))" "$((16#${h:0:2}))"
-  elif [[ "${h}" == "00000000000000000000000000000000" ]]; then
-    printf '::'
-  elif [[ "${h}" == "00000000000000000000000001000000" ]]; then
-    printf '::1'
-  else
-    printf 'ipv6:%s' "${h}"
+    return 0
   fi
+  if [[ ! "${h}" =~ ^[0-9A-Fa-f]{32}$ ]]; then
+    printf 'ipv6:%s' "${h}"
+    return 0
+  fi
+  for ((w = 0; w < 4; w++)); do
+    v="${h:w*8:8}"
+    g+=("$((16#${v:6:2}${v:4:2}))" "$((16#${v:2:2}${v:0:2}))")
+  done
+  if ((g[0] == 0 && g[1] == 0 && g[2] == 0 && g[3] == 0 && g[4] == 0 && g[5] == 0xffff)); then
+    printf '::ffff:%d.%d.%d.%d' "$((g[6] >> 8))" "$((g[6] & 255))" "$((g[7] >> 8))" "$((g[7] & 255))"
+    return 0
+  fi
+  local best=-1 bestlen=0 cur=-1 curlen=0
+  for ((i = 0; i < 8; i++)); do
+    if ((g[i] == 0)); then
+      if ((cur < 0)); then
+        cur=${i}
+        curlen=0
+      fi
+      curlen=$((curlen + 1))
+      if ((curlen > bestlen)); then
+        best=${cur}
+        bestlen=${curlen}
+      fi
+    else
+      cur=-1
+      curlen=0
+    fi
+  done
+  local out="" sep=""
+  if ((bestlen < 2)); then best=-1; fi
+  for ((i = 0; i < 8; i++)); do
+    if ((best >= 0 && i == best)); then
+      out+="::"
+      i=$((best + bestlen - 1))
+      sep=""
+      continue
+    fi
+    out+="${sep}$(printf '%x' "${g[i]}")"
+    sep=":"
+  done
+  printf '%s' "${out}"
 }
 
 # _net_procfs NAME FILE listen|estab
@@ -87,7 +130,8 @@ _net_established() {
   done
 }
 
-_net_is_loopback() { [[ "$1" == 127.* || "$1" == "::1" || "$1" == "localhost" ]]; }
+# 127.0.0.0/8, ::1 and IPv4-mapped 127.0.0.0/8 (::ffff:127.x.x.x); nothing else counts as loopback.
+_net_is_loopback() { [[ "$1" == 127.* || "$1" == "::1" || "$1" == "localhost" || "$1" == ::ffff:127.* ]]; }
 
 _net_listen_check() {
   local tsv="${BO_SCRATCH}/listen.tsv" proto addr port peer proc pname
@@ -201,18 +245,32 @@ _net_route_check() {
     bo_inv config sysctl "config:sysctl:$(tr / . <<<"${f#/proc/sys/}")" "value=${v}" "^file=${f}"
     [[ "${v}" == "1" ]] && fwd+="${f} "
   done
-  # Hardening value compared by BO-CFG-002 (0 off, 1 partial, 2 full). Inventory only: it is
-  # deliberately outside the forwarding loop above, where a value of 1 would mean "enabled".
-  f=/proc/sys/kernel/randomize_va_space
-  if [[ -e "$(bo_path "${f}")" ]]; then
-    if [[ -r "$(bo_path "${f}")" ]]; then
-      v="$(head -n 1 -- "$(bo_path "${f}")")"
-      bo_inv config sysctl "config:sysctl:kernel.randomize_va_space" "value=${v}" "^file=${f}"
-    else
+  # Kernel hardening values compared by BO-CFG-002 (inventory) and judged by NET-SYSCTL-001
+  # (standing state). They sit outside the forwarding loop above, where a value of 1 would mean
+  # "enabled". An absent file (feature not built in) is not a coverage gap.
+  local -a weak=()
+  local sysf
+  for sysf in kernel/randomize_va_space kernel/kptr_restrict kernel/yama/ptrace_scope kernel/dmesg_restrict kernel/modules_disabled fs/suid_dumpable; do
+    f="/proc/sys/${sysf}"
+    [[ -e "$(bo_path "${f}")" ]] || continue
+    if [[ ! -r "$(bo_path "${f}")" ]]; then
       bo_cov config sysctl partial "${f} not readable"
+      continue
     fi
-  fi
+    v="$(head -n 1 -- "$(bo_path "${f}")")"
+    bo_inv config sysctl "config:sysctl:$(tr / . <<<"${sysf}")" "value=${v}" "^file=${f}"
+    case "${sysf}:${v}" in
+      kernel/randomize_va_space:0 | kernel/randomize_va_space:1) weak+=("file|${f}|ASLR level ${v} (2 = full randomisation)") ;;
+      kernel/kptr_restrict:0) weak+=("file|${f}|kernel pointers are exposed to unprivileged users (kptr_restrict=0)") ;;
+      kernel/yama/ptrace_scope:0) weak+=("file|${f}|any process may ptrace another of the same user (ptrace_scope=0)") ;;
+      fs/suid_dumpable:1) weak+=("file|${f}|set-UID programs may write readable core dumps (suid_dumpable=1)") ;;
+      *) ;;
+    esac
+  done
   bo_cov config sysctl complete
+  ((${#weak[@]} > 0)) && bo_finding NET-SYSCTL-001 low medium network "Kernel hardening setting at a weak value" \
+    "Settings that raise the cost of local privilege escalation and information leaks are at their weakest value. Some are intentionally relaxed for debugging or specific software." \
+    "Raise them with sysctl after checking nothing on the host depends on the weak value." "T1068" "${weak[@]}"
   [[ -n "${fwd}" ]] && bo_finding NET-FWD-001 low medium network "IP forwarding enabled" \
     "Forwarding is expected on routers, VPN and container hosts but not on ordinary servers." \
     "Disable with sysctl if the host is not a router (check container/VPN use first)." "" "file|${fwd%% *}"
@@ -275,12 +333,136 @@ _net_iface_check() {
   bo_finding NET-IFACE-001 info high network "Network interfaces" "${#ev[@]} address entries." "" "" ${ev[@]+"${ev[@]}"}
 }
 
+# sshd_config: the first occurrence of a keyword wins (OpenSSH), Include is expanded in place, and
+# keywords inside a Match block are conditional and are not part of the effective global value.
+_net_sshd_collect() { # prints "keyword<TAB>value<TAB>file" for global directives, in effect order
+  local f="$1" line kw val inmatch=0 inc g rel
+  local -a incs=()
+  [[ -r "${f}" ]] || return 0
+  rel="$(bo_unroot "${f}")"
+  while IFS= read -r line || [[ -n "${line}" ]]; do
+    line="${line%%#*}"
+    line="${line#"${line%%[![:space:]]*}"}"
+    line="${line%"${line##*[![:space:]]}"}"
+    [[ -n "${line}" ]] || continue
+    kw="${line%%[[:space:]=]*}"
+    val="${line#"${kw}"}"
+    val="${val#"${val%%[![:space:]=]*}"}"
+    val="${val#=}"
+    val="${val#"${val%%[![:space:]]*}"}"
+    kw="${kw,,}"
+    if [[ "${kw}" == match ]]; then
+      inmatch=1
+      continue
+    fi
+    ((inmatch)) && continue
+    if [[ "${kw}" == include ]]; then
+      IFS=' ' read -r -a incs <<<"${val}"
+      for inc in ${incs[@]+"${incs[@]}"}; do
+        [[ "${inc}" == /* ]] || inc="/etc/ssh/${inc}"
+        # shellcheck disable=SC2231 # the include value is an intentional glob
+        for g in $(bo_path "${inc}"); do [[ -f "${g}" ]] && _net_sshd_collect "${g}"; done
+      done
+      continue
+    fi
+    printf '%s\t%s\t%s\n' "${kw}" "${val}" "${rel}"
+  done <"${f}"
+}
+
+_net_sshd_check() {
+  local main tsv="${BO_SCRATCH}/sshd.tsv" kw val file seen=" "
+  main="$(bo_path /etc/ssh/sshd_config)"
+  if [[ ! -e "${main}" ]]; then
+    bo_cov config sshd complete # no sshd configuration: nothing to inventory
+    return 0
+  fi
+  if [[ ! -r "${main}" ]]; then
+    bo_perm_error "/etc/ssh/sshd_config not readable; sshd settings skipped" "NET-SSHD-001"
+    bo_cov config sshd partial "/etc/ssh/sshd_config not readable"
+    return 0
+  fi
+  _net_sshd_collect "${main}" >"${tsv}"
+  local -a bad=() info=()
+  while IFS=$'\t' read -r kw val file; do
+    [[ "${seen}" == *" ${kw} "* ]] && continue # first occurrence wins
+    seen+="${kw} "
+    case "${kw}" in
+      permitrootlogin | permitemptypasswords | passwordauthentication | pubkeyauthentication | permituserenvironment | authorizedkeysfile | authorizedkeyscommand | authorizedkeyscommanduser | allowtcpforwarding | gatewayports | x11forwarding | usepam | challengeresponseauthentication | kbdinteractiveauthentication | hostbasedauthentication | ignorerhosts | permittunnel | forcecommand | banner) ;;
+      *) continue ;;
+    esac
+    bo_inv config sshd "config:sshd:${kw}" "value=$(printf '%s' "${val}" | bo_redact)" "^file=${file}"
+    info+=("file|${file}|${kw} ${val}")
+    case "${kw}:${val,,}" in
+      permitrootlogin:yes) bad+=("file|${file}|PermitRootLogin yes allows direct root login with a password") ;;
+      permitemptypasswords:yes) bad+=("file|${file}|PermitEmptyPasswords yes allows accounts with empty passwords to log in") ;;
+      permituserenvironment:no) ;;
+      permituserenvironment:*) bad+=("file|${file}|PermitUserEnvironment ${val} lets users inject environment variables (for example LD_PRELOAD) through ~/.ssh/environment or authorized_keys") ;;
+      hostbasedauthentication:yes) bad+=("file|${file}|HostbasedAuthentication yes trusts the connecting host") ;;
+      authorizedkeysfile:*)
+        # Anything other than the per-user files under the home directory redirects where keys are read from.
+        [[ "${val}" =~ ^(\.ssh/authorized_keys2?|%h/\.ssh/authorized_keys2?)( (\.ssh/authorized_keys2?|%h/\.ssh/authorized_keys2?))*$ || "${val,,}" == "none" ]] \
+          || bad+=("file|${file}|AuthorizedKeysFile ${val} reads keys from a non-default location")
+        ;;
+      authorizedkeyscommand:*) [[ -n "${val}" && "${val,,}" != none ]] && bad+=("file|${file}|AuthorizedKeysCommand ${val} runs a program to decide who may log in") ;;
+      *) ;;
+    esac
+  done <"${tsv}"
+  bo_cov config sshd complete
+  bo_finding NET-SSHD-001 info high network "sshd effective settings (global scope)" \
+    "${#info[@]} security-relevant sshd directive(s); first occurrence wins, Include is expanded, Match blocks are not evaluated." "" "" ${info[@]+"${info[@]}"}
+  ((${#bad[@]} > 0)) && bo_finding NET-SSHD-002 high medium network "sshd setting that weakens authentication or hides key sources" \
+    "These directives allow passwordless or direct-root logins, inject user environment, or read authorised keys from places an attacker can control." \
+    "Review each setting; restore the distribution default after preserving the file, and check scored services still log in." "T1098.004" "${bad[@]}"
+  return 0
+}
+
+# Host firewall state, read-only. `iptables -S` can make the kernel load ip_tables (and `nft` the
+# nf_tables module), which would be a state change: they are run only when the module is already
+# loaded. Needs root to read the rules; unprivileged runs record a coverage gap, never a result.
+_net_firewall_check() {
+  local out rules policy
+  local -a t=()
+  bo_have timeout && t=(timeout 10)
+  if [[ -r "$(bo_path /proc/net/ip_tables_names)" ]] && bo_have iptables; then
+    if out="$("${t[@]+"${t[@]}"}" iptables -S 2>/dev/null)" && [[ -n "${out}" ]]; then
+      rules="$(grep -c -E '^-A ' <<<"${out}" || true)"
+      policy="$(sed -n 's/^-P INPUT //p' <<<"${out}" | head -n 1)"
+      bo_inv config firewall "config:firewall:linux-iptables" "policy_input=${policy:-@unknown}" "rules=${rules}" "sha256=$(bo_sha256_str "${out}" || echo @unknown)"
+      bo_finding NET-FW-001 info medium network "Host firewall (iptables)" "INPUT policy ${policy:-unknown}, ${rules} rule(s)." "" "" "command|iptables -S"
+      if [[ "${policy}" == ACCEPT && "${rules}" == 0 ]]; then
+        bo_finding NET-FW-002 medium medium network "Host firewall allows everything inbound" \
+          "iptables has no rules and its INPUT policy is ACCEPT." "Add rules for the services that must be reachable; confirm scored ports first." "T1562.004" "command|iptables -S"
+      fi
+      bo_cov config firewall complete
+    else
+      bo_perm_error "iptables -S returned nothing (needs root); firewall state unknown" "NET-FW-001"
+      bo_cov config firewall partial "iptables rules could not be read"
+    fi
+  elif [[ -r "$(bo_path /proc/modules)" ]] && grep -q '^nf_tables ' "$(bo_path /proc/modules)" && bo_have nft; then
+    if out="$("${t[@]+"${t[@]}"}" nft list ruleset 2>/dev/null)" && [[ -n "${out}" ]]; then
+      rules="$(grep -c -E '^[[:space:]]+(ip|ip6|tcp|udp|iif|iifname|ct|meta|counter|accept|drop|reject|jump|log)[ ;]' <<<"${out}" || true)"
+      policy="$(grep -E 'hook input' <<<"${out}" | sed -n 's/.*policy \([a-z]*\).*/\1/p' | head -n 1 | tr '[:lower:]' '[:upper:]')"
+      bo_inv config firewall "config:firewall:linux-nft" "policy_input=${policy:-@unknown}" "rules=${rules}" "sha256=$(bo_sha256_str "${out}" || echo @unknown)"
+      bo_finding NET-FW-001 info medium network "Host firewall (nftables)" "INPUT policy ${policy:-unknown}, ${rules} rule line(s)." "" "" "command|nft list ruleset"
+      bo_cov config firewall complete
+    else
+      bo_perm_error "nft list ruleset returned nothing (needs root); firewall state unknown" "NET-FW-001"
+      bo_cov config firewall partial "nftables ruleset could not be read"
+    fi
+  else
+    bo_cov config firewall complete # no packet-filter module loaded or no tool: nothing to read
+  fi
+  return 0
+}
+
 mod_network() {
   _net_listen_check
   _net_estab_check
   _net_route_check
   _net_dns_check
   _net_iface_check
+  _net_sshd_check
+  _net_firewall_check
 }
 
 if [[ "${BASH_SOURCE[0]}" == "$0" ]]; then

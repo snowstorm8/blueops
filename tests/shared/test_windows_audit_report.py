@@ -64,7 +64,7 @@ def fixture_dir(tmp_path_factory: pytest.TempPathFactory) -> Path:
 
 
 def _run(shell: str, script: str, args: list[str], fixture: Path) -> dict:
-    env = {**os.environ, "BO_FIXTURE_DIR": str(fixture)}
+    env = {**os.environ, "BO_TEST_MODE": "1", "BO_FIXTURE_DIR": str(fixture)}
     env.pop("BO_FORCE_MISSING", None)
     proc = subprocess.run(  # noqa: S603
         [

@@ -20,10 +20,18 @@ Run as root for full coverage; unprivileged runs work but record the gaps (`NOT_
 | `--fail-on SEV` | Lowest severity that yields exit 4 (default `medium`). |
 | `--recent-days N` | Window for "recently modified" (default 3). |
 | `--fs-path DIR` | Restrict filesystem scans to DIR (repeatable). |
-| `--package-integrity` | Opt-in: verify installed files against Debian package checksums with `dpkg --verify` (read-only, hashes every packaged file, can take minutes). Debian/Ubuntu only and root only (`dpkg --verify` misreports files it cannot read); otherwise records `PKG_UNSUPPORTED` / `PKG_NEEDS_ROOT` and exits 6. |
+| `--package-integrity` | Opt-in: verify installed files against their package checksums with `dpkg --verify` (Debian family) or `rpm -Va` (RHEL/SUSE family). Read-only, hashes every packaged file, can take minutes; root only (the package tools misreport files they cannot read). Without either database, or unprivileged, it records `PKG_UNSUPPORTED` / `PKG_NEEDS_ROOT` and exits 6. The checksums come from the package database on the same host (dpkg: MD5, rpm: the package's own digest): they catch unplanned changes, not a root-level attacker who edits file and database together. |
 | `--quiet`, `--verbose`, `--no-color` | Output control. |
 
 Each module is also runnable alone (`audit-system.sh`, `audit-users.sh`, `audit-pam.sh`, `audit-processes.sh`, `audit-network.sh`, `audit-services.sh`, `audit-filesystem.sh`, and `linux/persistence/check-persistence.sh`) with the same options except `--modules`.
+
+## Safety properties of the collector itself
+
+- **Test hooks need `BO_TEST_MODE=1`** (see [development.md](development.md)); in a normal run `BO_ROOT` and `BO_FORCE_MISSING_TOOLS` are removed from the environment and the run records `TEST_HOOKS_IGNORED` (material, exit 6).
+- **Trusted `PATH`.** The system directories come first; relative, missing, non-root-owned and group/other-writable entries are dropped and listed in `PATH_SANITIZED` (non-material).
+- **Reports are text-safe.** Tabs/newlines in attacker-controlled text (command lines, process names, file names) cannot add columns or rows to the internal TSV files, and non-ASCII bytes are escaped (`\u00XX` per byte) rather than replaced by `?`, so different names stay different.
+- **Run manifest.** `--output-dir` also writes `manifest.json` (SHA-256 and size of each output file and the collector scripts; mode `0600`) and prints its digest to stderr. Verify with `python -m shared.reporting.verify`. See [deployment.md](deployment.md).
+- **No side effects from inspection.** Firewall rules are read with `iptables -S` / `nft list ruleset` only when the kernel module is already loaded (running them otherwise would make the kernel load it); `/proc/modules`, `/sys/module/NAME/taint` are read as data and the module name is never used as a path unless it is a plain identifier.
 
 ## Exit codes
 
@@ -37,13 +45,13 @@ Reports conform to `shared/schemas/audit-report.schema.json` (0.1.0), which has 
 
 | Module | IDs | Checks |
 |---|---|---|
-| system | SYS-* | OS/kernel/hostname/uptime/CPU/memory/disks inventory; unrecognized distro; uptime > 1 year; kernel taint by out-of-tree/unsigned modules |
-| users | USR-* | account inventory; non-root UID 0 (critical); duplicate UIDs; system accounts with login shells; empty passwords (needs root); hashes in `/etc/passwd`; sudoers rules, NOPASSWD, unsafe sudoers modes; admin and root-equivalent groups; active sessions (`who`/`w`); authorized_keys inventory, root keys, system-account keys, forced commands, writable `.ssh` |
-| pam | PAM-* | `/etc/pam.d` and `/etc/pam.conf` parsed as data (modules are never loaded): `pam_permit` accepting without a credential check, modules loaded from outside the system directories or missing from them, weak `pam_unix` hashing, `nullok`, writable PAM config, recently modified module files |
+| system | SYS-* | OS/kernel/hostname/uptime/CPU/memory/disks inventory; unrecognized distro; uptime > 1 year; kernel taint by out-of-tree/unsigned modules; loaded kernel modules inventory with per-module taint (`SYS-KMOD-001`) |
+| users | USR-* | account inventory; non-root UID 0 (critical); duplicate UIDs; system accounts with login shells; empty passwords (needs root); hashes in `/etc/passwd`; sudoers rules, NOPASSWD, unsafe sudoers modes; admin and root-equivalent groups; active sessions (`who`/`w`); authorized_keys inventory, root keys, system-account keys, forced commands, writable `.ssh`; sudoers `#include`/`@include` directives (files outside `/etc/sudoers.d` are followed and flagged, `USR-SUDO-004`), `Defaults` and `*_Alias` lines (dangerous `Defaults`, `USR-SUDO-005`); accounts whose *primary* group is root/sudo/wheel/admin (`USR-GROUP-003`) |
+| pam | PAM-* | `/etc/pam.d` and `/etc/pam.conf` parsed as data (modules are never loaded; backslash-continued lines are joined; the referenced module files are hashed into the inventory): `pam_permit` accepting without a credential check, modules loaded from outside the system directories or missing from them, weak `pam_unix` hashing, `nullok`, writable PAM config, recently modified module files |
 | processes | PRC-* | inventory with parent/child tree and executable paths (`/proc`, `ps` fallback); deleted/memfd executables; execution from `/tmp`, `/var/tmp`, `/dev/shm`; kernel-thread masquerading; reverse-shell command lines; hidden-dir and non-standard paths |
-| network | NET-* | listeners and established connections (`ss`, `netstat`, `/proc/net` fallbacks); exposed legacy/DB/remote-access ports; shells or netcat as listener/connection owner; routes, IP forwarding, DNS, `/etc/hosts` overrides, interfaces |
+| network | NET-* | listeners and established connections (`ss`, `netstat`, `/proc/net` fallbacks, IPv6 decoded to the text `ss` prints); exposed legacy/DB/remote-access ports; shells or netcat as listener/connection owner; routes, IP forwarding, DNS, `/etc/hosts` overrides, interfaces; sshd effective settings (`NET-SSHD-001/002`: first occurrence wins, `Include` expanded, `Match` blocks not global); kernel hardening sysctls (`NET-SYSCTL-001`); host firewall state (`NET-FW-001/002`, root only) |
 | services | SVC-* | systemd service inventory, enabled units, failed services (`SVC-FAILED-001`) and failed socket units (`SVC-FAILED-002`), legacy services; SysV fallback |
-| persistence | PER-* | systemd units (system and user) and drop-ins, cron/anacron/at, `rc.local`, init scripts, `ld.so.preload`, shell profiles/rc files, XDG autostart, udev `RUN`, APT hooks, `pam_exec`, `sshrc`; suspicious-command patterns (reverse shells, download-and-execute, world-writable paths, setuid, alias hijack, `LD_PRELOAD`) |
+| persistence | PER-* | systemd units (system and user) and drop-ins, cron/anacron/at, `rc.local`, init scripts, `ld.so.preload`, shell profiles/rc files, XDG autostart, udev `RUN`, APT hooks, `pam_exec`, `sshrc`; suspicious-command patterns (reverse shells, download-and-execute, world-writable paths, setuid, alias hijack, `LD_PRELOAD`); symlinked units in the administrator systemd directories (target recorded, dangling links kept), `*.wants` enablement links, `ld.so.conf(.d)` search paths in writable locations (`PER-LDCONF-001`), `cron.allow/deny` and `at.allow/deny`, auditd rules (`PER-AUDITD-001` when configured but empty); persistence files carry a line count and line fingerprints (no text) |
 | filesystem | FS-* | SUID/SGID inventory with known-package and GTFOBins-style classification; recently modified files; world-writable files/dirs; executables in temp dirs; orphaned files; deceptive names; modes of `passwd`, `shadow`, `sudoers`, `sshd_config`, etc.; with `--package-integrity`: modified programs/libraries (`FS-PKG-001`), other discrepancies (`FS-PKG-002`), summary (`FS-PKG-003`) |
 
 ## Inventory for baseline comparison (schema 0.2.0)
@@ -65,6 +73,6 @@ Besides findings, every run emits `inventory` (records with stable keys plus per
 - Detection is point-in-time and userland-only: a kernel rootkit can hide processes, sockets, and files from every check here.
 - Process names/paths for other users and `/etc/shadow`, `/etc/sudoers` need root. Process names for sockets need `ss -p`/`netstat -p` privileges.
 - File names containing newlines are split across list items by the line-oriented scans.
-- Tested on Ubuntu 22.04 (Bash 5.1) and macOS (Bash 3.2) against synthetic fixtures only; other distributions (RHEL-family, Alpine/BusyBox, SUSE) are untested and may degrade. Docker/container hosts, SELinux/AppArmor state, package integrity (`debsums`/`rpm -V`), and journal/log analysis are not covered.
-- `--package-integrity` relies on `dpkg --verify` (no RPM equivalent yet); it trusts the local dpkg database, which an attacker with root could also alter.
+- Tested on Ubuntu 22.04 (Bash 5.1) and macOS (Bash 3.2) against synthetic fixtures only; other distributions (RHEL-family, Alpine/BusyBox, SUSE) are untested and may degrade. Docker/container hosts, SELinux/AppArmor state and journal/log analysis are not covered. The IPv6 `/proc/net` decoding assumes a little-endian host (x86, arm64).
+- `--package-integrity` supports dpkg and rpm databases only (no apk/pacman); it trusts the local package database, which an attacker with root can also alter. See *Residual risks* in [security-model.md](security-model.md).
 - Filesystem scans use `find` and can be slow on large trees; they stay on local filesystems (`-xdev`). Use `--fs-path` to narrow scope.

@@ -8,7 +8,9 @@ These contracts are what keep Bash, PowerShell, and Python components interchang
 - Timestamps: ISO 8601 UTC with `Z` (`2026-01-31T14:05:09Z`); filenames use `YYYYMMDDTHHMMSSZ`.
 - Run directory layout: `<output-dir>/blueops-run-<YYYYMMDDTHHMMSSZ>-<tool>/` containing `report.json`, `run.log`, optional `evidence/` (+ `manifest.json` with SHA-256 hashes) and `rollback/`.
 - Standard flags: `--help`, `--version`, `--output-dir`, `--json`, `--quiet`, `--verbose`, `--dry-run`, `--yes`, `--no-color` (PowerShell: PascalCase equivalents).
-- Secrets are never written to reports or logs.
+- Secrets are never written to reports or logs (command lines are redacted for the forms listed in [security-model.md](security-model.md)).
+- `manifest.json` (`shared/schemas/run-manifest.schema.json`, 0.1.0) lists the SHA-256 and size of every file in a run directory and of the collector scripts; it is written beside `report.json` by both platforms with owner-only permissions and its digest is printed to stderr for off-host recording. Verification: `python -m shared.reporting.verify RUN_DIR [--expect-sha256 DIGEST]`.
+- The host block may carry `test_mode: true` (only when fixture hooks were active under `BO_TEST_MODE=1`); comparison tools warn about such reports (`TEST_MODE`).
 
 ## Exit codes
 
@@ -23,6 +25,8 @@ These contracts are what keep Bash, PowerShell, and Python components interchang
 | 6 | PARTIAL | Run completed with some checks/steps failed (see `errors[]`) |
 
 Defined in `shared/reporting/contracts.py`; the report schema's `run.exit_code` range (0-6) is tested against it.
+
+**Precedence (collectors and the Python tools).** `4` wins over `6`: a run that has findings at or above the threshold exits 4 even when it also has coverage gaps. The gaps are never hidden, they are in `errors[]` (collectors) and in `coverage` / `domains` (diff, detect), and a `4` run's absence of further findings must not be read as completeness. `6` is returned only when nothing reached the threshold and a material gap exists, so `0` always means "nothing found *and* nothing material missing". `5` (declined confirmation) and `3` (precondition) end a run before any of this applies. This precedence is deliberate and unchanged: changing it would break callers that gate on `4`.
 
 ## Severity classification
 

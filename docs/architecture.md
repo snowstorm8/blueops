@@ -27,6 +27,16 @@ windows/*.ps1┘   (logs, evidence,     └─> evidence/ + manifest.json (SHA-2
 - **Offline and read-only.** The engine reads two files and writes one; it is deliberately separate from the collectors and has no network or host access.
 - **Untrusted input.** Reports may come from compromised hosts: strict loader limits, duplicate-key rejection, and output sanitisation.
 
+## Hardening decisions (audit remediation)
+
+- **Test hooks are explicit.** Fixture hooks need `BO_TEST_MODE=1`; otherwise they are removed/ignored and the run records it. Alternative considered: refuse to run. Rejected: a failing audit is a denial of service for whoever can set one variable, while an audit that proceeds on the real host and says why is both safe and useful.
+- **`PATH` is sanitised, not replaced.** Replacing it would break hosts whose tools live in non-standard but legitimate root-owned directories (Nix, Homebrew-style prefixes). Entries that are relative, missing, non-root-owned or group/other-writable are dropped and listed.
+- **Integrity is a manifest plus an off-host digest.** Signing would need keys on the audited host; hashes recorded elsewhere give the same guarantee against tampering after the run without new dependencies.
+- **Escapes instead of substitution.** Lossy `?` replacement made different names equal; byte/UTF-16 escapes keep them apart at the cost of readability for non-ASCII names.
+- **Coarse process keys are kept.** Per-instance process comparison would make every restart an alert; the trade-off is documented in [detection-rules.md](detection-rules.md#limitations).
+- **Attributes one collector version lacks are skipped, not "unknown".** `null` means a permission gap (indeterminate); an attribute absent from a whole report means a collector difference and is reported once (`ATTRIBUTES_NOT_COMPARED`).
+- **Kernel modules are never loaded for inspection.** The Linux firewall check runs `iptables -S` / `nft` only when their kernel module is already loaded, because running them otherwise makes the kernel load it (a state change).
+
 ## Directory responsibilities
 
 See the table in [CLAUDE.md](../CLAUDE.md#2-repository-layout).

@@ -15,7 +15,6 @@ import json
 import os
 import sys
 from datetime import datetime, timezone
-from pathlib import Path
 from typing import Any
 
 from shared.reporting.baseline import (
@@ -34,6 +33,7 @@ from shared.reporting.inventory import (
     options_from_config,
     parse_timestamp,
 )
+from shared.reporting.jsonio import JsonInputError, load_json_strict
 
 
 def _parser() -> argparse.ArgumentParser:
@@ -77,13 +77,16 @@ def _parser() -> argparse.ArgumentParser:
     return p
 
 
+MAX_CONFIG_BYTES = 1024 * 1024
+
+
 def _options(args: argparse.Namespace) -> Options:
     opts = Options(allow_host_mismatch=args.allow_host_mismatch)
     if args.config:
         try:
-            raw = json.loads(Path(args.config).read_text(encoding="utf-8-sig"))
-        except (OSError, ValueError) as exc:
-            raise ConfigError(f"cannot read config {args.config}: {exc}") from None
+            raw, _ = load_json_strict(args.config, MAX_CONFIG_BYTES, "config")
+        except JsonInputError as exc:
+            raise ConfigError(str(exc)) from None
         opts = options_from_config(raw, opts)
     if args.ephemeral_from is not None:
         opts = options_from_config({"ephemeral_from": args.ephemeral_from}, opts)

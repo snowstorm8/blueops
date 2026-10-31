@@ -187,6 +187,15 @@ Determinism: the same two inputs produce byte-identical text and JSON across rep
 - Reports of an unknown major/minor line are refused (exit 3). Readable lines are listed in `READABLE_REPORT_VERSIONS` (`shared/reporting/contracts.py`).
 - The diff schema is versioned together with the audit-report schema; see [contracts.md](contracts.md).
 
+## Warnings added by the audit remediation
+
+| Code | Meaning |
+|---|---|
+| `TEST_MODE` | A report was collected with fixture hooks (`host.test_mode`): it does not describe a real host. |
+| `ATTRIBUTES_NOT_COMPARED` | An attribute exists in only one report (a collector that gained or lost it between the runs, for example `line_ids`, `primary_members`). It is skipped, not treated as unknown, and listed once; take a new baseline to compare it. A *null* value (permission gap) is still indeterminate. |
+
+A run directory that contains `manifest.json` is verified (SHA-256 and size of each file) before it is read; a mismatch exits 3 (`failed manifest verification`). A directory without a manifest loads as before, and the diff output is identical for a report file and its run directory.
+
 ## Loader hardening
 
 Reports are untrusted input. A report whose `findings` or `errors` is not a list of objects (with a string `id`/`code`), or whose `inventory` is present but not an object (including `null`) or whose `inventory.coverage` is not a list, is **rejected** (exit 3) instead of being read as if the data were absent: silently dropping an error or a finding could turn an unknown into a conclusion. Only a report with no `inventory` key at all (0.1.x) loads without inventory. The loader enforces a 64 MiB limit, accepts a UTF-8 BOM (Windows PowerShell 5.1 writes one), rejects duplicate JSON keys, `NaN`/`Infinity`, over-deep nesting and control characters in keys, caps the record count, and validates every record; invalid records degrade coverage of their domain instead of crashing the comparison or silently disappearing.
