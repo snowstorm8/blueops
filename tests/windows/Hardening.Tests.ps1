@@ -57,7 +57,8 @@ Describe 'test hooks need BO_TEST_MODE' {
     It 'the hooks are ignored without BO_TEST_MODE, the run records it and audits the real host' -Skip:(-not $script:OnWindows) {
         $r = Invoke-BoTestRun -NoFixture -Arguments @('-Json', '-Quiet', '-Modules', 'system') -Environment @{ BO_FIXTURE_DIR = $script:Fx }
         (Test-BoErrorCode $r 'TEST_HOOKS_IGNORED') | Should -BeTrue
-        $r.ExitCode | Should -Be 6
+        # 6 when nothing reached the threshold; 4 when the real host has findings. Never 0: a material gap exists.
+        $r.ExitCode | Should -BeIn @(4, 6)
         $r.Json.host.PSObject.Properties['test_mode'] | Should -BeNullOrEmpty
     }
 }
