@@ -52,7 +52,7 @@ source "${BO_REPO}/linux/lib/deps.sh" 2>/dev/null || {
 require_ready() {
   bo_deps_scan
   if [[ -n "${BO_DEPS_MISSING_FILES}" || -n "${BO_DEPS_MISSING_REQ}" ]]; then
-    bo_deps_report >&2 || true
+    bo_deps_report "sudo ${BO_REPO}/scripts/setup/setup-linux.sh --install" >&2 || true
     echo "blueops: cannot continue; fix the items marked MISSING above." >&2
     exit 3
   fi
@@ -86,7 +86,7 @@ main() {
   case "${cmd}" in
     doctor)
       bo_deps_scan
-      bo_deps_report || exit $?
+      bo_deps_report "sudo ${BO_REPO}/scripts/setup/setup-linux.sh --install" || exit $?
       ;;
     audit)
       require_ready
