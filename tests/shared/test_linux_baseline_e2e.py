@@ -58,6 +58,7 @@ def _make_bin(dest: Path, extra_listener: bool) -> Path:
 def _audit(root: Path, bindir: Path, script: str = "linux/audit/audit-linux.sh") -> dict:
     env = {
         **os.environ,
+        "BO_TEST_MODE": "1",
         "BO_ROOT": str(root),
         "BO_FORCE_MISSING_TOOLS": "ip route ifconfig netstat systemd-detect-virt",
         "PATH": f"{bindir}{os.pathsep}{os.environ['PATH']}",

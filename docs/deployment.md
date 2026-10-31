@@ -96,6 +96,16 @@ There is no Windows launcher or setup step: the collectors use only what ships w
 3. Re-audit after changes and compare with `diff`/`detect` on an analyst machine.
 4. Hardening and containment are not implemented yet ([roadmap](roadmap.md)); make changes by hand and record prior state yourself.
 
+## Verifying a run (integrity)
+
+Every run directory contains `manifest.json`: the SHA-256 and size of `report.json`, `report.txt` and `run.log`, plus the digests of the collector scripts that produced them. At the end of the run the collector prints the **manifest's own digest** (`Manifest SHA-256: ...`).
+
+1. Record that digest off the host (paper, a separate machine, chat with the operator), *before* the run directory is copied around.
+2. On the analyst machine: `python -m shared.reporting.verify RUN_DIR --expect-sha256 DIGEST` (exit 0 = every file matches; exit 3 = something differs or is missing).
+3. `python -m shared.reporting.diff` and `detect` verify the manifest automatically when they are given a run directory and **refuse** one that no longer matches.
+
+The manifest proves the files are unchanged since the collector wrote them; it cannot prove the host told the truth, and without the off-host digest an attacker who can rewrite the directory can rewrite the manifest as well. Runs from collectors that predate manifests load unverified.
+
 ## Verification status
 
 What was actually exercised (see the CHANGELOG entry for this change):

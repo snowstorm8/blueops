@@ -4,13 +4,25 @@
 # Provides: logging, finding/error recording, JSON emission, CLI driver, and
 # small portable utilities used by linux/audit and linux/persistence modules.
 #
-# Test hooks (not for production use):
+# Test hooks (not for production use). They are honoured ONLY when BO_TEST_MODE=1 is also set;
+# otherwise they are removed from the environment, ignored, and the run records
+# TEST_HOOKS_IGNORED (a hostile or stray environment cannot silently redirect the audit):
+#   BO_TEST_MODE=1             explicit opt-in for the hooks below (reports then say test_mode)
 #   BO_ROOT                    prefix applied to every file path read (fixture root)
 #   BO_FORCE_MISSING_TOOLS     space-separated tool names treated as not installed
 # shellcheck shell=bash
 
 [[ -n "${BO_COMMON_LOADED:-}" ]] && return 0
 BO_COMMON_LOADED=1
+
+# Test hooks only work in explicit test mode; a leftover or planted variable must not make the
+# audit read a fake host. The removal happens before anything below can use the variables.
+BO_TEST_HOOKS_IGNORED=""
+if [[ "${BO_TEST_MODE:-}" != "1" ]] && [[ -n "${BO_ROOT:-}" || -n "${BO_FORCE_MISSING_TOOLS:-}" ]]; then
+  BO_TEST_HOOKS_IGNORED="${BO_ROOT:+BO_ROOT }${BO_FORCE_MISSING_TOOLS:+BO_FORCE_MISSING_TOOLS}"
+  unset BO_ROOT BO_FORCE_MISSING_TOOLS
+fi
+BO_PATH_DROPPED=""
 
 BO_VERSION="0.1.0"
 BO_SCHEMA_VERSION="0.2.0"
@@ -84,6 +96,37 @@ bo_mode_has() {
   (((8#${mode} & 8#${bits}) != 0))
 }
 
+# Resolve tools only from trusted directories. Tools are looked up through PATH, so a writable or
+# relative entry (".", an empty field, ~/bin, /tmp) could substitute ss, ps, find or sha256sum
+# and make the audit lie. The system directories come first; any other entry survives only if it
+# is absolute, exists, is owned by root and is not group/other-writable. Dropped entries are
+# recorded (PATH_SANITIZED). Not used in test mode, where PATH carries the command shims.
+bo_sanitize_path() {
+  local orig="${PATH:-}" d kept="" dropped="" owner mode IFS=:
+  for d in /usr/local/sbin /usr/local/bin /usr/sbin /usr/bin /sbin /bin; do
+    [[ -d "${d}" ]] && kept+="${kept:+:}${d}"
+  done
+  PATH="${kept}"
+  for d in ${orig}; do
+    case ":${kept}:" in *":${d}:"*) continue ;; esac
+    if [[ -z "${d}" || "${d}" != /* || ! -d "${d}" ]]; then
+      dropped+="${dropped:+ }${d:-<empty>}"
+      continue
+    fi
+    owner="$(stat -c '%u' -- "${d}" 2>/dev/null || stat -f '%u' -- "${d}" 2>/dev/null || echo x)"
+    mode="$(bo_mode "${d}" || echo 777)"
+    if [[ "${owner}" == "0" ]] && ! bo_mode_has "${mode}" 022; then
+      kept+=":${d}"
+      PATH="${kept}"
+    else
+      dropped+="${dropped:+ }${d}"
+    fi
+  done
+  PATH="${kept}"
+  export PATH
+  BO_PATH_DROPPED="${dropped}"
+}
+
 # Value of KEY from /etc/os-release (never sourced; parsed as data).
 bo_osrel() {
   local f
@@ -93,24 +136,65 @@ bo_osrel() {
   sed -n "s/^$1=//p" "${f}" | head -n 1 | tr -d "\"'"
 }
 
-# Redact obvious secrets from command lines before they reach any output.
+# Redact obvious secrets from command lines before they reach any output. Covers name=value
+# pairs (password/secret/token/api key), long options, URL credentials, Authorization header
+# values, curl-style `-u user:pass`, `sshpass -p`, and mysql-style attached `-pSECRET`.
+# Not detectable by pattern (documented residual risk): here-strings/stdin, values passed in
+# files, and secrets in positional arguments of arbitrary programs.
 bo_redact() {
   local key='([Pp][Aa][Ss][Ss]([Ww][Oo][Rr][Dd]|[Ww][Dd])?|[Pp][Ww][Dd]|[Ss][Ee][Cc][Rr][Ee][Tt]|[Tt][Oo][Kk][Ee][Nn]|[Aa][Pp][Ii][-_]?[Kk][Ee][Yy])'
+  # `NOPASSWD: ALL` / `PASSWD: /bin/ls` are sudoers tags, not secrets: shield exactly that form
+  # (a tag followed by ALL or a path) so a rule still shows what it grants; `PASSWD: hunter2`
+  # is still redacted.
   sed -E \
+    -e 's#(NO)?PASSWD:([[:space:]]*(ALL|/))#\1PASSWD@SUDOTAG@\2#g' \
     -e "s/(${key}[A-Za-z_]*[=:][[:space:]]*)[^[:space:]\"']+/\\1<redacted>/g" \
-    -e "s/(--[A-Za-z-]*(pass|secret|token|key)[A-Za-z-]*[ =])[^[:space:]]+/\\1<redacted>/g"
+    -e "s/(--[A-Za-z-]*(pass|secret|token|key)[A-Za-z-]*[ =])[^[:space:]]+/\\1<redacted>/g" \
+    -e 's#(://[^/[:space:]:@]+:)[^@/[:space:]]+@#\1<redacted>@#g' \
+    -e 's#([Aa]uthorization:?[[:space:]]*(Bearer|Basic|Token|Digest)[[:space:]]+)[^[:space:]"'"'"']+#\1<redacted>#g' \
+    -e '/(curl|wget|lftp|http|rsync)/ s#((^|[[:space:]])(-u|--user|--proxy-user)[[:space:]=]+[^[:space:]:]+:)[^[:space:]]+#\1<redacted>#g' \
+    -e 's#((^|[[:space:]])sshpass[[:space:]]+(-[A-Za-z]+[[:space:]]+)*-p[[:space:]]*)[^[:space:]]+#\1<redacted>#g' \
+    -e '/(mysql|mysqldump|mysqladmin|mariadb)/ s#([[:space:]]-p)[^[:space:]-][^[:space:]]*#\1<redacted>#g' \
+    -e 's#PASSWD@SUDOTAG@#PASSWD:#g'
+}
+
+# bo_tsv_field VALUE : VALUE with tab, newline and carriage return replaced by spaces, so
+# attacker-controlled text (command lines, comm names, file names) can never add TSV columns or
+# forge rows in the scratch files that are re-read with `read`.
+bo_tsv_field() {
+  local v="${1-}"
+  v="${v//$'\t'/ }"
+  v="${v//$'\n'/ }"
+  v="${v//$'\r'/ }"
+  REPLY="${v}"
+  printf '%s' "${v}"
 }
 
 # Print reasons (semicolon separated) if a command line matches known-bad patterns.
 bo_suspicious_reasons() {
   local s="$1" r=""
   if [[ "${s}" =~ /dev/(tcp|udp)/ ]]; then r+="bash /dev/tcp redirect (reverse-shell pattern); "; fi
-  if [[ "${s}" =~ (^|[^[:alnum:]_])(nc|ncat|netcat|socat)[[:space:]].*(-e[[:space:]]|-c[[:space:]]|EXEC:|exec:) ]]; then
+  if [[ "${s}" =~ (^|[^[:alnum:]_])(nc|ncat|netcat|socat)[[:space:]].*(-e[[:space:]]|-c[[:space:]]|--exec|--sh-exec|--lua-exec|EXEC:|exec:|SYSTEM:|system:) ]]; then
     r+="netcat/socat with command execution; "
   fi
+  # A network tool wired to a shell without an exec option: `nc host 4444 | /bin/sh`,
+  # `sh -i 2>&1 | nc host 4444`, and the mkfifo variant.
+  local sh_pipe='\|[[:space:]]*(/[A-Za-z0-9_/.-]*/)?(ba|z|da|k|c|tc|a)?sh([[:space:]]|$)'
+  local net_tool='(^|[^[:alnum:]_])(nc|ncat|netcat|socat|telnet)[[:space:]]'
+  if [[ "${s}" =~ ${net_tool}[^\|]*${sh_pipe} ]] || [[ "${s}" =~ (^|[^[:alnum:]_])(ba|z|da|k)?sh[[:space:]]+-i[^\|]*\|[[:space:]]*(nc|ncat|netcat|socat|telnet)[[:space:]] ]]; then
+    r+="network tool piped to a shell (reverse/bind shell pattern); "
+  fi
+  if [[ "${s}" =~ mkfifo[[:space:]].*(nc|ncat|netcat|telnet|openssl)[[:space:]] ]]; then r+="named-pipe reverse shell; "; fi
+  if [[ "${s}" =~ openssl[[:space:]]+s_client[^\|]*${sh_pipe} ]]; then r+="openssl s_client piped to a shell; "; fi
   if [[ "${s}" =~ (curl|wget)[^|]*\|[[:space:]]*(sudo[[:space:]]+)?(ba|z|da|k)?sh ]]; then r+="download piped to shell; "; fi
   if [[ "${s}" =~ base64[[:space:]]+(-d|--decode).*\|[[:space:]]*(ba|z|da)?sh ]]; then r+="decoded payload piped to shell; "; fi
   if [[ "${s}" =~ (python[0-9.]*|perl|ruby|php)[[:space:]]+-[ecr][[:space:]].*(socket|fsockopen) ]]; then r+="scripted socket shell; "; fi
+  if [[ "${s}" =~ perl[[:space:]].*(IO::Socket|-MIO|use[[:space:]]+Socket) ]] || [[ "${s}" =~ python[0-9.]*[[:space:]].*pty\.spawn ]]; then
+    r+="scripted socket or pty shell; "
+  fi
+  # `bash <(curl ...)`, `source <(wget -qO- ...)`: a downloaded script run through process
+  # substitution never touches the disk and is not caught by the pipe-to-shell pattern.
+  if [[ "${s}" =~ \<\([[:space:]]*(curl|wget|fetch)[[:space:]] ]]; then r+="downloaded script run via process substitution; "; fi
   if [[ "${s}" =~ (/tmp|/var/tmp|/dev/shm)/ ]]; then
     # Benign mentions of these directories are removed before testing:
     #  - housekeeping commands that name a path but do not execute it (rm, ls, chmod ...);
@@ -151,6 +235,26 @@ bo_log() {
 
 # ---------------------------------------------------------------- JSON/state
 
+# _bo_escape_bytes STRING : every byte outside printable ASCII becomes \u00XX (one escape per
+# byte, so distinct byte strings always stay distinct; a UTF-8 character shows as its byte
+# values, which is lossless but not decoded). Quotes, backslashes and the usual control
+# characters were already escaped by the caller. Replaces a `?` substitution that made
+# different non-ASCII names collide (cafe-acute and cafe-diaeresis both became "caf??").
+_bo_escape_bytes() {
+  local LC_ALL=C s="$1" out="" ch n i
+  for ((i = 0; i < ${#s}; i++)); do
+    ch="${s:i:1}"
+    if [[ "${ch}" == [[:print:]] ]]; then
+      out+="${ch}"
+    else
+      printf -v n '%d' "'${ch}"
+      printf -v n '\\u%04x' "$((n & 255))"
+      out+="${n}"
+    fi
+  done
+  printf '%s' "${out}"
+}
+
 # _bo_jq STRING : JSON-quote STRING into REPLY without a subshell (hot path for inventory).
 _bo_jq() {
   local s="${1-}"
@@ -160,7 +264,7 @@ _bo_jq() {
   s="${s//$'\t'/\\t}"
   s="${s//$'\r'/\\r}"
   if [[ "${s}" =~ [^[:print:]] ]]; then
-    s="$(printf '%s' "${s}" | LC_ALL=C tr -c '\040-\176' '?')"
+    s="$(_bo_escape_bytes "${s}")"
   fi
   REPLY="\"${s}\""
 }
@@ -326,10 +430,11 @@ bo_cov() {
 bo_module_partitions() {
   case "$1" in
     users) echo "users: groups: persistence:ssh-authkeys config:sudoers" ;;
+    system) echo "config:kmod" ;;
     processes) echo "processes:" ;;
-    network) echo "listeners: config:dns config:hosts config:sysctl" ;;
+    network) echo "listeners: config:dns config:hosts config:sysctl config:sshd config:firewall" ;;
     services) echo "services:" ;;
-    persistence) echo "persistence:systemd persistence:startup persistence:udev persistence:apt persistence:shell persistence:autostart scheduled_tasks:cron scheduled_tasks:at" ;;
+    persistence) echo "persistence:systemd persistence:startup persistence:udev persistence:apt persistence:shell persistence:autostart persistence:auditd scheduled_tasks:cron scheduled_tasks:at" ;;
     pam) echo "config:pam" ;;
     filesystem) echo "config:suid" ;;
     *) echo "" ;;
@@ -451,9 +556,12 @@ bo_host_json() {
   arch="$(uname -m 2>/dev/null || echo unknown)"
   user="$(id -un 2>/dev/null || echo unknown)"
   bo_is_root && elev=true
-  printf '{"hostname":%s,"os":{"family":"linux","name":%s,"version":%s},"arch":%s,"user":%s,"elevated":%s}' \
+  local tm=""
+  # Reports produced with fixture hooks say so; the comparison tools warn about them.
+  [[ -n "${BO_ROOT:-}${BO_FORCE_MISSING_TOOLS:-}" ]] && tm=',"test_mode":true'
+  printf '{"hostname":%s,"os":{"family":"linux","name":%s,"version":%s},"arch":%s,"user":%s,"elevated":%s%s}' \
     "$(bo_json_str "$(bo_hostname)")" "$(bo_json_str "${name:-unknown}")" "$(bo_json_str "${ver}")" \
-    "$(bo_json_str "${arch}")" "$(bo_json_str "${user}")" "${elev}"
+    "$(bo_json_str "${arch}")" "$(bo_json_str "${user}")" "${elev}" "${tm}"
 }
 
 # Home directories from passwd: "user<TAB>uid<TAB>home" for existing dirs.
@@ -538,12 +646,51 @@ bo_module_title() {
   esac
 }
 
+# bo_write_manifest RUNDIR TOOL RUN_ID STARTED FINISHED EXIT FILE...
+# Writes RUNDIR/manifest.json: SHA-256, size of every output file and the collector scripts that
+# produced them, plus run/host identity (shared/schemas/run-manifest.schema.json). The manifest
+# cannot vouch for itself: keep its own digest (printed to stderr) off the host. A missing hash
+# tool yields null digests and "complete": false, never an invented value.
+bo_write_manifest() {
+  local rd="$1" tool="$2" run_id="$3" started="$4" finished="$5" code="$6" f h sz out="" cout="" complete=true
+  shift 6
+  for f in "$@"; do
+    h="$(bo_sha256_file "${rd}/${f}")" || {
+      h=""
+      complete=false
+    }
+    sz="$(wc -c <"${rd}/${f}" | tr -d ' ')"
+    out+="${out:+,}{\"path\":$(bo_json_str "${f}"),\"sha256\":$([[ -n "${h}" ]] && printf '"%s"' "${h}" || printf null),\"size\":${sz:-0}}"
+  done
+  for f in ${BO_COLLECTOR_FILES[@]+"${BO_COLLECTOR_FILES[@]}"}; do
+    h="$(bo_sha256_file "${f}")" || {
+      h=""
+      complete=false
+    }
+    cout+="${cout:+,}{\"path\":$(bo_json_str "${f#"${BO_LINUX_DIR}"/}"),\"sha256\":$([[ -n "${h}" ]] && printf '"%s"' "${h}" || printf null)}"
+  done
+  # The redirection must sit inside the subshell: it is opened before the body runs, so a
+  # redirection on the subshell itself would ignore this umask (and create a 0644 file).
+  (
+    umask 077
+    {
+      printf '{"schema_version":"0.1.0","kind":"run-manifest","hash_algorithm":"sha256","complete":%s,' "${complete}"
+      printf '"tool":{"name":%s,"version":%s},' "$(bo_json_str "${tool}")" "$(bo_json_str "${BO_VERSION}")"
+      printf '"run":{"id":%s,"started_at":%s,"finished_at":%s,"exit_code":%d},' "$(bo_json_str "${run_id}")" "$(bo_json_str "${started}")" "$(bo_json_str "${finished}")" "${code}"
+      printf '"host":%s,"files":[%s],"collector":[%s]}\n' "$(bo_host_json)" "${out}" "${cout}"
+    } >"${rd}/manifest.json"
+  )
+}
+
 # bo_cli_main TOOL CATEGORY DEFAULT_MODULES ALLOW_SELECT ARGS...
 bo_cli_main() {
   local tool="$1" category="$2" modules="$3" select="$4"
   shift 4
   export LC_ALL=C
+  [[ "${BO_TEST_MODE:-}" == "1" ]] || bo_sanitize_path
   BO_TOOL="${tool}"
+  BO_COLLECTOR_FILES=("${BO_LINUX_DIR}/lib/common.sh")
+  [[ -f "${BASH_SOURCE[1]:-}" ]] && BO_COLLECTOR_FILES+=("${BASH_SOURCE[1]}")
   local format=text outdir="" fail_on=medium list=0 nocolor=0 arg
   while (($#)); do
     arg="$1"
@@ -649,6 +796,8 @@ bo_cli_main() {
 
   bo_init_scratch || return 1
   trap bo_cleanup EXIT
+  [[ -z "${BO_TEST_HOOKS_IGNORED}" ]] || bo_error TEST_HOOKS_IGNORED "environment test hook(s) ${BO_TEST_HOOKS_IGNORED% } ignored because BO_TEST_MODE=1 is not set; the real host was audited" "" 1
+  [[ -z "${BO_PATH_DROPPED}" ]] || bo_error PATH_SANITIZED "untrusted PATH entries were ignored (tools resolve from system directories): ${BO_PATH_DROPPED}" "" 0
   local human_fd=1
   [[ "${format}" == "json" ]] && human_fd=2
   if [[ -z "${NO_COLOR:-}" && "${nocolor}" == 0 && -t "${human_fd}" ]]; then BO_COLOR=1; fi
@@ -664,7 +813,10 @@ bo_cli_main() {
     if ! declare -F "mod_${m}" >/dev/null; then
       src="$(bo_module_file "${m}")"
       # shellcheck source=/dev/null
-      if [[ -r "${src}" ]]; then source "${src}"; fi
+      if [[ -r "${src}" ]]; then
+        source "${src}"
+        BO_COLLECTOR_FILES+=("${src}")
+      fi
     fi
     if ! declare -F "mod_${m}" >/dev/null; then
       bo_error MODULE_MISSING "module '${m}' not found" "${m}"
@@ -742,7 +894,7 @@ bo_cli_main() {
   } >"${text}"
 
   if [[ -n "${outdir}" ]]; then
-    local rd i=0
+    local rd i=0 m
     rd="${outdir%/}/blueops-run-$(bo_stamp)-${tool}"
     while [[ -e "${rd}" ]]; do
       i=$((i + 1))
@@ -751,7 +903,12 @@ bo_cli_main() {
     (umask 077 && mkdir -p -- "${rd}") || return 1
     chmod 700 "${rd}"
     (umask 077 && cp -- "${report}" "${rd}/report.json" && cp -- "${text}" "${rd}/report.txt" && cp -- "${BO_SCRATCH}/run.log" "${rd}/run.log")
+    bo_write_manifest "${rd}" "${tool}" "${run_id}" "${started}" "${finished}" "${exit_code}" report.json report.txt run.log
     ((BO_QUIET)) || echo "Report written to ${rd}" >&2
+    if ! ((BO_QUIET)); then
+      m="$(bo_sha256_file "${rd}/manifest.json" || true)"
+      echo "Manifest SHA-256: ${m:-unavailable} (record it off this host to detect later tampering)" >&2
+    fi
   fi
   if [[ "${BO_QUIET}" == 0 ]]; then
     if [[ "${format}" == "json" ]]; then

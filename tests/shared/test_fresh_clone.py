@@ -182,6 +182,7 @@ def test_launcher_follows_a_symlink(tree: Path, elsewhere: Path) -> None:
 
 def test_audit_through_launcher_is_cwd_independent(tree: Path, elsewhere: Path) -> None:
     env = _env(
+        BO_TEST_MODE="1",  # the BO_ROOT fixture hook is ignored unless test mode is explicit
         BO_ROOT=str(tree / FIXTURES / "linux-root-min"),
         PATH=f"{tree / FIXTURES / 'linux-bin'}{os.pathsep}{os.environ['PATH']}",
     )
@@ -232,7 +233,7 @@ def test_missing_required_command_is_actionable(
     direct = _run(
         [BASH, str(tree / "linux/audit/audit-linux.sh"), "--modules", "system", "--json"],
         elsewhere,
-        {**env, "BO_ROOT": str(tree / FIXTURES / "linux-root-min")},
+        {**env, "BO_TEST_MODE": "1", "BO_ROOT": str(tree / FIXTURES / "linux-root-min")},
     )
     assert direct.returncode == 3
     assert "required command(s) not found: awk" in direct.stderr

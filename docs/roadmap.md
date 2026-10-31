@@ -42,6 +42,14 @@ Everything beyond Phase 0 is **planned** and subject to change.
 - [ ] Standing-state rules over a single report (no baseline needed), SIEM/log-based rules, Linux service binary paths in the inventory
 - [ ] Detection of changes to files/logs outside the current inventory domains
 
+## Phase 2d — Audit remediation (v0.3.x)
+
+- [x] Detection and inventory gaps from the engineering audit (command content, standing-state checks, hash-only direction, contract mismatches) — see [audit-remediation.md](audit-remediation.md)
+- [x] Security and integrity hardening (test-hook gating, trusted `PATH`, run manifest and verifier, strict JSON, injective text encoding, TSV forgery, redaction)
+- [ ] Run the new PowerShell code on a Windows runner (Pester `Hardening.Tests.ps1`) — written without a local PowerShell, unverified until CI
+- [ ] Single-report (baseline-free) detection mode; the new standing-state checks are audit findings only
+- [ ] `apk`/`pacman` package integrity; Alpine/BusyBox and Bash 4.2 CI jobs; coverage measurement; pin CI actions by commit SHA
+
 ## Phase 3 — Incident response
 
 - [ ] Evidence collection with hashing/manifests (both platforms)

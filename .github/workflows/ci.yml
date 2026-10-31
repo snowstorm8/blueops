@@ -53,6 +53,20 @@ jobs:
           code=$?
           test "$code" -eq 4 || { echo "allowlist: expected exit 4, got $code"; exit 1; }
           python -c "import json; d=json.load(open('allow.json')); s=d['summary']; assert s['accepted']==1 and s['total']==11 and d['allowlist']['entries'][0]['status']=='matched', s"
+      - name: Run-manifest smoke test (offline collector + verifier)
+        if: runner.os != 'Windows'
+        shell: bash
+        run: |
+          set +e
+          out="$(mktemp -d)"
+          export BO_TEST_MODE=1 BO_ROOT="$PWD/tests/fixtures/linux-root" BO_FORCE_MISSING_TOOLS="ip route ifconfig netstat systemd-detect-virt"
+          PATH="$PWD/tests/fixtures/linux-bin:$PATH" bash linux/audit/audit-linux.sh --modules system --output-dir "$out" --quiet > /dev/null 2>&1
+          run_dir="$(ls -d "$out"/blueops-run-* | head -n 1)"
+          python -m shared.reporting.verify "$run_dir" || { echo "a fresh run directory did not verify"; exit 1; }
+          echo tampered >> "$run_dir/run.log"
+          python -m shared.reporting.verify "$run_dir" --quiet 2> /dev/null
+          code=$?
+          test "$code" -eq 3 || { echo "tampering was not detected (exit $code)"; exit 1; }
 
   bash:
     name: Bash tests (Bats)

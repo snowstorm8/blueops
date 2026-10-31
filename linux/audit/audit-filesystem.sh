@@ -202,25 +202,42 @@ _fs_perms() {
   return 0
 }
 
-# Opt-in (--package-integrity): dpkg --verify compares installed files with the
-# checksums recorded by their packages. Read-only, but it hashes every packaged file.
-# Output rows: "??5??????   /path", "??5?????? c /conffile", "missing     /path".
+# Opt-in (--package-integrity): compares installed files with the checksums recorded by their
+# packages. Backends: `dpkg --verify` (Debian family) or `rpm -Va` (RHEL/SUSE family); both are
+# read-only but hash every packaged file. Trust limit, stated in the findings: the checksums live
+# in the package database on the same host (dpkg: MD5 lists under /var/lib/dpkg/info, rpm: the
+# database under /var/lib/rpm), so an attacker with root can rewrite file and checksum together.
+# The check finds sloppy tampering and unplanned changes, not a careful root-level compromise.
+# dpkg rows: "??5??????   /path", "??5?????? c /conffile", "missing     /path".
+# rpm rows:  "S.5....T.  c /conffile", ".M.......    /path", "missing   c /path"
+# (attribute letter c/d/g/l/r after the nine flag characters).
 _fs_pkg() {
-  if ! bo_have dpkg || [[ ! -r "$(bo_path /var/lib/dpkg/status)" ]]; then
-    bo_error PKG_UNSUPPORTED "--package-integrity needs a Debian-family system with dpkg; check skipped" "FS-PKG-001"
+  local backend="" tool_note
+  if bo_have dpkg && [[ -r "$(bo_path /var/lib/dpkg/status)" ]]; then
+    backend=dpkg
+    tool_note="dpkg --verify compares MD5 sums from /var/lib/dpkg/info/*.md5sums (MD5 is weak and the lists are root-writable)"
+  elif bo_have rpm && [[ -d "$(bo_path /var/lib/rpm)" || -d "$(bo_path /usr/lib/sysimage/rpm)" ]]; then
+    backend=rpm
+    tool_note="rpm -Va compares each package's own digests (SHA-256 for current packages) from the rpm database, which is root-writable"
+  else
+    bo_error PKG_UNSUPPORTED "--package-integrity supports dpkg (Debian family) and rpm (RHEL/SUSE family) databases; neither was found, check skipped" "FS-PKG-001"
     return 0
   fi
   if ! bo_is_root && [[ -z "${BO_ROOT:-}" ]]; then
-    # dpkg cannot read root-only files (e.g. /etc/sudoers) and reports them as changed.
-    bo_error PKG_NEEDS_ROOT "--package-integrity needs root: dpkg --verify misreports files it cannot read; check skipped" "FS-PKG-001"
+    # The package tools cannot read root-only files (e.g. /etc/sudoers) and report them as changed.
+    bo_error PKG_NEEDS_ROOT "--package-integrity needs root: ${backend} misreports files it cannot read; check skipped" "FS-PKG-001"
     return 0
   fi
-  local out="${BO_SCRATCH}/pkg.txt" err="${BO_SCRATCH}/pkg.err" kind flags path rest
+  local out="${BO_SCRATCH}/pkg.txt" err="${BO_SCRATCH}/pkg.err" kind flags path rest attr
   local -a lim=()
   if bo_have timeout; then lim=(timeout 1800); fi
-  "${lim[@]+"${lim[@]}"}" dpkg --verify >"${out}" 2>"${err}" || true
+  if [[ "${backend}" == dpkg ]]; then
+    "${lim[@]+"${lim[@]}"}" dpkg --verify >"${out}" 2>"${err}" || true
+  else
+    "${lim[@]+"${lim[@]}"}" rpm -Va >"${out}" 2>"${err}" || true
+  fi
   if [[ -s "${err}" ]]; then
-    bo_perm_error "dpkg --verify reported errors (e.g. unreadable files); results may be incomplete" "FS-PKG-001"
+    bo_perm_error "${backend} verification reported errors (e.g. unreadable files); results may be incomplete" "FS-PKG-001"
   fi
   local -a crit=() other=() sens=()
   local nconf=0 ndoc=0
@@ -228,9 +245,15 @@ _fs_pkg() {
     [[ -n "${flags}" ]] || continue
     kind=modified
     [[ "${flags}" == missing ]] && kind=missing
-    if [[ "${rest}" == "c "* ]]; then
-      path="${rest#c }"
-      path="${path#"${path%%[![:space:]]*}"}"
+    # rpm differences that are only metadata (mode, owner, time) are routine and not "tampered".
+    if [[ "${backend}" == rpm && "${kind}" == modified && "${flags}" != *[5SL]* ]]; then kind=metadata; fi
+    attr=""
+    if [[ "${rest}" =~ ^([cdglr])[[:space:]]+(.*)$ ]]; then
+      attr="${BASH_REMATCH[1]}"
+      rest="${BASH_REMATCH[2]}"
+    fi
+    path="${rest#"${rest%%[![:space:]]*}"}"
+    if [[ "${attr}" == c ]]; then
       # Conffiles change legitimately, but not these: they are authentication, remote
       # access, scheduling, boot and privilege configuration.
       case "${path}" in
@@ -241,28 +264,31 @@ _fs_pkg() {
       esac
       continue
     fi
-    path="${rest#"${rest%%[![:space:]]*}"}"
+    if [[ "${attr}" == [dlr] || "${attr}" == g ]]; then
+      ndoc=$((ndoc + 1))
+      continue
+    fi
     case "${path}" in
       /usr/share/doc/* | /usr/share/man/* | /usr/share/info/* | /usr/share/locale/*)
         ndoc=$((ndoc + 1))
         continue
         ;;
       /bin/* | /sbin/* | /usr/bin/* | /usr/sbin/* | /lib/* | /lib64/* | /usr/lib/* | /usr/lib64/* | /usr/local/bin/* | /boot/*)
-        if [[ "${kind}" == modified ]]; then crit+=("file|${path}|${flags}"); else other+=("file|${path}|${kind}"); fi
+        if [[ "${kind}" == modified ]]; then crit+=("file|${path}|${flags}"); else other+=("file|${path}|${kind} ${flags}"); fi
         ;;
       *) other+=("file|${path}|${kind} ${flags}") ;;
     esac
   done <"${out}"
   bo_finding FS-PKG-003 info high filesystem "Package integrity summary" \
-    "dpkg --verify: ${#crit[@]} modified program/library file(s), ${#other[@]} other discrepancy(ies); ${#sens[@]} modified security-sensitive configuration file(s); ${nconf} other modified configuration file(s) and ${ndoc} documentation file(s) not listed (expected to change)." "" ""
+    "${backend}: ${#crit[@]} modified program/library file(s), ${#other[@]} other discrepancy(ies); ${#sens[@]} modified security-sensitive configuration file(s); ${nconf} other modified configuration file(s) and ${ndoc} documentation file(s) not listed (expected to change). Trust limit: ${tool_note}." "" ""
   ((${#crit[@]} > 0)) && bo_finding FS-PKG-001 high medium filesystem "Installed programs or libraries differ from their package checksums" \
-    "Flags: 5 = content (MD5) changed, S size, T mtime, U/G owner. Content changes outside a package upgrade indicate trojanized binaries." \
-    "Reinstall the package from a trusted source after preserving the file (apt install --reinstall PKG)." "T1554" "${crit[@]}"
+    "Flags: 5 = content digest changed, S size, T mtime, U/G owner. Content changes outside a package upgrade indicate trojanized binaries. ${tool_note}." \
+    "Reinstall the package from a trusted source after preserving the file (apt install --reinstall PKG / dnf reinstall PKG)." "T1554" "${crit[@]}"
   ((${#sens[@]} > 0)) && bo_finding FS-PKG-004 medium low filesystem "Security-sensitive configuration differs from the package default" \
     "Packaged configuration under PAM, SSH, sudo, cron, systemd, boot scripts and TLS trust. Local administrators change these on purpose; so do attackers." \
-    "Compare with a known-good copy (dpkg-query/apt-get download) and your change log." "T1556.003" "${sens[@]}"
+    "Compare with a known-good copy (dpkg-query/apt-get download or rpm2cpio) and your change log." "T1556.003" "${sens[@]}"
   ((${#other[@]} > 0)) && bo_finding FS-PKG-002 medium low filesystem "Other packaged files modified or missing" \
-    "Files outside the main program directories, and packaged files that were removed." \
+    "Files outside the main program directories, packaged files that were removed, and (rpm) metadata-only differences." \
     "Compare with your change log; reinstall the owning package if the change is unexplained." "T1565.001" "${other[@]}"
   return 0
 }

@@ -28,6 +28,7 @@ from typing import Any, Callable
 from shared.reporting.accepted import Allowlist
 from shared.reporting.accepted import apply as apply_allowlist
 from shared.reporting.contracts import SCHEMA_VERSION, Severity
+from shared.reporting.inventory import MAX_KEY_LEN, is_loopback_address
 
 TOOL_NAME = "blueops-detect"
 TOOL_VERSION = "0.3.0"
@@ -170,6 +171,25 @@ def _hash_only(c: dict[str, Any]) -> bool:
     """True when the change is known only through a file digest (no readable content)."""
     names = set(_new_values(c))
     return "sha256" in names and not names & _CONTENT_ATTRS
+
+
+def _line_change(c: dict[str, Any]) -> tuple[int, int] | None:
+    """(lines added, lines removed) from the per-line fingerprints, or None when not recorded.
+
+    The collector keeps a fingerprint of every effective line of a persistence file (never the
+    text), so a hash-only change still has a known direction: lines were added, removed or both.
+    """
+    d = _delta(c, "line_ids")
+    if d is None:
+        return None
+    before, after = set(d[0]), set(d[1])
+    return len(after - before), len(before - after)
+
+
+_LINES_ADDED_UNKNOWN = (
+    "What the added lines say: the report records only fingerprints of the lines, not their text.",
+    "Which program the file now starts.",
+)
 
 
 def _digest(c: dict[str, Any]) -> str:
@@ -358,9 +378,15 @@ def _group_member_added(c: dict[str, Any], ctx: Context) -> list[Signal]:
     gid = _name(c).casefold()
     if gid not in PRIVILEGED_GROUPS or c["change"] not in ("added", "modified"):
         return []
-    d = _delta(c, "members") if c["change"] == "modified" else ([], _vals(_now(c, "members")))
-    if d is None:
-        return []
+    # Listed members and accounts that hold the group as their *primary* group (the Linux
+    # collector records the latter as ``primary_members``) both count as members.
+    if c["change"] == "modified":
+        ds = [d for d in (_delta(c, "members"), _delta(c, "primary_members")) if d is not None]
+        if not ds:
+            return []
+        d = ([m for x in ds for m in x[0]], [m for x in ds for m in x[1]])
+    else:
+        d = ([], _vals(_now(c, "members")) + _vals(_now(c, "primary_members")))
     before = {m.casefold() for m in d[0]}
     added = sorted({m for m in d[1] if m.casefold() not in before}, key=str.casefold)
     if not added:
@@ -458,6 +484,9 @@ def _ssh_key(c: dict[str, Any], ctx: Context) -> list[Signal]:
             "Remove the key only after preserving the file for evidence.",
         ),
         techniques=("T1098.004",),
+        # One key line shows up once per account that shares the home directory (root and a
+        # UID 0 alias, for example): link those detections instead of leaving four unrelated ones.
+        tokens=("name:sshkey-" + ":".join(str(c["key"]).split(":")[3:]).casefold(),),
     )
 
 
@@ -473,14 +502,22 @@ def _persistence(c: dict[str, Any], ctx: Context) -> list[Signal]:
     sev = Severity.HIGH if (risky or c["change"] == "modified") else Severity.MEDIUM
     verb = "added" if c["change"] == "added" else "changed"
     hashed = _hash_only(c)
+    lines = _line_change(c) if hashed and c["change"] == "modified" else None
+    direction = (
+        f" {lines[0]} line(s) added and {lines[1]} removed (by fingerprint)." if lines else ""
+    )
     return _sig(
         "BO-PER-002",
         "Persistence entry " + verb,
         sev,
         OBSERVED,
         observation=f"Persistence entry '{key}' ({mech}) was {verb}"
-        + (f"; only its content hash differs{_digest(c)}." if hashed else "."),
-        unknown=_HASH_UNKNOWN[c["change"]] if hashed else (),
+        + (f"; only its content hash differs{_digest(c)}.{direction}" if hashed else "."),
+        unknown=(
+            (_LINES_ADDED_UNKNOWN if lines and lines[0] else _HASH_UNKNOWN[c["change"]])
+            if hashed
+            else ()
+        ),
         rationale="Autostart locations run code without a user action. A changed existing "
         "entry or a rarely-used mechanism is more suspicious than a new Run/startup item; "
         "installers also create these, so confirm against software changes.",
@@ -520,7 +557,9 @@ _EXE_TECHNIQUE = {
     "persistence": "T1547",
     "processes": "T1036",
 }
-_NON_COMMAND = frozenset({"sha256", "mode", "size", "type", "user", "owner", "name", "uid", "gid"})
+_NON_COMMAND = frozenset(
+    {"sha256", "mode", "size", "type", "user", "owner", "name", "uid", "gid", "lines", "line_ids"}
+)
 
 
 def volatile_paths(value: str) -> list[str]:
@@ -581,6 +620,112 @@ def _volatile_exec(c: dict[str, Any], ctx: Context) -> list[Signal]:
         ),
         techniques=(_EXE_TECHNIQUE.get(domain, "T1036"),),
         tokens=tokens,
+    )
+
+
+# --- command content (heuristic) ------------------------------------------------------------
+
+# Attack patterns in the *text* of a command, as opposed to where it runs from (BO-EXE-001). The
+# list mirrors the collectors' own (linux/lib/common.sh `bo_suspicious_reasons`, windows/lib
+# `Get-BoCommandReason`) so a command that an audit finding flags is also visible to the rules.
+# Every pattern is applied to at most MAX_COMMAND_CHARS characters of attacker-influenced text.
+MAX_COMMAND_CHARS = 2000
+_NETTOOL = r"(?:^|[^\w])(?:nc|ncat|netcat|socat|telnet)\s"
+_TOSHELL = r"\|\s*(?:/[\w/.-]*/)?(?:ba|z|da|k|c|tc|a)?sh(?:\s|$)"
+COMMAND_PATTERNS: tuple[tuple[re.Pattern[str], str], ...] = tuple(
+    (re.compile(rx, re.IGNORECASE), label)
+    for rx, label in (
+        (r"/dev/(?:tcp|udp)/", "bash /dev/tcp redirect (reverse-shell pattern)"),
+        (
+            r"(?:^|[^\w])(?:nc|ncat|netcat|socat)\s.*?(?:\s-e\s|\s-c\s|--exec|--sh-exec|--lua-exec"
+            r"|exec:|system:)",
+            "netcat/socat with command execution",
+        ),
+        (_NETTOOL + r"[^|]*" + _TOSHELL, "network tool piped to a shell"),
+        (
+            r"(?:^|[^\w])(?:ba|z|da|k)?sh\s+-i[^|]*\|\s*(?:nc|ncat|netcat|socat|telnet)\s",
+            "interactive shell piped to a network tool",
+        ),
+        (r"mkfifo\s.*(?:nc|ncat|netcat|telnet|openssl)\s", "named-pipe reverse shell"),
+        (r"(?:curl|wget)[^|]*\|\s*(?:sudo\s+)?(?:ba|z|da|k)?sh\b", "download piped to a shell"),
+        (r"base64\s+(?:-d|--decode).*\|\s*(?:ba|z|da)?sh\b", "decoded payload piped to a shell"),
+        (r"<\(\s*(?:curl|wget|fetch)\s", "downloaded script run via process substitution"),
+        (
+            r"(?:python[\d.]*|perl|ruby|php)\s+-[ecr]\s.*(?:socket|fsockopen)",
+            "scripted socket shell",
+        ),
+        (r"perl\s.*(?:IO::Socket|-MIO|use\s+Socket)", "perl socket shell"),
+        (r"python[\d.]*\s.*pty\.spawn", "python pty shell"),
+        (r"(?:^|[\s;])(?:export\s+)?LD_PRELOAD=", "sets LD_PRELOAD"),
+        (r"alias\s+(?:sudo|su|ssh|passwd)=", "aliases a privileged command"),
+        (r"chmod\s+(?:[ugoa]*\+s|[0-7]*[4267][0-7]{3})\b", "sets the setuid/setgid bit"),
+        # Windows
+        (
+            r"\b(?:powershell|pwsh)(?:\.exe)?\b.*\s-e(?:nc(?:odedcommand)?)?\s+[A-Za-z0-9+/=]{16,}",
+            "encoded PowerShell command",
+        ),
+        (r"\b(?:iex|invoke-expression)\b", "Invoke-Expression"),
+        (
+            r"(?:downloadstring|downloadfile|net\.webclient|invoke-webrequest|start-bitstransfer"
+            r"|\biwr\b).*(?:\|\s*iex|\biex\b|invoke-expression|-enc|;\s*start|\.exe)",
+            "download-and-execute",
+        ),
+        (r"\bmshta(?:\.exe)?\b.*(?:https?:|vbscript:|javascript:)", "mshta remote/script content"),
+        (r"\bregsvr32(?:\.exe)?\b.*(?:scrobj\.dll|/i:https?)", "regsvr32 scriptlet execution"),
+        (r"\bcertutil(?:\.exe)?\b.*-urlcache.*https?:", "certutil download"),
+        (r"\bbitsadmin(?:\.exe)?\b.*/transfer", "bitsadmin transfer"),
+        (r"\bvssadmin(?:\.exe)?\b.*delete\s+shadows", "shadow copy deletion"),
+        (r"\bwevtutil(?:\.exe)?\b.*\scl\s", "event log clearing"),
+        (
+            r"\bnetsh(?:\.exe)?\b.*(?:advfirewall.*state\s+off|firewall.*opmode.*disable)",
+            "firewall disabled",
+        ),
+        (r"mimikatz|sekurlsa|procdump.*lsass", "credential access tooling"),
+        (
+            r"system\.net\.sockets\.tcpclient|\bnc(?:at)?(?:\.exe)?\s.*\s-e\s",
+            "reverse shell indicator",
+        ),
+    )
+)
+
+
+def command_reasons(value: str) -> list[str]:
+    """Labels of the attack patterns that ``value`` matches (empty for ordinary commands)."""
+    text = value[:MAX_COMMAND_CHARS]
+    return [label for rx, label in COMMAND_PATTERNS if rx.search(text)]
+
+
+@rule("BO-EXE-002", "scheduled_tasks", "services", "persistence")
+def _command_content(c: dict[str, Any], ctx: Context) -> list[Signal]:
+    """Autostart command text matches a reverse-shell, download-and-execute or similar pattern."""
+    found: dict[str, str] = {}
+    for name, values in _new_values(c).items():
+        if name in _NON_COMMAND:
+            continue
+        for v in values:
+            for label in command_reasons(v):
+                found.setdefault(label, name)
+    if not found:
+        return []
+    labels = sorted(found)
+    return _sig(
+        "BO-EXE-002",
+        "Autostart command matches an attack pattern",
+        Severity.HIGH,
+        HEURISTIC,
+        observation="New value matches: "
+        + "; ".join(f"{lab} ({found[lab]})" for lab in labels[:4])
+        + ".",
+        rationale="These command shapes (reverse and bind shells, download piped to a shell, "
+        "encoded or in-memory PowerShell, loader hijacking) have few legitimate uses in a job, "
+        "service or startup entry, but administrators do script some of them, so this is a "
+        "suspicion about the text of the command, not about where it runs.",
+        investigate=(
+            "Read the whole command and identify every host, port and file it names.",
+            "Find who created the job or entry and when (file times, task or service metadata).",
+            "Search this report for processes and listeners that match the command.",
+        ),
+        techniques=("T1059", "T1053", "T1547"),
     )
 
 
@@ -819,7 +964,7 @@ WELL_KNOWN_PORTS = frozenset({"22", "23", "80", "443", "445", "3389", "5985", "5
 
 
 def _loopback(binds: list[str]) -> bool:
-    return bool(binds) and all(b.startswith(("127.", "::1", "localhost")) for b in binds)
+    return bool(binds) and all(is_loopback_address(b) for b in binds)
 
 
 def _tool_name(proc: str) -> str:
@@ -1004,14 +1149,44 @@ def _firewall_weakened(c: dict[str, Any], ctx: Context) -> list[Signal]:
 WEAKENINGS = (
     ("::enablelua", {"0"}, Severity.HIGH, "User Account Control is turned off"),
     ("::restrictanonymous", {"0"}, Severity.MEDIUM, "anonymous enumeration is allowed"),
+    (
+        "::restrictanonymoussam",
+        {"0"},
+        Severity.MEDIUM,
+        "anonymous enumeration of SAM accounts is allowed",
+    ),
     ("kernel.randomize_va_space", {"0", "1"}, Severity.HIGH, "ASLR is reduced or off"),
+    (
+        "kernel.kptr_restrict",
+        {"0"},
+        Severity.MEDIUM,
+        "kernel pointers are exposed to unprivileged users",
+    ),
+    (
+        "kernel.yama.ptrace_scope",
+        {"0"},
+        Severity.MEDIUM,
+        "any process may ptrace other processes of the same user",
+    ),
+    ("kernel.dmesg_restrict", {"0"}, Severity.LOW, "the kernel log is readable by everyone"),
+    (
+        "fs.suid_dumpable",
+        {"1"},
+        Severity.MEDIUM,
+        "set-UID programs may write readable core dumps",
+    ),
     ("net.ipv4.ip_forward", {"1"}, Severity.MEDIUM, "the host now forwards IP traffic"),
+)
+
+# Settings where a higher value is safer: only a drop counts, raising one is an improvement.
+GRADED_UP = frozenset(
+    {"kernel.randomize_va_space", "kernel.kptr_restrict", "kernel.yama.ptrace_scope"}
 )
 
 
 def _lowered(d: tuple[list[str], list[str]], frag: str) -> bool:
     """For graded settings (ASLR 0/1/2) only a drop counts; raising 0 -> 1 is an improvement."""
-    if frag != "kernel.randomize_va_space" or not d[0]:
+    if frag not in GRADED_UP or not d[0]:
         return True
     try:
         return int(d[1][0]) < int(d[0][0])
@@ -1053,7 +1228,9 @@ def _hardening_weakened(c: dict[str, Any], ctx: Context) -> list[Signal]:
         return []
     key = str(c["key"])
     for frag, bad, sev, why in WEAKENINGS:
-        if frag in key and d[1][0] in bad and d[0][:1] != d[1][:1] and _lowered(d, frag):
+        # Match the setting name at the end of the key: ``::restrictanonymous`` must not also
+        # match ``::restrictanonymoussam`` (a different setting with its own entry).
+        if key.endswith(frag) and d[1][0] in bad and d[0][:1] != d[1][:1] and _lowered(d, frag):
             return _sig(
                 "BO-CFG-002",
                 "Hardening setting weakened",
@@ -1164,9 +1341,17 @@ def _risky_suid(c: dict[str, Any], ctx: Context) -> list[Signal]:
 def _auth_config(c: dict[str, Any], ctx: Context) -> list[Signal]:
     """sudoers or PAM configuration added or changed."""
     key = str(c["key"])
-    if c["change"] == "removed" or not key.startswith(("config:sudoers:", "config:pam:")):
+    if c["change"] == "removed" or not key.startswith(
+        ("config:sudoers:", "config:pam:", "config:pam-module:")
+    ):
         return []
-    kind = "sudoers" if key.startswith("config:sudoers:") else "PAM"
+    kind = (
+        "sudoers"
+        if key.startswith("config:sudoers:")
+        else "PAM module"
+        if key.startswith("config:pam-module:")
+        else "PAM"
+    )
     verb = "added" if c["change"] == "added" else "changed"
     hashed = _hash_only(c)
     return _sig(
@@ -1235,6 +1420,146 @@ def _name_resolution(c: dict[str, Any], ctx: Context) -> list[Signal]:
             "Confirm what manages the resolver configuration on this host.",
         ),
         techniques=("T1565.001",),
+    )
+
+
+_SSHD_DEFAULT_KEYS = re.compile(
+    r"^(?:\.ssh/authorized_keys2?|%h/\.ssh/authorized_keys2?)"
+    r"(?: (?:\.ssh/authorized_keys2?|%h/\.ssh/authorized_keys2?))*$"
+)
+
+
+# keyword -> (is the new value weak given the previous one, severity, what it allows)
+_SSHD_WEAK: dict[str, tuple[Callable[[str, str], bool], Severity, str]] = {
+    "permitrootlogin": (
+        lambda v, b: v == "yes",
+        Severity.HIGH,
+        "root may log in over SSH with a password",
+    ),
+    "permitemptypasswords": (
+        lambda v, b: v == "yes",
+        Severity.HIGH,
+        "accounts with empty passwords may log in",
+    ),
+    "permituserenvironment": (
+        lambda v, b: v not in ("no", ""),
+        Severity.HIGH,
+        "users can inject environment variables (for example LD_PRELOAD)",
+    ),
+    "hostbasedauthentication": (
+        lambda v, b: v == "yes",
+        Severity.HIGH,
+        "the connecting host is trusted instead of the user",
+    ),
+    "authorizedkeysfile": (
+        lambda v, b: v != "none" and not _SSHD_DEFAULT_KEYS.match(v),
+        Severity.HIGH,
+        "authorised keys are read from a non-default location",
+    ),
+    "authorizedkeyscommand": (
+        lambda v, b: v not in ("", "none"),
+        Severity.HIGH,
+        "a program decides who may log in",
+    ),
+    "passwordauthentication": (
+        lambda v, b: v == "yes" and b == "no",
+        Severity.MEDIUM,
+        "password logins were switched on",
+    ),
+}
+
+
+def _sshd_weakness(kw: str, val: str, before: str) -> tuple[Severity, str] | None:
+    v = val.strip().lower()
+    entry = _SSHD_WEAK.get(kw)
+    if v == before or entry is None or not entry[0](v, before):
+        return None
+    return entry[1], entry[2]
+
+
+@rule("BO-CFG-008", "config")
+def _sshd_weakened(c: dict[str, Any], ctx: Context) -> list[Signal]:
+    """SSH daemon setting weakened or redirected."""
+    key = str(c["key"])
+    if c["change"] not in ("added", "modified") or not key.startswith("config:sshd:"):
+        return []
+    kw = key.rsplit(":", 1)[-1]
+    d = _delta(c, "value") if c["change"] == "modified" else ([], _vals(_now(c, "value")))
+    if not d or not d[1]:
+        return []
+    weak = _sshd_weakness(kw, d[1][0], d[0][0].strip().lower() if d[0] else "")
+    if weak is None:
+        return []
+    return _sig(
+        "BO-CFG-008",
+        "SSH daemon setting weakened",
+        weak[0],
+        OBSERVED,
+        observation=f"sshd {kw}: {', '.join(d[0]) or '(not set)'} -> {d[1][0]}; {weak[1]}.",
+        rationale="sshd settings decide who can log in and where authorised keys come from. "
+        "Attackers loosen them (or point key lookup at a file or program they control) to keep "
+        "access; administrators change them for specific needs.",
+        investigate=(
+            "Read the file the setting came from (the record's evidence) and its recent changes.",
+            "Check authentication logs for logins since the baseline.",
+        ),
+        techniques=("T1098.004", "T1556"),
+    )
+
+
+@rule("BO-CFG-009", "config")
+def _kernel_module(c: dict[str, Any], ctx: Context) -> list[Signal]:
+    """New kernel module (flagged out-of-tree or unsigned is rated higher)."""
+    key = str(c["key"])
+    if c["change"] != "added" or not key.startswith("config:kmod:"):
+        return []
+    taint = _one(_now(c, "taint"))
+    flagged = any(ch in taint for ch in "OE") and taint != "none"
+    return _sig(
+        "BO-CFG-009",
+        "New kernel module",
+        Severity.MEDIUM if flagged else Severity.LOW,
+        OBSERVED,
+        observation=f"Kernel module '{_name(c)}' is loaded and was not before"
+        + (f" (taint flags {taint}: out-of-tree or unsigned)." if flagged else "."),
+        rationale="Loadable kernel modules run with full kernel privilege; a rootkit can hide "
+        "processes, files and sockets from every other check. Hardware events and container "
+        "runtimes also load modules, so an ordinary in-tree module is only low.",
+        investigate=(
+            "Identify the module file (modinfo) and hash it before unloading anything.",
+            "Check for a matching package and for a recent driver or container-runtime change.",
+        ),
+        techniques=("T1547.006",),
+    )
+
+
+@rule("BO-CFG-010", "config")
+def _linux_firewall(c: dict[str, Any], ctx: Context) -> list[Signal]:
+    """Linux host firewall opened (INPUT policy ACCEPT or rules removed)."""
+    key = str(c["key"])
+    if c["change"] != "modified" or not key.startswith("config:firewall:linux-"):
+        return []
+    policy, rules = _delta(c, "policy_input"), _delta(c, "rules")
+    why = []
+    if policy and policy[1][:1] == ["ACCEPT"] and policy[0][:1] != ["ACCEPT"]:
+        why.append(f"INPUT policy {', '.join(policy[0]) or '(unknown)'} -> ACCEPT")
+    if rules and rules[1][:1] == ["0"] and rules[0][:1] not in ([], ["0"]):
+        why.append(f"{', '.join(rules[0])} rule(s) -> none")
+    if not why:
+        return []
+    return _sig(
+        "BO-CFG-010",
+        "Linux host firewall opened",
+        Severity.HIGH,
+        OBSERVED,
+        observation=f"{_name(c)}: {'; '.join(why)}.",
+        rationale="Flushing the rules or opening the default inbound policy exposes every "
+        "listening service and lets bind shells and lateral movement through.",
+        investigate=(
+            "Check shell history, the firewall service state and its configuration for the change.",
+            "Restore the rule set only after confirming scored ports stay reachable.",
+        ),
+        techniques=("T1562.004",),
     )
 
 
@@ -1407,7 +1732,9 @@ def validate_diff(diff: Any) -> dict[str, Any]:
             isinstance(c, dict)
             and c.get("change") in ("added", "removed", "modified")
             and all(isinstance(c.get(k), str) and c[k] for k in ("domain", "key"))
+            and all(len(c[k]) <= MAX_KEY_LEN for k in ("domain", "key"))
             and isinstance(c.get("scope", ""), str)
+            and len(c.get("scope", "")) <= MAX_KEY_LEN
             and isinstance(c.get("attributes", []), list)
             and isinstance(c.get("transient", False), bool)
         )

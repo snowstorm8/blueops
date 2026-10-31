@@ -13,8 +13,15 @@ source "${SCRIPT_DIR}/../lib/common.sh"
 # Bracketed controls ([success=1 default=ignore]) are joined with "_".
 _pam_parse() {
   local f="$1" shift_service="$2"
+  # A trailing backslash continues a rule on the next line (Linux-PAM honours it): join first,
+  # otherwise `auth sufficient \` + `pam_permit.so` would parse as a rule with module "\".
   awk -v file="$(bo_unroot "${f}")" -v svc="${shift_service}" '
-    { line = $0; sub(/[[:space:]]*#.*/, "", line); n = split(line, a, /[[:space:]]+/); i = 1
+    { line = $0
+      while (line !~ /^[[:space:]]*#/ && line ~ /\\[[:space:]]*$/) {
+        sub(/\\[[:space:]]*$/, " ", line)
+        if ((getline nxt) > 0) line = line nxt; else break
+      }
+      sub(/[[:space:]]*#.*/, "", line); n = split(line, a, /[[:space:]]+/); i = 1
       if (a[1] == "") i = 2
       if (n < i) next
       if (svc == 1) i++
@@ -77,7 +84,7 @@ mod_pam() {
 
   bo_cov config pam complete
   local file type ctl mod args curfile="" real=0 mode
-  local modules=" " nrules=0
+  local modules=" " nrules=0 modpaths=" "
   local -a permit=() nullok=() hash=() abspath=() unknown=() perms=() inv=()
   while IFS=$'\t' read -r file type ctl mod args; do
     if [[ "${file}" != "${curfile}" ]]; then
@@ -123,15 +130,33 @@ mod_pam() {
     fi
     if [[ "${mod}" == /* ]]; then
       case "${mod}" in
-        /lib/security/* | /lib64/security/* | /usr/lib/security/* | /usr/lib64/security/* | /lib/*/security/* | /usr/lib/*/security/*) ;;
+        /lib/security/* | /lib64/security/* | /usr/lib/security/* | /usr/lib64/security/* | /lib/*/security/* | /usr/lib/*/security/*)
+          [[ "${modpaths}" == *" $(bo_path "${mod}") "* ]] || modpaths+="$(bo_path "${mod}") "
+          ;;
         *) abspath+=("file|${file}|${type} ${ctl} ${mod}") ;;
       esac
-    elif ((${#dirs[@]} > 0)) && [[ "${optional}" == 0 ]]; then
+    elif ((${#dirs[@]} > 0)); then
       local found=0 d
-      for d in "${dirs[@]}"; do [[ -e "${d}/${mod}" ]] && found=1 && break; done
-      ((found)) || unknown+=("file|${file}|${type} ${ctl} ${mod}: not found in the system PAM module directories")
+      for d in "${dirs[@]}"; do
+        if [[ -e "${d}/${mod}" ]]; then
+          found=1
+          [[ "${modpaths}" == *" ${d}/${mod} "* ]] || modpaths+="${d}/${mod} "
+          break
+        fi
+      done
+      ((found)) || [[ "${optional}" == 1 ]] || unknown+=("file|${file}|${type} ${ctl} ${mod}: not found in the system PAM module directories")
     fi
   done <"${BO_SCRATCH}/pam.tsv"
+
+  # The code the stacks load is part of the authentication configuration: a replaced module
+  # (credential capture) shows up as a hash change, not only as a forgeable modification time.
+  local mp
+  local -a mods=()
+  IFS=' ' read -r -a mods <<<"${modpaths}"
+  for mp in ${mods[@]+"${mods[@]}"}; do
+    [[ -f "${mp}" ]] || continue
+    bo_inv config pam "config:pam-module:$(bo_unroot "${mp}")" "sha256=$(bo_sha256_file "${mp}" || echo @unknown)" "mode=$(bo_mode "${mp}" || echo @unknown)" "^file=$(bo_unroot "${mp}")"
+  done
 
   for f in "${pamd}" "${files[@]}"; do
     [[ -e "${f}" ]] || continue
