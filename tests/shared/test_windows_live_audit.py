@@ -21,7 +21,7 @@ import pytest
 from jsonschema import Draft202012Validator
 
 from shared.reporting.manifest import verify_run_dir
-from tests.shared.windows_state import explained_by_host, host_changes
+from tests.shared.windows_state import explained_by_host, failure_message, host_changes
 
 ROOT = Path(__file__).resolve().parents[2]
 SCHEMA = json.loads((ROOT / "shared" / "schemas" / "audit-report.schema.json").read_text("utf-8"))
@@ -93,9 +93,7 @@ def test_live_audit_is_valid_and_read_only(shell: str, script: Path) -> None:
     changed = host_changes(before, after)
     for note in explained_by_host(changed, before, after):
         warnings.warn(f"host changed itself during the audit: {note}", stacklevel=1)
-    assert not changed, (
-        f"audit changed host state: {changed} (before={before['diag']}, after={after['diag']})"
-    )
+    assert not changed, failure_message(changed, before, after)
     assert _tree(ROOT / "windows") == repo_before
 
 

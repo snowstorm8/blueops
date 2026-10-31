@@ -139,3 +139,63 @@ def test_collectors_change_nothing_except_their_own_output_directory() -> None:
             if _STATE_CHANGING.search(code) and _function_of(lines, n) not in allowed:
                 offenders.append(f"{path.relative_to(ROOT)}:{n + 1}: {line.strip()}")
     assert not offenders, "\n".join(offenders)
+
+
+_REGISTRY_WRITES = re.compile(
+    r"\b(?:New-ItemProperty|Set-ItemProperty|Remove-ItemProperty|Rename-ItemProperty"
+    r"|Clear-ItemProperty|Set-Item|Add-Type|Import-Module|Register-\w*Task|Set-\w*Policy)\b"
+    r"|\.(?:SetValue|DeleteValue|DeleteSubKey\w*|CreateSubKey)\("
+    r"|OpenSubKey\([^)]*,\s*(?:\$true|1|\[bool\]1)\)"
+    r"|Registry\]::SetValue|\bRegSetValue\w*|\bRegDeleteValue\w*|\bRegCreateKey\w*"
+    r"|\breg(?:\.exe)?\s+(?:add|delete|import|copy|save|restore|load|unload)\b"
+    r"|\b(?:secedit|auditpol|lgpo|gpupdate)(?:\.exe)?\b[^\n]*\s/(?:set|configure|import|restore|clear)\b"
+)
+
+
+def test_no_collector_can_write_the_registry() -> None:
+    """The Lsa-key question: nothing under windows/ may write, create or delete a registry value,
+    define P/Invoke code, or call a policy-changing tool. Quoted text (remediation advice, pattern
+    strings) is data and is ignored, as in the broader read-only guard above."""
+    offenders = []
+    for path in _scripts():
+        for n, line in enumerate(path.read_text(encoding="utf-8").splitlines(), 1):
+            code = re.sub(r"'(?:[^']|'')*'", "''", line.split("#", 1)[0])
+            code = re.sub(r'"(?:[^"`]|`.)*"', '""', code)
+            if _REGISTRY_WRITES.search(code):
+                offenders.append(f"{path.relative_to(ROOT)}:{n}: {line.strip()}")
+    assert not offenders, "\n".join(offenders)
+
+
+def test_the_guard_recognises_registry_writes() -> None:
+    for bad in (
+        "Set-ItemProperty -Path $p -Name RunAsPPL -Value 1",
+        "$k.SetValue('a', 1)",
+        "$h.OpenSubKey($sub, $true)",
+        "reg add HKLM\\X /v a",
+        "[Microsoft.Win32.Registry]::SetValue($p, 'a', 1)",
+        "Add-Type -MemberDefinition $code -Name X",
+        "secedit /configure /db x.sdb",
+    ):
+        assert _REGISTRY_WRITES.search(bad), bad
+    for good in (
+        "$k = $hive.OpenSubKey($sub)",
+        "$v = $k.GetValue($n, $null, $opts)",
+        "auditpol /get /category:*",
+        "Get-ItemProperty -LiteralPath $p",
+    ):
+        assert not _REGISTRY_WRITES.search(good), good
+
+
+def test_state_snapshot_script_is_read_only_and_withholds_values() -> None:
+    """The snapshot runs before and after every live audit; it must not itself touch state, and the
+    only key whose data may be printed is Lsa (Winlogon holds credential-bearing values)."""
+    text = (ROOT / "tests" / "shared" / "windows-state-snapshot.ps1").read_text(encoding="utf-8")
+    code = "\n".join(
+        re.sub(r"'(?:[^']|'')*'", "''", ln.split("#", 1)[0]) for ln in text.splitlines()
+    )
+    assert not re.search(r"\b(?:Set|New|Remove|Clear|Rename|Start|Stop|Restart)-\w+", code)
+    assert not re.search(r"OpenSubKey\([^)]*,", text)  # no writable-handle overload
+    assert "$dataKeys = @('HKLM:\\SYSTEM\\CurrentControlSet\\Control\\Lsa')" in text
+    assert "Winlogon" not in text.split("$dataKeys", 1)[1].split("\n", 1)[0]
+    assert "$sensitiveName" in text
+    assert text.isascii()
