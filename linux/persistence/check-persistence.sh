@@ -11,11 +11,30 @@ source "${SCRIPT_DIR}/../lib/common.sh"
 
 _per_scope_of() {
   case "$1" in
-    SYSTEMD) echo systemd ;; CRON) echo cron ;; STARTUP) echo startup ;; UDEV) echo udev ;;
-    APT) echo apt ;; SHELL) echo shell ;; AUTOSTART) echo autostart ;; *) echo "" ;;
+    SYSTEMD) echo systemd ;; CRON) echo cron ;; STARTUP | LDCONF | ACCESS) echo startup ;; UDEV) echo udev ;;
+    APT) echo apt ;; SHELL) echo shell ;; AUTOSTART) echo autostart ;; AUDITD) echo auditd ;; *) echo "" ;;
   esac
 }
 _per_domain_of() { if [[ "$1" == CRON ]]; then echo scheduled_tasks; else echo persistence; fi; }
+
+# _per_line_ids FILE : sets _PER_LINES (effective lines: not blank, not a comment) and _PER_IDS
+# (comma-separated 12-hex fingerprints of the whitespace-normalised lines, up to 200 lines).
+# Fingerprints, not text: they say how many lines were added or removed between two runs
+# without copying file content (which may hold secrets) into the report.
+_per_line_ids() {
+  local line h n=0
+  _PER_IDS=""
+  while IFS= read -r line || [[ -n "${line}" ]]; do
+    [[ "${line}" =~ ^[[:space:]]*(#|$) ]] && continue
+    n=$((n + 1))
+    if ((n <= 200)); then
+      line="$(printf '%s' "${line}" | tr -s '[:space:]' ' ')"
+      h="$(bo_hash_id "${line}" 12)"
+      _PER_IDS+="${_PER_IDS:+,}${h}"
+    fi
+  done <"$1"
+  _PER_LINES=${n}
+}
 
 # Inventory for one persistence file. Crontab-style files get one record per entry (so a new
 # job is visible by itself); everything else is one record with the file's SHA-256 and mode.
@@ -27,7 +46,8 @@ _per_inventory() { # TAG FILE REL
       scope=cron
       domain=scheduled_tasks
       ;;
-    STARTUP) scope=startup ;;
+    STARTUP | LDCONF | ACCESS) scope=startup ;;
+    AUDITD) scope=auditd ;;
     UDEV) scope=udev ;;
     APT) scope=apt ;;
     SHELL) scope=shell ;;
@@ -47,7 +67,19 @@ _per_inventory() { # TAG FILE REL
     bo_cov "${domain}" "${scope}" degraded "no SHA-256 tool available or ${rel} unreadable; content hashes unknown"
   fi
   mode="$(bo_mode "${f}" || echo "@unknown")"
-  bo_inv "${domain}" "${scope}" "persist:${scope}:${rel}" "sha256=${h}" "mode=${mode}" "^file=${rel}"
+  local -a extra=()
+  # Where a symlinked unit or script points is part of its identity.
+  [[ -L "${f}" ]] && extra+=("target=$(readlink -- "${f}" 2>/dev/null || echo @unknown)")
+  # Vendor unit files are only hashed (hundreds of them, changed by every package update).
+  case "${rel}" in
+    /usr/lib/systemd/* | /lib/systemd/*) ;;
+    *)
+      _per_line_ids "${f}"
+      extra+=("lines=${_PER_LINES}")
+      if ((_PER_LINES <= 200)); then extra+=("line_ids[]=${_PER_IDS}"); fi
+      ;;
+  esac
+  bo_inv "${domain}" "${scope}" "persist:${scope}:${rel}" "sha256=${h}" "mode=${mode}" ${extra[@]+"${extra[@]}"} "^file=${rel}"
 }
 
 # _per_scan_file TAG FILE [LINE_FILTER_REGEX]
@@ -67,7 +99,8 @@ _per_scan_file() {
     if [[ -n "${filter}" && ! "${line}" =~ ${filter} ]]; then continue; fi
     reasons="$(bo_suspicious_reasons "${line}")"
     [[ -n "${reasons}" ]] || continue
-    printf '%s\t%s\t%s: %s\n' "${tag}" "${rel}" "${reasons}" "$(printf '%s' "${line:0:200}" | bo_redact)" >>"${BO_SCRATCH}/hits.tsv"
+    bo_tsv_field "${rel}" >/dev/null # a file name may hold a newline: never a forged hits row
+    printf '%s\t%s\t%s: %s\n' "${tag}" "${REPLY}" "${reasons}" "$(printf '%s' "${line:0:200}" | bo_redact)" >>"${BO_SCRATCH}/hits.tsv"
   done <"${f}"
 }
 
@@ -85,13 +118,30 @@ _per_systemd() {
   local d f
   local -a custom=()
   bo_find_failed || true # discard failures from earlier scans
+  local -a types
   for d in /etc/systemd/system /run/systemd/system /usr/local/lib/systemd/system /usr/lib/systemd/system /lib/systemd/system; do
     [[ -d "$(bo_path "${d}")" ]] || continue
+    # Administrator directories also list symlinks: `systemctl enable` is a symlink, and so is a
+    # unit that points at /tmp. Vendor directories hold hundreds of aliases and stay files-only.
+    types=(-type f)
+    case "${d}" in /etc/* | /run/* | /usr/local/*) types=(\( -type f -o -type l \)) ;; *) ;; esac
     while IFS= read -r f; do
       [[ -n "${f}" ]] || continue
+      if [[ -L "${f}" && ! -e "${f}" ]]; then
+        # A dangling link still names a unit; record it instead of dropping it.
+        bo_inv persistence systemd "persist:systemd:$(bo_unroot "${f}")" "sha256=@unknown" "target=$(readlink -- "${f}" 2>/dev/null || echo @unknown)" "^file=$(bo_unroot "${f}")"
+        continue
+      fi
       _per_scan_file SYSTEMD "${f}" '^[[:space:]]*(Exec[A-Za-z]*|Environment)='
-      case "${d}" in /etc/* | /run/* | /usr/local/*) [[ "${f}" == *.service || "${f}" == *.timer ]] && [[ "${f}" != *.d/* ]] && custom+=("file|$(bo_unroot "${f}")") ;; *) ;; esac
-    done < <(bo_find "$(bo_path "${d}")" -maxdepth 2 -type f \( -name '*.service' -o -name '*.timer' -o -name '*.socket' -o -name '*.conf' \))
+      case "${d}" in
+        /etc/* | /run/* | /usr/local/*)
+          if [[ "${f}" == *.service || "${f}" == *.timer ]] && [[ "${f}" != *.d/* && "${f}" != *.wants/* && "${f}" != *.requires/* ]]; then
+            custom+=("file|$(bo_unroot "${f}")")
+          fi
+          ;;
+        *) ;;
+      esac
+    done < <(bo_find "$(bo_path "${d}")" -maxdepth 2 "${types[@]}" \( -name '*.service' -o -name '*.timer' -o -name '*.socket' -o -name '*.conf' \))
   done
   while IFS=$'\t' read -r _ _ h; do
     for f in "${h}"/.config/systemd/user/*.service "${h}"/.config/systemd/user/*.timer; do
@@ -154,6 +204,60 @@ _per_cron() {
   bo_cov scheduled_tasks at complete
 }
 
+# Library search paths: a directory listed in ld.so.conf(.d) is searched before others for every
+# dynamically linked program, so one that ordinary users or processes can write is a hijack path.
+_per_ldconf() {
+  local f line rel
+  for f in "$(bo_path /etc/ld.so.conf)" "$(bo_path /etc/ld.so.conf.d)"/*.conf; do
+    [[ -f "${f}" ]] || continue
+    _per_scan_file LDCONF "${f}" '^NO-GENERIC-PATTERN-SCAN$' # inventory only; the path check below is specific
+    [[ -r "${f}" ]] || continue
+    rel="$(bo_unroot "${f}")"
+    bo_tsv_field "${rel}" >/dev/null
+    rel="${REPLY}"
+    while IFS= read -r line || [[ -n "${line}" ]]; do
+      line="${line%%#*}"
+      line="${line#"${line%%[![:space:]]*}"}"
+      line="${line%"${line##*[![:space:]]}"}"
+      if [[ "${line}" =~ ^/(tmp|var/tmp|dev/shm|run/user|home|mnt|media)(/|$) ]]; then
+        printf 'LDCONF\t%s\t%s\n' "${rel}" "library search path in a world- or user-writable location: ${line:0:200}" >>"${BO_SCRATCH}/hits.tsv"
+      fi
+    done <"${f}"
+  done
+  _per_emit_hits LDCONF PER-LDCONF-001 "Library search path in a writable location" high medium \
+    "ld.so.conf lists a directory under /tmp, /home or another location ordinary users can write; libraries placed there are loaded by every dynamically linked program." \
+    "Preserve the file and the directory contents, then remove the entry and run ldconfig." T1574.006
+}
+
+# Files that decide who may use cron and at: tampering lets an attacker schedule jobs (or lock
+# administrators out).
+_per_access() {
+  local f
+  for f in /etc/cron.allow /etc/cron.deny /etc/at.allow /etc/at.deny; do
+    _per_scan_file ACCESS "$(bo_path "${f}")"
+  done
+}
+
+# auditd rules are what makes the host's own logging useful; their hash and line fingerprints are
+# inventoried (a rule file emptied or replaced is a change), and a host that has auditd configured
+# but defines no rule at all is reported as a standing weakness.
+_per_auditd() {
+  local f nrules=0 any=0
+  [[ -d "$(bo_path /etc/audit)" ]] || return 0
+  for f in "$(bo_path /etc/audit/audit.rules)" "$(bo_path /etc/audit/auditd.conf)" "$(bo_path /etc/audit/rules.d)"/*.rules; do
+    [[ -f "${f}" ]] || continue
+    any=1
+    _per_scan_file AUDITD "${f}"
+    [[ "${f}" == *.rules && -r "${f}" ]] && nrules=$((nrules + $(grep -c -E '^[[:space:]]*-[wa][[:space:]]' "${f}" 2>/dev/null || true)))
+  done
+  bo_cov persistence auditd complete
+  if ((any && nrules == 0)); then
+    bo_finding PER-AUDITD-001 low medium persistence "auditd is configured but defines no audit rules" \
+      "/etc/audit exists but no watch (-w) or syscall (-a) rule is defined, so the audit daemon records almost nothing useful for investigation." \
+      "Load a baseline rule set (for example from the audit package's sample rules) after checking it does not disturb scored services." "T1562.012" "file|/etc/audit"
+  fi
+}
+
 _per_startup() {
   local f rc
   rc="$(bo_path /etc/rc.local)"
@@ -170,6 +274,9 @@ _per_startup() {
   _per_emit_hits STARTUP PER-STARTUP-001 "Suspicious startup script" high medium \
     "Boot-time scripts match reverse-shell, download-and-execute, world-writable-path or similar patterns." \
     "Preserve the script, then remove the offending lines after review." T1037.004
+  _per_ldconf
+  _per_access
+  _per_auditd
   local pre
   pre="$(bo_path /etc/ld.so.preload)"
   [[ -f "${pre}" ]] && _per_inventory STARTUP "${pre}" /etc/ld.so.preload

@@ -18,3 +18,13 @@ BlueOps has no installer and requires no network access.
 4. Keep the run directory (it contains rollback data) until the exercise/incident ends.
 
 Output directories may contain sensitive data: store them with owner-only permissions and transport them securely.
+
+## Verifying a run (integrity)
+
+Every run directory contains `manifest.json`: the SHA-256 and size of `report.json`, `report.txt` and `run.log`, plus the digests of the collector scripts that produced them. At the end of the run the collector prints the **manifest's own digest** (`Manifest SHA-256: ...`).
+
+1. Record that digest off the host (paper, a separate machine, chat with the operator), *before* the run directory is copied around.
+2. On the analyst machine: `python -m shared.reporting.verify RUN_DIR --expect-sha256 DIGEST` (exit 0 = every file matches; exit 3 = something differs or is missing).
+3. `python -m shared.reporting.diff` and `detect` verify the manifest automatically when they are given a run directory and **refuse** one that no longer matches.
+
+The manifest proves the files are unchanged since the collector wrote them; it cannot prove the host told the truth, and without the off-host digest an attacker who can rewrite the directory can rewrite the manifest as well. Runs from collectors that predate manifests load unverified.

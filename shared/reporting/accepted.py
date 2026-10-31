@@ -18,7 +18,6 @@ unused or expired). Malformed allowlists are errors, never silently ignored.
 from __future__ import annotations
 
 import hashlib
-import json
 import re
 from dataclasses import dataclass
 from pathlib import Path
@@ -26,6 +25,7 @@ from typing import Any
 
 from shared.reporting.contracts import Severity
 from shared.reporting.inventory import parse_timestamp
+from shared.reporting.jsonio import JsonInputError, load_json_strict
 
 SCHEMA_VERSION = "0.1.0"
 MAX_BYTES = 1024 * 1024
@@ -172,13 +172,9 @@ def _entry(raw: Any, index: int, known_rules: frozenset[str]) -> Entry:
 def load(path: str, known_rules: frozenset[str]) -> Allowlist:
     """Read and strictly validate an allowlist file."""
     try:
-        p = Path(path)
-        if p.stat().st_size > MAX_BYTES:
-            raise AllowlistError("allowlist is too large")
-        data = p.read_bytes()
-        doc = json.loads(data.decode("utf-8-sig"))
-    except (OSError, ValueError) as exc:
-        raise AllowlistError(f"cannot read allowlist {path}: {exc}") from None
+        doc, data = load_json_strict(path, MAX_BYTES, "allowlist")
+    except JsonInputError as exc:
+        raise AllowlistError(str(exc)) from None
     if not isinstance(doc, dict) or doc.get("kind") != "accepted-changes":
         raise AllowlistError("allowlist must be an object with kind 'accepted-changes'")
     extra = sorted(set(doc) - {"schema_version", "kind", "entries"})

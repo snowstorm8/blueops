@@ -16,7 +16,6 @@ import argparse
 import json
 import sys
 from datetime import datetime, timezone
-from pathlib import Path
 from typing import Any
 
 from shared.reporting.accepted import AllowlistError
@@ -38,6 +37,7 @@ from shared.reporting.inventory import (
     load_snapshot,
     parse_timestamp,
 )
+from shared.reporting.jsonio import JsonInputError, load_json_strict
 
 MAX_DIFF_BYTES = 64 * 1024 * 1024
 
@@ -81,13 +81,10 @@ def _parser() -> argparse.ArgumentParser:
 
 def _load_diff(path: str) -> dict[str, Any]:
     try:
-        p = Path(path)
-        if p.stat().st_size > MAX_DIFF_BYTES:
-            raise DiffInputError("diff file is too large")
-        text = p.read_text(encoding="utf-8-sig")
-        return json.loads(text)  # type: ignore[no-any-return]
-    except (OSError, ValueError) as exc:
-        raise DiffInputError(f"cannot read diff {path}: {exc}") from None
+        doc, _ = load_json_strict(path, MAX_DIFF_BYTES, "diff")
+    except JsonInputError as exc:
+        raise DiffInputError(str(exc)) from None
+    return doc  # type: ignore[no-any-return]
 
 
 def _detection_lines(d: dict[str, Any]) -> list[str]:

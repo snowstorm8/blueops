@@ -184,7 +184,7 @@ function Invoke-BoSecurityModule {
 
     # Audit policy
     $ap = Invoke-BoProvider -Name 'auditpol' -ErrorCode 'AUDITPOL_UNAVAILABLE' -Message 'auditpol unavailable' -CheckId 'SEC-AUDIT-001' -Text -NonMaterial -Live {
-        $o = (& auditpol.exe /get /category:* /r 2>&1 | Out-String)
+        $o = (& (Get-BoSystemToolPath 'auditpol.exe') /get /category:* /r 2>&1 | Out-String)
         if ($o -match '0x00000522|privilege') { throw 'auditpol requires administrator rights' }
         $o
     }
@@ -222,7 +222,7 @@ function Invoke-BoSecurityModule {
     if ([int]$pc -ne 1) { Add-BoHit -Id 'SEC-AUDIT-002' -Type 'registry' -Ref "$sysPol\Audit :: ProcessCreationIncludeCmdLine_Enabled" -Excerpt 'command line not included in 4688' }
 
     # Password policy
-    $na = Invoke-BoProvider -Name 'netaccounts' -ErrorCode 'NETACCOUNTS_UNAVAILABLE' -Message 'net accounts unavailable' -CheckId 'SEC-PWD-001' -Text -NonMaterial -Live { (& net.exe accounts 2>&1 | Out-String) }
+    $na = Invoke-BoProvider -Name 'netaccounts' -ErrorCode 'NETACCOUNTS_UNAVAILABLE' -Message 'net accounts unavailable' -CheckId 'SEC-PWD-001' -Text -NonMaterial -Live { (& (Get-BoSystemToolPath 'net.exe') accounts 2>&1 | Out-String) }
     if ($na.Ok) {
         $pol = ConvertFrom-BoNetAccount -Text $na.Data
         if ($null -eq $pol) { Add-BoError -Code 'NETACCOUNTS_UNPARSED' -Message 'net accounts output could not be parsed' -CheckId 'SEC-PWD-001' -Material $false }

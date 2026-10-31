@@ -9,6 +9,7 @@ would otherwise be reported as a removal.
 from __future__ import annotations
 
 import fnmatch
+import ipaddress
 import json
 import re
 from dataclasses import dataclass, field
@@ -21,6 +22,13 @@ from shared.reporting.contracts import (
     INVENTORY_DOMAINS,
     READABLE_REPORT_VERSIONS,
 )
+from shared.reporting.jsonio import (  # noqa: F401 - re-exported for callers of this module
+    JsonInputError,
+    load_json_strict,
+    no_duplicate_keys,
+    reject_constant,
+)
+from shared.reporting.manifest import verify_run_dir
 
 MAX_REPORT_BYTES = 64 * 1024 * 1024
 MAX_RECORDS = 200_000
@@ -66,7 +74,6 @@ Value = Optional[Union[str, tuple[str, ...]]]
 _TS_RE = re.compile(r"^(\d{4})-(\d{2})-(\d{2})T(\d{2}):(\d{2}):(\d{2})(?:\.\d+)?Z$")
 _VERSION_RE = re.compile(r"^0\.(\d+)\.(\d+)$")
 _CONTROL_RE = re.compile(r"[\x00-\x1f\x7f]")
-_LOOPBACK = ("127.", "::1", "localhost")
 
 
 class ReportError(ValueError):
@@ -111,6 +118,7 @@ class RunMeta:
     elevated: bool | None
     exit_code: int | None
     source: str = ""
+    test_mode: bool = False
 
 
 @dataclass
@@ -139,19 +147,6 @@ def parse_timestamp(value: str) -> datetime:
         raise ReportError(f"invalid timestamp {value!r}: {exc}") from None
 
 
-def _no_duplicate_keys(pairs: list[tuple[str, Any]]) -> dict[str, Any]:
-    out: dict[str, Any] = {}
-    for k, v in pairs:
-        if k in out:
-            raise ValueError(f"duplicate object key {k!r}")
-        out[k] = v
-    return out
-
-
-def _reject_constant(name: str) -> Any:
-    raise ValueError(f"non-finite number {name} is not allowed")
-
-
 def read_report_file(path: str | Path) -> dict[str, Any]:
     """Read and parse a report file (or a run directory containing ``report.json``)."""
     p = Path(path)
@@ -166,9 +161,7 @@ def read_report_file(path: str | Path) -> dict[str, Any]:
     try:
         # utf-8-sig: Windows PowerShell 5.1 writes a BOM.
         text = p.read_text(encoding="utf-8-sig")
-        data = json.loads(
-            text, object_pairs_hook=_no_duplicate_keys, parse_constant=_reject_constant
-        )
+        data = json.loads(text, object_pairs_hook=no_duplicate_keys, parse_constant=reject_constant)
     except (OSError, UnicodeDecodeError) as exc:
         raise ReportError(f"cannot read {p}: {exc}") from None
     except (ValueError, RecursionError) as exc:
@@ -227,6 +220,7 @@ def _parse_meta(data: dict[str, Any], source: str) -> RunMeta:
         if isinstance(exit_code, int) and not isinstance(exit_code, bool)
         else None,
         source=source,
+        test_mode=host.get("test_mode") is True,
     )
 
 
@@ -289,8 +283,25 @@ def _parse_record(raw: Any) -> Record:
 # ------------------------------------------------------------------ canonicalisation
 
 
+def is_loopback_address(bind: str) -> bool:
+    """True for ``localhost``, 127.0.0.0/8, ``::1`` and IPv4-mapped loopback (``::ffff:127.x``).
+
+    Parsed, not prefix-matched: ``127.evil``, ``::1f00:1`` and the wildcards ``0.0.0.0``/``::``
+    are not loopback.
+    """
+    b = bind.strip().strip("[]").split("%", 1)[0]
+    if b.lower() == "localhost":
+        return True
+    try:
+        ip = ipaddress.ip_address(b)
+    except ValueError:
+        return False
+    mapped = getattr(ip, "ipv4_mapped", None)
+    return (mapped or ip).is_loopback
+
+
 def _is_loopback(bind: str) -> bool:
-    return bind.startswith(_LOOPBACK)
+    return is_loopback_address(bind)
 
 
 def as_set(v: Value) -> frozenset[str]:
@@ -526,7 +537,20 @@ def build_snapshot(data: dict[str, Any], options: Options, source: str = "") -> 
 
 
 def load_snapshot(path: str | Path, options: Options | None = None) -> Snapshot:
+    """Load a report file or run directory.
+
+    A run directory that carries ``manifest.json`` is verified first (every file's SHA-256 and
+    size): a report that no longer matches its manifest is refused, not compared. A directory
+    without a manifest (runs from before manifests existed) loads unverified; the comparison
+    output is deliberately identical for a report file and its run directory.
+    """
     opts = options or Options()
+    p = Path(path)
+    if p.is_dir() and (p / "manifest.json").exists():
+        problems = verify_run_dir(p)
+        if problems:
+            shown = "; ".join(problems[:5]) + (" ..." if len(problems) > 5 else "")
+            raise ReportError(f"{p} failed manifest verification: {shown}")
     return build_snapshot(read_report_file(path), opts, source=str(path))
 
 

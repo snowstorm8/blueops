@@ -56,7 +56,7 @@ function Invoke-BoTasksModule {
     if ($res.Ok) { $tasks = @($res.Data) }
     else {
         $fb = Invoke-BoProvider -Name 'tasks.schtasks' -ErrorCode 'TASKS_UNAVAILABLE' -Message 'schtasks fallback failed; no scheduled task inventory' -CheckId 'TSK-INFO-001' -Text -Live {
-            (& schtasks.exe /query /fo CSV /v 2>&1 | Out-String)
+            (& (Get-BoSystemToolPath 'schtasks.exe') /query /fo CSV /v 2>&1 | Out-String)
         }
         if ($fb.Ok) {
             $tasks = @(ConvertFrom-BoSchtasksCsv -Text $fb.Data)

@@ -66,7 +66,7 @@ function Invoke-BoNetworkModule {
     if ($r.Ok -and $r2.Ok) { $tcp = @($r.Data); $udp = @($r2.Data) }
     else {
         $ns = Invoke-BoProvider -Name 'net.netstat' -ErrorCode 'SOCKETS_UNAVAILABLE' -Message 'netstat fallback failed; no socket inventory' -CheckId 'NET-LISTEN-001' -Text -Live {
-            (& netstat.exe -ano 2>&1 | Out-String)
+            (& (Get-BoSystemToolPath 'netstat.exe') -ano 2>&1 | Out-String)
         }
         if ($ns.Ok) {
             $parsed = ConvertFrom-BoNetstat -Text $ns.Data

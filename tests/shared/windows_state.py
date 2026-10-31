@@ -12,6 +12,7 @@ cause, is reported as caused by the audit.
 
 from __future__ import annotations
 
+import re
 from datetime import datetime
 from typing import Any
 
@@ -84,3 +85,64 @@ def explained_by_host(
     if not svc["removed"] and not svc["added"]:
         del changed["services"]
     return explained
+
+
+# Value names whose data is never printed, whatever the snapshot contained (defence in depth: the
+# snapshot script already withholds them). Only the type, length and a short digest remain.
+_SENSITIVE_NAME = re.compile(r"(?i)pass|secret|credential|token|key|pwd")
+_MAX_DATA = 120
+
+
+def _show(entry: dict[str, Any] | None, name: str) -> str:
+    if entry is None:
+        return "absent"
+    data = entry.get("data")
+    if isinstance(data, str) and not _SENSITIVE_NAME.search(name) and entry.get("type") != "Binary":
+        shown = data if len(data) <= _MAX_DATA else data[:_MAX_DATA] + "..."
+        return f"{entry.get('type')} {shown!r}"
+    return f"{entry.get('type')} len={entry.get('length')} sha256={entry.get('sha256')}"
+
+
+def registry_differences(
+    changed: dict[str, Any], before: dict[str, Any], after: dict[str, Any]
+) -> list[str]:
+    """Value-level description of every registry key in ``changed``.
+
+    Reads the ``diag.registry`` detail the snapshot script records (never compared by
+    ``host_changes``). Says so when the detail is missing instead of guessing.
+    """
+    lines: list[str] = []
+    for key in changed:
+        if not key.upper().startswith(("HKLM:", "HKCU:")):
+            continue
+        old = (before.get("diag", {}).get("registry") or {}).get(key)
+        new = (after.get("diag", {}).get("registry") or {}).get(key)
+        if not isinstance(old, dict) or not isinstance(new, dict):
+            lines.append(f"{key}: changed, but no value-level detail was recorded")
+            continue
+        lines.append(f"{key}: last_write {old.get('last_write')} -> {new.get('last_write')}")
+        old_vals = old.get("values") or {}
+        new_vals = new.get("values") or {}
+        diffs = 0
+        for name in sorted(set(old_vals) | set(new_vals)):
+            a, b = old_vals.get(name), new_vals.get(name)
+            if a == b:
+                continue
+            diffs += 1
+            lines.append(f"  value {name!r}: {_show(a, name)} -> {_show(b, name)}")
+        if not diffs:
+            lines.append("  no per-value difference found (value names, types and digests equal)")
+    return lines
+
+
+def failure_message(changed: dict[str, Any], before: dict[str, Any], after: dict[str, Any]) -> str:
+    """Text for the assertion that the audit changed host state."""
+    parts = [f"audit changed host state: {changed}"]
+    parts += registry_differences(changed, before, after)
+    parts.append(
+        f"before={before.get('diag', {}).get('at')} after={after.get('diag', {}).get('at')}"
+    )
+    for label, snap in (("before", before), ("after", after)):
+        events = snap.get("diag", {}).get("start_type_changes", [])
+        parts.append(f"{label} 7040 events: {events}")
+    return "\n".join(parts)

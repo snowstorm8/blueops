@@ -15,7 +15,7 @@ Conclusions are only drawn from evidence that supports them:
 from __future__ import annotations
 
 import re
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from typing import Any
 
 from shared.reporting.contracts import INVENTORY_DOMAINS, SCHEMA_VERSION, ExitCode
@@ -96,6 +96,15 @@ def check_compatibility(base: Snapshot, cur: Snapshot, options: Options) -> list
         if not options.allow_host_mismatch:
             raise IncompatibleReportsError(msg + "; pass --allow-host-mismatch to compare anyway")
         warnings.append(_warn("HOST_MISMATCH", msg + "; compared because it was allowed"))
+    for side, meta in (("baseline", b), ("current", c)):
+        if meta.test_mode:
+            warnings.append(
+                _warn(
+                    "TEST_MODE",
+                    f"{side} was collected with fixture hooks (host.test_mode): it does not "
+                    "describe a real host",
+                )
+            )
     if b.run_id == c.run_id:
         warnings.append(
             _warn("SAME_RUN", "baseline and current have the same run id; no change expected")
@@ -195,12 +204,21 @@ def _record_json(rec: Record | None) -> dict[str, Any] | None:
     }
 
 
-def _diff_attrs(b: Record, c: Record) -> tuple[list[dict[str, Any]], list[str]]:
+def _diff_attrs(
+    b: Record, c: Record, new_attrs: set[str] | None = None
+) -> tuple[list[dict[str, Any]], list[str]]:
     modified: list[dict[str, Any]] = []
     unverified: list[str] = []
     for name in sorted(set(b.attrs) | set(c.attrs)):
         bv, cv = b.attrs.get(name), c.attrs.get(name)
         if bv is None and cv is None:
+            continue
+        if name not in b.attrs or name not in c.attrs:
+            # One side does not carry the attribute at all (a collector that gained or lost it
+            # between the two runs), as opposed to carrying it as unknown (null, a permission
+            # gap). There is nothing to compare; it is not an unverified value.
+            if new_attrs is not None:
+                new_attrs.add(name)
             continue
         if bv is None or cv is None:
             unverified.append(name)
@@ -299,6 +317,7 @@ class _Ctx:
     options: Options
     base_refs: dict[str, list[str]]
     cur_refs: dict[str, list[str]]
+    new_attrs: set[str] = field(default_factory=set)
 
     @property
     def fold(self) -> bool:
@@ -379,7 +398,7 @@ def _diff_key(
         return "indeterminate", _indeterminate(ctx, "RECORD_CONFLICT", conflicted.conflict, b, c)
     if b is None or c is None:
         return _diff_one_sided(ctx, state, b, c)
-    modified, unverified = _diff_attrs(b, c)
+    modified, unverified = _diff_attrs(b, c, ctx.new_attrs)
     if modified:
         return "change", _make_change(ctx, "modified", b, c, (modified, unverified))
     if unverified:
@@ -575,6 +594,15 @@ def compare(base: Snapshot, cur: Snapshot, options: Options, generated_at: str) 
             res.indets += i
             res.unchanged += u
     findings = diff_findings(base, cur)
+    if ctx.new_attrs:
+        warnings.append(
+            _warn(
+                "ATTRIBUTES_NOT_COMPARED",
+                "attribute(s) present in only one report were not compared (collector version "
+                "difference; take a new baseline to compare them): "
+                + ", ".join(sorted(ctx.new_attrs)[:12]),
+            )
+        )
     return {
         "schema_version": SCHEMA_VERSION,
         "kind": "baseline-diff",

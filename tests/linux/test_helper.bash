@@ -1,5 +1,9 @@
 # Shared Bats helpers for the Linux audit tests. Fixtures are synthetic.
 
+# The fixture hooks (BO_ROOT, BO_FORCE_MISSING_TOOLS) and the command shims in PATH are honoured
+# only in explicit test mode; tests of the production behaviour run `env -u BO_TEST_MODE ...`.
+export BO_TEST_MODE=1
+
 # BATS_TEST_TMPDIR needs Bats >= 1.4; provide a fallback for older releases.
 if [[ -z "${BATS_TEST_TMPDIR:-}" ]]; then
   BATS_TEST_TMPDIR="$(mktemp -d "${BATS_TMPDIR:-${TMPDIR:-/tmp}}/bo-test.XXXXXX")"

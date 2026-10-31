@@ -6,7 +6,12 @@ from typing import Any
 
 import pytest
 
-from tests.shared.windows_state import explained_by_host, host_changes
+from tests.shared.windows_state import (
+    explained_by_host,
+    failure_message,
+    host_changes,
+    registry_differences,
+)
 
 PATH = "C:\\Windows\\System32\\svchost.exe -k netsvcs -p"
 BITS_TEXT = (
@@ -103,3 +108,99 @@ def test_a_running_service_after_the_change_is_not_a_self_demotion() -> None:
     changed = host_changes(before, after)
     assert explained_by_host(changed, before, after) == []
     assert "services" in changed
+
+
+LSA = "HKLM:\\SYSTEM\\CurrentControlSet\\Control\\Lsa"
+
+
+def reg_snap(
+    values: dict[str, dict[str, Any]], at: str, last_write: str, digest: str = "d"
+) -> dict:
+    out = snap([], at)
+    out[LSA] = f"{','.join(sorted(values))} sha256={digest}"
+    out["diag"]["registry"] = {LSA: {"last_write": last_write, "values": values}}
+    return out
+
+
+def dword(n: int) -> dict[str, Any]:
+    return {"type": "DWord", "length": len(str(n)), "sha256": f"h{n}", "data": str(n)}
+
+
+def test_lsa_difference_names_value_type_and_both_sides() -> None:
+    before = reg_snap(
+        {"RunAsPPL": dword(0), "NoLMHash": dword(1)}, BEFORE, "2026-10-27T10:00:00Z", "a"
+    )
+    after = reg_snap(
+        {"RunAsPPL": dword(1), "NoLMHash": dword(1)}, AFTER, "2026-10-27T15:56:00Z", "b"
+    )
+    changed = host_changes(before, after)
+    assert changed == {LSA: "differs"}  # still a failure: nothing is excused
+    text = "\n".join(registry_differences(changed, before, after))
+    assert LSA in text and "RunAsPPL" in text
+    assert "DWord '0' -> DWord '1'" in text
+    assert "NoLMHash" not in text  # equal values are not listed
+    assert "10:00:00Z -> 2026-10-27T15:56:00Z" in text
+
+
+def test_added_and_removed_values_are_reported() -> None:
+    before = reg_snap({"Old": dword(1)}, BEFORE, "t0", "a")
+    after = reg_snap({"New": dword(2)}, AFTER, "t1", "b")
+    text = "\n".join(registry_differences(host_changes(before, after), before, after))
+    assert "'Old': DWord '1' -> absent" in text
+    assert "'New': absent -> DWord '2'" in text
+
+
+def test_data_is_withheld_for_credential_like_names_even_if_present() -> None:
+    secret = {"type": "String", "length": 6, "sha256": "abc", "data": "hunter2"}
+    before = reg_snap({"DefaultPassword": secret}, BEFORE, "t0", "a")
+    after = reg_snap(
+        {"DefaultPassword": {**secret, "sha256": "def", "data": "hunter3"}}, AFTER, "t1", "b"
+    )
+    msg = failure_message(host_changes(before, after), before, after)
+    assert "hunter2" not in msg and "hunter3" not in msg
+    assert "sha256=abc" in msg and "sha256=def" in msg
+
+
+def test_binary_data_is_never_printed_and_long_strings_are_cut() -> None:
+    blob = {"type": "Binary", "length": 8, "sha256": "x1", "data": "DE-AD-BE-EF"}
+    long_text = {"type": "String", "length": 500, "sha256": "x2", "data": "A" * 500}
+    before = reg_snap({"Bounds": blob, "Packages": long_text}, BEFORE, "t0", "a")
+    after = reg_snap(
+        {"Bounds": {**blob, "sha256": "y1"}, "Packages": {**long_text, "sha256": "y2"}},
+        AFTER,
+        "t1",
+        "b",
+    )
+    msg = failure_message(host_changes(before, after), before, after)
+    assert "DE-AD" not in msg
+    assert "A" * 121 not in msg and "..." in msg
+
+
+def test_missing_detail_is_stated_not_guessed() -> None:
+    before, after = snap([], BEFORE), snap([], AFTER)
+    before[LSA], after[LSA] = "x sha256=1", "x sha256=2"
+    lines = registry_differences(host_changes(before, after), before, after)
+    assert lines == [f"{LSA}: changed, but no value-level detail was recorded"]
+
+
+def test_digest_only_difference_is_said_to_have_no_per_value_difference() -> None:
+    values = {"RunAsPPL": dword(1)}
+    before = reg_snap(values, BEFORE, "t0", "a")
+    after = reg_snap(values, AFTER, "t0", "b")
+    text = "\n".join(registry_differences(host_changes(before, after), before, after))
+    assert "no per-value difference" in text
+
+
+def test_registry_detail_is_never_compared_and_never_excused() -> None:
+    before = reg_snap({"A": dword(1)}, BEFORE, "t0", "same")
+    after = reg_snap({"A": dword(2)}, AFTER, "t1", "same")  # detail differs, headline digest equal
+    changed = host_changes(before, after)
+    assert changed == {}
+    assert explained_by_host(changed, before, after) == []
+
+
+def test_failure_message_carries_the_key_and_the_event_windows() -> None:
+    before = reg_snap({"A": dword(1)}, BEFORE, "t0", "a")
+    after = reg_snap({"A": dword(2)}, AFTER, "t1", "b")
+    msg = failure_message(host_changes(before, after), before, after)
+    assert LSA in msg and BEFORE in msg and AFTER in msg and "7040 events" in msg

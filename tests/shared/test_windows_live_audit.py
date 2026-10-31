@@ -7,6 +7,7 @@ crashed, and that the audit left a snapshot of host state unchanged.
 
 from __future__ import annotations
 
+import hashlib
 import json
 import os
 import re
@@ -19,10 +20,14 @@ from pathlib import Path
 import pytest
 from jsonschema import Draft202012Validator
 
-from tests.shared.windows_state import explained_by_host, host_changes
+from shared.reporting.manifest import verify_run_dir
+from tests.shared.windows_state import explained_by_host, failure_message, host_changes
 
 ROOT = Path(__file__).resolve().parents[2]
 SCHEMA = json.loads((ROOT / "shared" / "schemas" / "audit-report.schema.json").read_text("utf-8"))
+MANIFEST_SCHEMA = json.loads(
+    (ROOT / "shared" / "schemas" / "run-manifest.schema.json").read_text("utf-8")
+)
 SHELLS = [s for s in ("powershell", "pwsh") if shutil.which(s)]
 AUDIT = ROOT / "windows" / "audit" / "Invoke-WindowsAudit.ps1"
 PERSIST = ROOT / "windows" / "persistence" / "Find-Persistence.ps1"
@@ -88,9 +93,7 @@ def test_live_audit_is_valid_and_read_only(shell: str, script: Path) -> None:
     changed = host_changes(before, after)
     for note in explained_by_host(changed, before, after):
         warnings.warn(f"host changed itself during the audit: {note}", stacklevel=1)
-    assert not changed, (
-        f"audit changed host state: {changed} (before={before['diag']}, after={after['diag']})"
-    )
+    assert not changed, failure_message(changed, before, after)
     assert _tree(ROOT / "windows") == repo_before
 
 
@@ -101,7 +104,39 @@ def test_live_output_dir_holds_report_text_and_log(shell: str, tmp_path: Path) -
     assert res.returncode in (0, 4, 6), (res.returncode, res.stderr[-2000:])
     runs = list(out.glob("blueops-run-*"))
     assert len(runs) == 1
-    assert {p.name for p in runs[0].iterdir()} == {"report.json", "report.txt", "run.log"}
+    assert {p.name for p in runs[0].iterdir()} == {
+        "report.json",
+        "report.txt",
+        "run.log",
+        "manifest.json",
+    }
     report = json.loads((runs[0] / "report.json").read_text("utf-8-sig"))
     assert not list(Draft202012Validator(SCHEMA).iter_errors(report))
     assert report["run"]["exit_code"] == res.returncode
+    # The manifest the Windows collector wrote is valid, verifies, and its digest was printed.
+    manifest_path = runs[0] / "manifest.json"
+    manifest = json.loads(manifest_path.read_text("utf-8-sig"))
+    assert not list(Draft202012Validator(MANIFEST_SCHEMA).iter_errors(manifest))
+    assert manifest["run"]["id"] == report["run"]["id"] and manifest["complete"] is True
+    assert verify_run_dir(runs[0]) == []
+    digest = hashlib.sha256(manifest_path.read_bytes()).hexdigest()
+    assert f"Manifest SHA-256: {digest}" in res.stderr
+    assert verify_run_dir(runs[0], digest) == []
+    (runs[0] / "run.log").write_bytes(b"tampered")
+    assert any("run.log" in problem for problem in verify_run_dir(runs[0]))
+
+
+@pytest.mark.parametrize("shell", SHELLS)
+def test_live_run_directories_are_never_reused(shell: str, tmp_path: Path) -> None:
+    """Two runs into the same output directory (possibly within one second) keep both reports."""
+    out = tmp_path / "out"
+    for _ in range(2):
+        res = _run(
+            shell, ["-File", str(AUDIT), "-Modules", "system", "-OutputDir", str(out), "-Quiet"]
+        )
+        assert res.returncode in (0, 4, 6), (res.returncode, res.stderr[-2000:])
+    runs = sorted(out.glob("blueops-run-*"))
+    assert len(runs) == 2
+    assert all(verify_run_dir(r) == [] for r in runs)
+    ids = {json.loads((r / "report.json").read_text("utf-8-sig"))["run"]["id"] for r in runs}
+    assert len(ids) == 2

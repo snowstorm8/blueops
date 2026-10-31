@@ -192,6 +192,7 @@ Describe 'safety and degradation' {
         $saved = $script:BoModuleFunctions['users']
         $script:BoModuleFunctions['users'] = 'Invoke-BoCrashModule'
         $env:BO_FIXTURE_DIR = $script:Fx
+        $env:BO_TEST_MODE = '1'
         try {
             Mock Write-BoOut {}
             Mock Write-BoErr {}
@@ -203,6 +204,7 @@ Describe 'safety and degradation' {
         finally {
             $script:BoModuleFunctions['users'] = $saved
             Remove-Item Env:\BO_FIXTURE_DIR -ErrorAction SilentlyContinue
+            Remove-Item Env:\BO_TEST_MODE -ErrorAction SilentlyContinue
         }
     }
 

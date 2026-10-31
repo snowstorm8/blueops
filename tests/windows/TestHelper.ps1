@@ -86,8 +86,9 @@ function Invoke-BoTestRun {
     $psi.RedirectStandardError = $true
     $psi.UseShellExecute = $false
     $psi.CreateNoWindow = $true
-    foreach ($k in @('BO_FIXTURE_DIR', 'BO_FORCE_MISSING')) { if ($psi.EnvironmentVariables.ContainsKey($k)) { [void]$psi.EnvironmentVariables.Remove($k) } }
-    if (-not $NoFixture -and $Fixture) { $psi.EnvironmentVariables['BO_FIXTURE_DIR'] = $Fixture }
+    foreach ($k in @('BO_FIXTURE_DIR', 'BO_FORCE_MISSING', 'BO_TEST_MODE')) { if ($psi.EnvironmentVariables.ContainsKey($k)) { [void]$psi.EnvironmentVariables.Remove($k) } }
+    # The fixture hooks are honoured only with BO_TEST_MODE=1; tests of the production behaviour pass -NoFixture.
+    if (-not $NoFixture -and $Fixture) { $psi.EnvironmentVariables['BO_FIXTURE_DIR'] = $Fixture; $psi.EnvironmentVariables['BO_TEST_MODE'] = '1' }
     foreach ($k in $Environment.Keys) { $psi.EnvironmentVariables[$k] = [string]$Environment[$k] }
     $p = [System.Diagnostics.Process]::Start($psi)
     $outTask = $p.StandardOutput.ReadToEndAsync()

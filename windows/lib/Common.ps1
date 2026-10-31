@@ -5,6 +5,9 @@
 # command-line heuristics, and the report writer used by every Windows audit entry point.
 #
 # Test-only environment hooks (never use in production):
+#   BO_TEST_MODE=1   REQUIRED for the two hooks below. Without it they are ignored (and the run
+#                    records TEST_HOOKS_IGNORED), so a planted variable cannot make the audit read
+#                    a fake host. Reports produced with the hooks say host.test_mode.
 #   BO_FIXTURE_DIR   directory with data/*.json|txt and fs/ replacing live host data; also
 #                    bypasses the Windows-only check.
 #   BO_FORCE_MISSING space-separated provider names treated as unavailable.
@@ -44,8 +47,33 @@ function Test-BoWindows {
     return (($PSVersionTable.PSEdition -eq 'Desktop') -or ($PSVersionTable.Platform -eq 'Win32NT'))
 }
 
+$script:BoLibPath = $PSCommandPath
+
+function Test-BoTestMode {
+    # Evaluated on every call (not cached) so a test can enable it after loading this file.
+    return ($env:BO_TEST_MODE -eq '1')
+}
+
 function Test-BoFixtureMode {
-    return (-not [string]::IsNullOrEmpty($env:BO_FIXTURE_DIR))
+    return ((Test-BoTestMode) -and -not [string]::IsNullOrEmpty($env:BO_FIXTURE_DIR))
+}
+
+function Get-BoForcedMissing {
+    # Names of data sources a test forces to be unavailable; empty outside test mode.
+    if (-not (Test-BoTestMode)) { return '' }
+    return [string]$env:BO_FORCE_MISSING
+}
+
+function Get-BoSystemToolPath {
+    # Full path of a Windows tool in System32, or $null. Tools are never resolved through PATH:
+    # a writable PATH entry (or a planted netstat.exe) could otherwise make the audit lie.
+    param([Parameter(Mandatory)][string]$Name)
+    $root = $env:SystemRoot
+    if (-not $root) { $root = $env:windir }
+    if (-not $root) { return $null }
+    $p = Join-Path (Join-Path $root 'System32') $Name
+    if (Test-Path -LiteralPath $p -PathType Leaf) { return $p }
+    return $null
 }
 
 function Get-BoUtcNow {
@@ -66,10 +94,17 @@ function Get-BoProp {
 }
 
 function ConvertTo-BoSafeString {
-    # Replace control and non-ASCII characters so reports are valid, encoding-independent text.
+    # Reports are encoding-independent ASCII. Every control or non-ASCII character becomes a
+    # \uXXXX escape (UTF-16 code unit), so two different names can never collapse into the same
+    # text (the old '?' substitution made "cafe-acute" and "cafe-diaeresis" identical). A literal
+    # backslash followed by u and four hex digits is itself escaped first, which keeps the mapping
+    # reversible.
     param([AllowNull()]$Text)
     if ($null -eq $Text) { return '' }
-    return [regex]::Replace([string]$Text, '[^\x20-\x7E]', '?')
+    $t = [regex]::Replace([string]$Text, '\\(?=u[0-9a-fA-F]{4})', '\u005c')
+    return [regex]::Replace($t, '[^\x20-\x7E]', {
+            param($m) '\u' + ([int][char]$m.Value).ToString('x4')
+        })
 }
 
 function Protect-BoText {
@@ -81,6 +116,8 @@ function Protect-BoText {
     $t = [regex]::Replace($t, '(?i)(-{1,2}|/)(password|passwd|pwd|pass|secret|token|apikey|api-key|accesskey|clientsecret)([\s=:]+)("[^"]*"|''[^'']*''|\S+)', '$1$2$3<redacted>')
     $t = [regex]::Replace($t, '(?i)\b(password|passwd|pwd|secret|token|api[_-]?key|authorization)\s*[=:]\s*("[^"]*"|\S+)', '$1=<redacted>')
     $t = [regex]::Replace($t, '(?i)(/user:\S+\s+)(\S+)', '$1<redacted>')
+    $t = [regex]::Replace($t, '(://[^/\s:@]+:)[^@/\s]+@', '$1<redacted>@')
+    $t = [regex]::Replace($t, '(?i)(\bcurl(?:\.exe)?\b[^|;&]*?\s(?:-u|--user)[\s=]+[^\s:]+:)\S+', '$1<redacted>')
     $t = [regex]::Replace($t, '(?i)(\s-(?:e|ec|enc|encodedcommand)\s+)([A-Za-z0-9+/=]{16,})', {
             param($m) $m.Groups[1].Value + '<base64 ' + $m.Groups[2].Value.Length + ' chars>'
         })
@@ -248,6 +285,9 @@ function Initialize-BoRun {
         NoColor    = $false
     }
     Write-BoLog 'INFO' "run start tool=$Tool version=$script:BoVersion elevated=$elevated"
+    if (-not (Test-BoTestMode) -and ($env:BO_FIXTURE_DIR -or $env:BO_FORCE_MISSING)) {
+        Add-BoError -Code 'TEST_HOOKS_IGNORED' -Message 'environment test hook(s) BO_FIXTURE_DIR/BO_FORCE_MISSING ignored because BO_TEST_MODE=1 is not set; the real host was audited' -Material $true
+    }
     if (-not $elevated) {
         Add-BoError -Code 'NOT_ELEVATED' -Message 'running without administrator rights; coverage reduced (other users, protected registry keys, exclusions, audit policy)' -Material $false
     }
@@ -405,8 +445,9 @@ function Get-BoData {
         [Parameter(Mandatory)][scriptblock]$Live,
         [switch]$Text
     )
-    if ($env:BO_FORCE_MISSING) {
-        $forced = $env:BO_FORCE_MISSING -split '\s+'
+    $forcedNames = Get-BoForcedMissing
+    if ($forcedNames) {
+        $forced = $forcedNames -split '\s+'
         if ($forced -contains $Name) { throw "data source '$Name' unavailable (forced)" }
     }
     if (Test-BoFixtureMode) {
@@ -456,7 +497,7 @@ function Get-BoRegKey {
     # Returns $null when the key does not exist, else @{ Path; Values (hashtable); SubKeys (string[]) }.
     # Values keep REG_EXPAND_SZ unexpanded. Throws on access problems.
     param([Parameter(Mandatory)][string]$Path)
-    if ($env:BO_FORCE_MISSING -and (($env:BO_FORCE_MISSING -split '\s+') -contains 'registry')) {
+    if ((Get-BoForcedMissing) -and (((Get-BoForcedMissing) -split '\s+') -contains 'registry')) {
         throw "data source 'registry' unavailable (forced)"
     }
     if (Test-BoFixtureMode) {
@@ -898,6 +939,7 @@ function Get-BoHostInfo {
     }
     if ($user) { $h['user'] = ConvertTo-BoSafeString $user }
     $h['elevated'] = [bool]$script:Bo.Elevated
+    if (Test-BoFixtureMode) { $h['test_mode'] = $true }
     return $h
 }
 
@@ -990,10 +1032,72 @@ function ConvertTo-BoTextReport {
     return $sb.ToString()
 }
 
+function Get-BoSha256Hex {
+    param([Parameter(Mandatory)][string]$Path)
+    $sha = [System.Security.Cryptography.SHA256]::Create()
+    try {
+        $stream = [System.IO.File]::OpenRead($Path)
+        try { $bytes = $sha.ComputeHash($stream) }
+        finally { $stream.Dispose() }
+    }
+    finally { $sha.Dispose() }
+    return (($bytes | ForEach-Object { $_.ToString('x2') }) -join '')
+}
+
+function Write-BoRunManifest {
+    # manifest.json beside report.json: SHA-256 and size of every output file and of the collector
+    # scripts (shared/schemas/run-manifest.schema.json; verify with python -m shared.reporting.verify).
+    # A file that cannot be hashed gets a null digest and "complete": false, never an invented value.
+    param([string]$Dir, [System.Collections.IDictionary]$Report)
+    $complete = $true
+    $files = @()
+    foreach ($name in @('report.json', 'report.txt', 'run.log')) {
+        $path = Join-Path $Dir $name
+        $digest = $null
+        try { $digest = Get-BoSha256Hex -Path $path }
+        catch { $complete = $false }
+        $files += , ([ordered]@{ path = $name; sha256 = $digest; size = (New-Object System.IO.FileInfo $path).Length })
+    }
+    $collector = @()
+    if ($script:BoLibPath) {
+        $root = Split-Path -Parent (Split-Path -Parent $script:BoLibPath)
+        foreach ($f in (Get-ChildItem -LiteralPath $root -Recurse -File -Filter '*.ps1' -ErrorAction SilentlyContinue)) {
+            $digest = $null
+            try { $digest = Get-BoSha256Hex -Path $f.FullName }
+            catch { $complete = $false }
+            $collector += , ([ordered]@{ path = $f.FullName.Substring($root.Length).TrimStart('\', '/').Replace('\', '/'); sha256 = $digest })
+        }
+    }
+    $manifest = [ordered]@{
+        schema_version = '0.1.0'
+        kind           = 'run-manifest'
+        hash_algorithm = 'sha256'
+        complete       = $complete
+        tool           = [ordered]@{ name = $script:Bo.Tool; version = $script:BoVersion }
+        run            = [ordered]@{
+            id = $Report['run']['id']; started_at = $Report['run']['started_at']
+            finished_at = $Report['run']['finished_at']; exit_code = $Report['run']['exit_code']
+        }
+        host           = $Report['host']
+        files          = @($files)
+        collector      = @($collector)
+    }
+    $enc = New-Object System.Text.UTF8Encoding $false
+    [System.IO.File]::WriteAllText((Join-Path $Dir 'manifest.json'), (ConvertTo-Json -InputObject $manifest -Depth 8), $enc)
+}
+
 function Write-BoRunDirectory {
-    param([string]$OutputDir, [string]$JsonText, [string]$TextReport)
+    param([string]$OutputDir, [string]$JsonText, [string]$TextReport, [System.Collections.IDictionary]$Report)
     $stamp = [DateTime]::UtcNow.ToString('yyyyMMddTHHmmssZ')
-    $dir = Join-Path $OutputDir ("blueops-run-$stamp-" + $script:Bo.Tool)
+    $base = "blueops-run-$stamp-" + $script:Bo.Tool
+    $dir = Join-Path $OutputDir $base
+    # A run directory is never reused: a second run in the same second (or a pre-existing path)
+    # gets a numeric suffix instead of overwriting earlier evidence.
+    $n = 0
+    while ([System.IO.Directory]::Exists($dir) -or [System.IO.File]::Exists($dir)) {
+        $n++
+        $dir = Join-Path $OutputDir ($base + "-$n")
+    }
     [void][System.IO.Directory]::CreateDirectory($dir)
     if (Test-BoWindows) {
         try {
@@ -1014,6 +1118,7 @@ function Write-BoRunDirectory {
     [System.IO.File]::WriteAllText((Join-Path $dir 'report.json'), $JsonText, $enc)
     [System.IO.File]::WriteAllText((Join-Path $dir 'report.txt'), $TextReport, $enc)
     [System.IO.File]::WriteAllText((Join-Path $dir 'run.log'), (($script:Bo.Log -join "`n") + "`n"), $enc)
+    if ($null -ne $Report) { Write-BoRunManifest -Dir $dir -Report $Report }
     return $dir
 }
 
@@ -1125,8 +1230,12 @@ function Invoke-BoCli {
     $textReport = ConvertTo-BoTextReport -Report $report -ExitCode $exit -Modules @($selected)
     if ($OutputDir) {
         try {
-            $dir = Write-BoRunDirectory -OutputDir $OutputDir -JsonText $jsonText -TextReport $textReport
-            if (-not $Quiet) { Write-BoErr "Report written to $dir" }
+            $dir = Write-BoRunDirectory -OutputDir $OutputDir -JsonText $jsonText -TextReport $textReport -Report $report
+            if (-not $Quiet) {
+                Write-BoErr "Report written to $dir"
+                $mf = Join-Path $dir 'manifest.json'
+                if (Test-Path -LiteralPath $mf) { Write-BoErr ('Manifest SHA-256: ' + (Get-BoSha256Hex -Path $mf) + ' (record it off this host to detect later tampering)') }
+            }
         }
         catch { Write-BoErr "$Tool`: cannot write to -OutputDir: $($_.Exception.Message)"; return 1 }
     }

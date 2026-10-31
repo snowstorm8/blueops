@@ -53,7 +53,11 @@
         },
         "arch": { "type": "string" },
         "user": { "type": "string" },
-        "elevated": { "type": "boolean" }
+        "elevated": { "type": "boolean" },
+        "test_mode": {
+          "const": true,
+          "description": "Present (true) only when the collector ran with fixture hooks under BO_TEST_MODE=1: the data does not describe a real host."
+        }
       }
     },
     "findings": {

@@ -118,20 +118,41 @@ _usr_accounts_check() {
   fi
 }
 
+# True when sudo would read this file name from an include directory (it skips names that
+# contain a dot or end in a tilde).
+_usr_sudoers_name_ok() { [[ "$1" != *.* && "$1" != *~ ]]; }
+
+# Directive lines that make sudo read more files: #include, #includedir, @include, @includedir.
+# (`#include` is a directive, not a comment; a plain comment such as "# includes foo" is not.)
+_usr_sudoers_include() { # LINE -> prints "kind<TAB>path" when LINE is an include directive
+  local re='^[[:space:]]*[#@]include(dir)?[[:space:]]+([^[:space:]]+)'
+  if [[ "$1" =~ ${re} ]]; then
+    printf '%s\t%s' "${BASH_REMATCH[1]:-file}" "${BASH_REMATCH[2]}"
+  fi
+}
+
 _usr_sudo_check() {
-  local gf f line norm n=0 nopw=0
-  local -a files=() nopasswd=() unsafe=() rules=() privgrp=() rootequiv=()
+  local gf f line norm n=0 nopw=0 kind target inc
+  local -a files=() queue=() nopasswd=() unsafe=() rules=() privgrp=() rootequiv=() includes=() defaults=()
+  local seen=" "
   for f in "$(bo_path /etc/sudoers)" "$(bo_path /etc/sudoers.d)"/*; do
     [[ -f "${f}" ]] || continue
     # sudo ignores sudoers.d entries whose names contain '.' or end in '~'.
-    if [[ "${f}" == */sudoers.d/* && ("${f##*/}" == *.* || "${f##*/}" == *~) ]]; then continue; fi
+    if [[ "${f}" == */sudoers.d/* ]] && ! _usr_sudoers_name_ok "${f##*/}"; then continue; fi
     files+=("${f}")
+    seen+="${f} "
   done
   if ((${#files[@]} == 0)); then
     [[ -e "$(bo_path /etc/sudoers)" ]] && bo_perm_error "/etc/sudoers not readable; sudo rules skipped" "USR-SUDO-001" && bo_cov config sudoers partial "/etc/sudoers not readable"
     [[ -e "$(bo_path /etc/sudoers)" ]] || bo_error SUDO_ABSENT "no /etc/sudoers present (sudo not installed?)" "USR-SUDO-001" 0
   fi
-  for f in ${files[@]+"${files[@]}"}; do
+  # Files are processed as a worklist so that include directives found while reading add their
+  # targets. A visited set prevents loops and the worklist is capped at 500 files.
+  queue=(${files[@]+"${files[@]}"})
+  local idx=0
+  while ((idx < ${#queue[@]})); do
+    f="${queue[${idx}]}"
+    idx=$((idx + 1))
     if [[ ! -r "${f}" ]]; then
       bo_perm_error "$(bo_unroot "${f}") not readable; sudo rules skipped" "USR-SUDO-001"
       bo_cov config sudoers partial "$(bo_unroot "${f}") not readable"
@@ -143,42 +164,123 @@ _usr_sudo_check() {
     if [[ -n "${mode}" ]] && bo_mode_has "${mode}" 022; then
       unsafe+=("file|${rel}|mode ${mode} is writable by group/other")
     fi
-    while IFS= read -r line; do
+    while IFS= read -r line || [[ -n "${line}" ]]; do
+      # Directives first: "#include..." would otherwise be stripped as a comment below.
+      if inc="$(_usr_sudoers_include "${line}")" && [[ -n "${inc}" ]]; then
+        kind="${inc%%$'\t'*}"
+        target="${inc#*$'\t'}"
+        includes+=("file|${rel}|${kind} ${target}")
+        norm="$(printf '%s' "${line}" | tr -s '[:space:]' ' ')"
+        bo_inv config sudoers "config:sudoers:${rel}#$(bo_hash_id "${norm}")" "file=${rel}" "rule=${norm}" "^file=${rel}"
+        if [[ "${target}" != /* ]] || ((${#queue[@]} >= 500)); then continue; fi
+        if [[ "${kind}" == dir ]]; then
+          local ef
+          for ef in "$(bo_path "${target}")"/*; do
+            [[ -f "${ef}" ]] || continue
+            _usr_sudoers_name_ok "${ef##*/}" || continue
+            [[ "${seen}" == *" ${ef} "* ]] && continue
+            seen+="${ef} "
+            queue+=("${ef}")
+          done
+        else
+          [[ -f "$(bo_path "${target}")" && "${seen}" != *" $(bo_path "${target}") "* ]] && {
+            seen+="$(bo_path "${target}") "
+            queue+=("$(bo_path "${target}")")
+          }
+        fi
+        continue
+      fi
       line="${line%%#*}"
       [[ "${line}" =~ ^[[:space:]]*$ ]] && continue
-      [[ "${line}" =~ ^[[:space:]]*(Defaults|Cmnd_Alias|User_Alias|Host_Alias|Runas_Alias|@include|#include) ]] && continue
-      n=$((n + 1))
       norm="$(printf '%s' "${line}" | tr -s '[:space:]' ' ')"
+      # Every effective line is inventoried, including Defaults and *_Alias definitions: they
+      # change what the rules mean (for example `Defaults !authenticate`).
       bo_inv config sudoers "config:sudoers:${rel}#$(bo_hash_id "${norm}")" "file=${rel}" "rule=$(printf '%s' "${norm}" | bo_redact)" "^file=${rel}"
+      if [[ "${line}" =~ ^[[:space:]]*Defaults ]]; then
+        defaults+=("file|${rel}|$(printf '%s' "${norm}" | bo_redact)")
+        continue
+      fi
+      [[ "${line}" =~ ^[[:space:]]*(Cmnd_Alias|User_Alias|Host_Alias|Runas_Alias) ]] && continue
+      n=$((n + 1))
       rules+=("file|${rel}|$(printf '%s' "${line}" | tr -s '[:space:]' ' ' | bo_redact)")
       if [[ "${line}" == *NOPASSWD* ]]; then
         nopw=$((nopw + 1))
-        nopasswd+=("file|${rel}|$(printf '%s' "${line}" | tr -s '[:space:]' ' ')")
+        nopasswd+=("file|${rel}|$(printf '%s' "${line}" | tr -s '[:space:]' ' ' | bo_redact)")
       fi
     done <"${f}"
   done
   if ((n > 0)); then
-    bo_finding USR-SUDO-001 info high users "Sudo rules" "${n} rule line(s) across ${#files[@]} file(s)." "" "" "${rules[@]}"
+    bo_finding USR-SUDO-001 info high users "Sudo rules" "${n} rule line(s) across ${#queue[@]} file(s)." "" "" "${rules[@]}"
   fi
   ((nopw > 0)) && bo_finding USR-SUDO-002 medium medium users "Sudo rules without password (NOPASSWD)" \
     "NOPASSWD grants privilege escalation to anyone able to run as those principals." \
     "Remove NOPASSWD unless required by a scored service." "T1548.003" "${nopasswd[@]}"
   ((${#unsafe[@]} > 0)) && bo_finding USR-SUDO-003 high high users "Sudoers file writable by non-root" \
     "Group/other-writable sudoers files allow privilege escalation." "chmod 0440 on the file after review." "T1548.003" "${unsafe[@]}"
+  # Include directives pointing outside /etc/sudoers.d: rules there are read as if they were part
+  # of sudoers, and the target is often a directory that is easier to write.
+  local -a oddinc=() riskyinc=()
+  local inc_item
+  for inc_item in ${includes[@]+"${includes[@]}"}; do
+    target="${inc_item##* }"
+    case "${target}" in
+      /etc/sudoers.d | /etc/sudoers.d/* | /etc/sudoers) ;;
+      /tmp/* | /var/tmp/* | /dev/shm/* | /run/user/* | /home/* | /mnt/* | /media/*) riskyinc+=("${inc_item}") ;;
+      *) oddinc+=("${inc_item}") ;;
+    esac
+  done
+  ((${#riskyinc[@]} > 0)) && bo_finding USR-SUDO-004 high high users "Sudoers includes a temporary or user-writable location" \
+    "An include directive makes sudo read rules from a directory ordinary users or processes can usually write." \
+    "Remove the include after preserving the target; verify the files it pulled in." "T1548.003" "${riskyinc[@]}"
+  ((${#oddinc[@]} > 0)) && bo_finding USR-SUDO-004 medium medium users "Sudoers includes a non-default location" \
+    "Rules are read from outside /etc/sudoers.d; legitimate on some systems, also a way to hide rules." \
+    "Confirm the include is expected and the target is root-owned and not group/other-writable." "T1548.003" "${oddinc[@]}"
+  local -a baddef=()
+  local d_item
+  for d_item in ${defaults[@]+"${defaults[@]}"}; do
+    if [[ "${d_item}" =~ \!authenticate ]] || [[ "${d_item}" =~ env_keep.*(LD_|PYTHONPATH|PERL5LIB|RUBYLIB) ]] || [[ "${d_item}" =~ \!env_reset ]]; then
+      baddef+=("${d_item}")
+    fi
+  done
+  ((${#baddef[@]} > 0)) && bo_finding USR-SUDO-005 high medium users "Dangerous sudo Defaults" \
+    "Defaults such as !authenticate (no password for anyone), env_keep of loader/interpreter variables, or !env_reset let a caller's environment or identity weaken sudo." \
+    "Remove the setting unless it is required, after preserving the file." "T1548.003" "${baddef[@]}"
 
   bo_cov config sudoers complete
   gf="$(bo_path /etc/group)"
   if [[ -r "${gf}" ]]; then
-    local g gid members
+    local g gid members pm
+    local -a primgrp=()
     while IFS=: read -r g _ gid members; do
-      [[ -n "${g}" && "${g}" != "#"* ]] && bo_inv groups "" "group:${g}" "gid=${gid}" "members[]=${members}" "^file=/etc/group"
+      [[ -n "${g}" && "${g}" != "#"* ]] || continue
+      # Accounts whose *primary* group is a privileged one are not listed in /etc/group at all,
+      # yet sudo and file permissions treat them as members: record them for the comparison.
+      pm=""
       case "${g}" in
-        sudo | wheel | admin | root) [[ -n "${members}" ]] && privgrp+=("file|/etc/group|group ${g}: ${members}") ;;
+        sudo | wheel | admin | root | docker | lxd | disk | shadow)
+          if [[ -s "${BO_SCRATCH}/accounts.tsv" ]]; then
+            pm="$(awk -F'\t' -v gid="${gid}" '$3 == gid { printf "%s%s", (n++ ? "," : ""), $1 }' "${BO_SCRATCH}/accounts.tsv")"
+          fi
+          bo_inv groups "" "group:${g}" "gid=${gid}" "members[]=${members}" "primary_members[]=${pm}" "^file=/etc/group"
+          ;;
+        *) bo_inv groups "" "group:${g}" "gid=${gid}" "members[]=${members}" "^file=/etc/group" ;;
+      esac
+      case "${g}" in
+        sudo | wheel | admin | root)
+          [[ -n "${members}" ]] && privgrp+=("file|/etc/group|group ${g}: ${members}")
+          # root itself (and root-aliased accounts of the distribution) legitimately has GID 0.
+          local extra="" a
+          for a in ${pm//,/ }; do [[ "${a}" == root ]] || extra+="${a} "; done
+          [[ -z "${extra}" ]] || primgrp+=("file|/etc/passwd|primary group ${g} (gid ${gid}) of: ${extra% }")
+          ;;
         docker | lxd | disk) [[ -n "${members}" ]] && rootequiv+=("file|/etc/group|group ${g}: ${members}") ;;
         *) ;;
       esac
     done <"${gf}"
     bo_cov groups "" complete
+    ((${#primgrp[@]} > 0)) && bo_finding USR-GROUP-003 high medium users "Accounts with an administrative primary group" \
+      "These accounts are not listed as group members in /etc/group but hold an administrative group (root, sudo, wheel, admin) as their primary group, which grants the same privileges." \
+      "Verify each account; change the primary group with usermod -g after preserving the passwd and group files." "T1098" "${primgrp[@]}"
     ((${#privgrp[@]} > 0)) && bo_finding USR-GROUP-001 info high users "Members of administrative groups" \
       "Users in sudo/wheel/admin/root groups can typically obtain root." "" "" "${privgrp[@]}"
     ((${#rootequiv[@]} > 0)) && bo_finding USR-GROUP-002 low medium users "Members of root-equivalent groups" \

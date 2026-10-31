@@ -26,8 +26,8 @@ Describe 'Protect-BoText' {
         $t | Should -Not -Match 'SQBFAFgA'
     }
 
-    It 'replaces non-ASCII characters and truncates long text' {
-        Protect-BoText ("caf" + [char]0x00E9) | Should -Be 'caf?'
+    It 'escapes non-ASCII characters and truncates long text' {
+        Protect-BoText ("caf" + [char]0x00E9) | Should -Be 'caf\u00e9'
         (Protect-BoText ('a' * 600) 100).Length | Should -Be 103
     }
 }
@@ -144,11 +144,12 @@ Describe 'registry fixture provider' {
         $fx = Copy-BoTestFixture
         try {
             $env:BO_FIXTURE_DIR = $fx
+            $env:BO_TEST_MODE = '1'
             $script:BoRegFixture = $null
             $k = Get-BoRegKey -Path 'Registry::HKEY_LOCAL_MACHINE\software\microsoft\windows nt\currentversion\image file execution options'
             $k.SubKeys | Should -Contain 'sethc.exe'
             (Get-BoRegKey -Path 'Registry::HKEY_LOCAL_MACHINE\SOFTWARE\Nope') | Should -BeNullOrEmpty
         }
-        finally { Remove-Item Env:\BO_FIXTURE_DIR -ErrorAction SilentlyContinue; $script:BoRegFixture = $null; Remove-BoTestFixture $fx }
+        finally { Remove-Item Env:\BO_FIXTURE_DIR -ErrorAction SilentlyContinue; Remove-Item Env:\BO_TEST_MODE -ErrorAction SilentlyContinue; $script:BoRegFixture = $null; Remove-BoTestFixture $fx }
     }
 }

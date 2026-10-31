@@ -27,6 +27,14 @@ If script execution is restricted, run with `powershell.exe -NoProfile -Executio
 
 Individual module scripts live in `windows/audit/` (`Get-SystemAudit.ps1`, ...) and `windows/persistence/Get-PersistenceAudit.ps1`; they are dot-sourced by the entry points, not run directly. `Find-Persistence.ps1` is the standalone persistence tool (tool name `find-persistence`, category `persistence`).
 
+## Safety properties of the collector itself
+
+- **Test hooks need `BO_TEST_MODE=1`.** Without it `BO_FIXTURE_DIR` and `BO_FORCE_MISSING` are ignored and the run records `TEST_HOOKS_IGNORED` (material, exit 6); reports made with the hooks carry `host.test_mode`.
+- **Native tools run from `System32` by full path** (`netstat.exe`, `schtasks.exe`, `auditpol.exe`, `net.exe`), never through `PATH`; a missing tool is a recorded gap.
+- **Run directories are never reused.** A second run in the same second gets a `-1`, `-2`, ... suffix (as on Linux) instead of overwriting the earlier report; the directory ACL is restricted before any file is written.
+- **Run manifest.** `-OutputDir` also writes `manifest.json` (SHA-256 and size of the three output files and of every collector `.ps1`) and prints its digest to stderr; verify with `python -m shared.reporting.verify`.
+- **Text is escaped, not substituted.** Control and non-ASCII characters become `\uXXXX` (UTF-16 code unit); a literal `\uXXXX` in the input is escaped first so the mapping stays one-to-one.
+
 ## Exit codes
 
 `0` nothing at/above `-FailOn` and no material gaps · `2` usage error · `3` not Windows · `4` findings at/above `-FailOn` · `6` no such findings but a material coverage gap (a module crashed, or a core data source such as the firewall policy was unavailable). Gaps expected when not elevated (access denied) or covered by a fallback are listed in `errors[]` but do not change the exit code. Exit 4 takes precedence over 6.
@@ -69,11 +77,11 @@ Every run also emits `inventory` (stable-keyed records plus per-domain coverage)
 - Findings are heuristics; many `medium`/`low` items have benign explanations. Detection is point-in-time and userland-only; a kernel-level implant can hide from every check.
 - Not elevated, the audit still runs but records `PERM_DENIED`-style gaps (other users' processes, services' paths, audit policy, some ACLs).
 - BITS jobs are listed only while the BITS service is running (`BITS_UNREADABLE` otherwise): starting a stopped BITS service changes its startup type from Manual to Automatic, which a read-only audit must not do.
-- Authenticode checks may contact certificate revocation endpoints (Windows decides this, not BlueOps); on an isolated host they can be slow. Signature checks are capped and cached.
+- Authenticode checks may contact certificate revocation endpoints (Windows decides this, not BlueOps, and BlueOps has no switch for it): on a connected host this is the one place a run can touch the network, and on an isolated host the lookups time out and are cached. Signature checks are capped. Residual risk, documented in [security-model.md](security-model.md).
 - Offline user hives, event-log analysis, Active Directory/domain controller checks, and memory inspection are not covered.
 - Windows PowerShell 5.1 and PowerShell 7 are supported; Constrained Language Mode hosts may degrade (reported as gaps).
-- Tests run against synthetic fixtures; behaviour on real Windows editions beyond the CI runners is unverified.
+- Tests run against synthetic fixtures; behaviour on real Windows editions beyond the CI runners is unverified. The hardening changes of the audit remediation (hook gating, run directory suffixes, manifest, text escapes, System32 tool paths) were written without a local PowerShell: they are covered by static Python tests (`tests/shared/test_windows_sources.py`) and by Pester tests (`tests/windows/Hardening.Tests.ps1`) that run on CI only.
 
-## Testing hooks
+## Testing hooks (BO_TEST_MODE=1 required)
 
 Test-only environment variables (never use in production): `BO_FIXTURE_DIR` (read `data/*.json|txt` and a file tree from `tests/fixtures/windows-host` instead of the live host), `BO_FORCE_MISSING` (space-separated provider names treated as unavailable), and `BO_TEST_SHELL` (shell used by Pester to launch the scripts; default `powershell.exe` on Windows, `pwsh` elsewhere).
