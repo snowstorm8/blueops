@@ -53,7 +53,7 @@ main() {
     esac
     shift
   done
-  if ((dry && ! install)); then die 2 "--dry-run applies to --install"; fi
+  if ((dry && !install)); then die 2 "--dry-run applies to --install"; fi
 
   if [[ "$(uname -s 2>/dev/null)" != "Linux" ]]; then die 3 "Linux only (detected: $(uname -s 2>/dev/null || echo unknown))"; fi
 
@@ -75,7 +75,7 @@ main() {
     echo "Nothing to install."
     return "${rc}"
   fi
-  if ((! install)); then
+  if ((!install)); then
     echo "Packages that would be installed: ${pkg_list}"
     echo "Nothing was changed. Re-run with --install to proceed (it will ask first)."
     return "${rc}"
@@ -114,7 +114,7 @@ main() {
     return 0
   fi
 
-  if ((! yes)); then
+  if ((!yes)); then
     [[ -t 0 ]] || die 5 "no terminal to confirm on; re-run with --yes to proceed non-interactively"
     local ans=""
     read -r -p "Run these commands now? [y/N] " ans || true
