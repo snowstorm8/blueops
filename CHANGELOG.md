@@ -4,6 +4,17 @@ All notable changes are documented here. Format: [Keep a Changelog](https://keep
 
 ## [Unreleased]
 
+### Added (fresh-clone deployment)
+- `./blueops` launcher (repo root): `doctor`, `audit`, `persistence`, `diff`, `detect`, `version`. Resolves its own location (also through symlinks), so it works from any directory; runs Python tools with `PYTHONPATH` set and `-B` (no bytecode written into the checkout).
+- `linux/lib/deps.sh`: read-only dependency detection (required files, required/recommended commands, Python >= 3.9, Bash version, distro family). Collectors now stop early with exit 3 and an actionable message when a required command is missing (`bo_preflight_deps`).
+- `scripts/setup/setup-linux.sh`: separate, opt-in setup for Debian/Ubuntu (`apt-get`), RHEL-family incl. Rocky (`dnf`/`yum`) and Arch (`pacman`). Default run changes nothing; `--install` prints the exact commands and asks (`--yes`, `--dry-run`, `--minimal`). Never installs an init system.
+- `tests/shared/test_fresh_clone.py`: tracked-files-only copy, run from an unrelated cwd, with restricted `PATH` and package-manager shims; README quick-start guard. CI job `fresh-clone` clones the commit under test and runs the documented flow.
+- README `Quick start` leads with the exact clone commands; `docs/deployment.md` documents Debian, Rocky, Windows and offline requirements.
+- Lint/format now cover the extensionless `blueops` launcher (`.editorconfig`, `lint.yml`, `check.sh`).
+
+### Added (WCComps 2026 Invitational 2)
+- `docs/ccdc-invitational-2.md`: event-specific deployment and operations guide derived from the team packet (machine-to-collector map with full/partial/manual tiers, collect/compare/investigate/verify workflow, report locations, router and scoring-safety rules, known gaps). No code changes.
+
 ### Security and integrity (audit remediation, P1-P3)
 - **Test hooks need `BO_TEST_MODE=1`** on both platforms (`BO_ROOT`, `BO_FORCE_MISSING_TOOLS`, `BO_FIXTURE_DIR`, `BO_FORCE_MISSING`). Without it they are removed/ignored and the run records `TEST_HOOKS_IGNORED` (material, exit 6); reports made with them carry the new optional `host.test_mode` (report schema 0.2.0, additive). The comparison warns (`TEST_MODE`). Test harnesses (Bats helper, pytest, Pester) now set it explicitly.
 - **Trusted `PATH` (Linux):** the system directories first; relative, missing, non-root-owned and group/other-writable entries are dropped and recorded (`PATH_SANITIZED`). **Windows:** `netstat.exe`, `schtasks.exe`, `auditpol.exe` and `net.exe` run from `System32` by full path.

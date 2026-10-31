@@ -64,6 +64,22 @@ bo_have() {
   command -v -- "$1" >/dev/null 2>&1
 }
 
+# Fail early and actionably when a command the collectors cannot work without is missing.
+# Never installs anything; the fix is the separate setup step.
+bo_preflight_deps() {
+  local tool="$1" f="${BO_LINUX_DIR}/lib/deps.sh"
+  [[ -r "${f}" ]] || return 0
+  # shellcheck source=linux/lib/deps.sh
+  source "${f}"
+  bo_deps_scan
+  if [[ -n "${BO_DEPS_MISSING_REQ}" ]]; then
+    echo "${tool}: required command(s) not found: ${BO_DEPS_MISSING_REQ}" >&2
+    echo "${tool}: run './blueops doctor' to see everything missing, then 'sudo ${BO_LINUX_DIR}/../scripts/setup/setup-linux.sh --install' (asks before changing anything)." >&2
+    return 1
+  fi
+  return 0
+}
+
 bo_is_root() { [[ "$(id -u 2>/dev/null || echo 1)" == "0" ]]; }
 
 # Octal mode of a path (GNU stat, then BSD stat).
@@ -770,6 +786,7 @@ bo_cli_main() {
     echo "${tool}: this tool supports Linux only (detected: $(uname -s 2>/dev/null || echo unknown))" >&2
     return 3
   fi
+  bo_preflight_deps "${tool}" || return 3
   if [[ -n "${outdir}" && ! -d "${outdir}" ]]; then
     (umask 077 && mkdir -p -- "${outdir}") 2>/dev/null || {
       echo "${tool}: cannot create output dir: ${outdir}" >&2

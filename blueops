@@ -1,0 +1,111 @@
+#!/usr/bin/env bash
+# blueops - single entry point for the Linux tooling. Works from any directory.
+# Category: launcher. Safety: read-only; never installs packages or changes the system
+# (setup is a separate step: scripts/setup/setup-linux.sh). For hosts you are authorized to administer.
+# Usage: blueops {doctor|audit|persistence|diff|detect|version|help} [args...]
+set -Eeuo pipefail
+IFS=$'\n\t'
+
+# Resolve the checkout directory even when invoked through a symlink or from another cwd.
+bo_self_dir() {
+  local src="${BASH_SOURCE[0]}" dir
+  while [[ -L "${src}" ]]; do
+    dir="$(cd -P -- "$(dirname -- "${src}")" && pwd)"
+    src="$(readlink -- "${src}")"
+    [[ "${src}" == /* ]] || src="${dir}/${src}"
+  done
+  cd -P -- "$(dirname -- "${src}")" && pwd
+}
+
+BO_REPO="$(bo_self_dir)"
+readonly BO_REPO
+
+usage() {
+  cat <<'EOF'
+blueops - defensive host auditing for systems you are authorized to administer.
+
+Usage: blueops COMMAND [ARGS...]
+
+Commands:
+  doctor              check dependencies and the checkout (read-only, changes nothing)
+  audit [ARGS]        read-only host audit            (linux/audit/audit-linux.sh)
+  persistence [ARGS]  read-only persistence detection (linux/persistence/check-persistence.sh)
+  diff BASE CURRENT   compare two audit reports       (needs Python >= 3.9)
+  detect BASE CURRENT explainable detections over the changes (needs Python >= 3.9)
+  version             print version and Git commit
+  help                this text
+
+Run 'blueops audit --help' for collector options. Setup is separate and never automatic:
+  sudo ./scripts/setup/setup-linux.sh            (show what is missing)
+  sudo ./scripts/setup/setup-linux.sh --install  (install it, after asking)
+Exit codes: 0 ok, 2 usage, 3 precondition failed (missing dependency), 4 findings, 5 aborted, 6 partial.
+EOF
+}
+
+# shellcheck source=linux/lib/deps.sh
+source "${BO_REPO}/linux/lib/deps.sh" 2>/dev/null || {
+  echo "blueops: linux/lib/deps.sh is missing; the checkout is incomplete. Re-clone: git clone https://github.com/snowstorm8/blueops.git" >&2
+  exit 3
+}
+
+# Refuse early, with an actionable message, instead of failing midway.
+require_ready() {
+  bo_deps_scan
+  if [[ -n "${BO_DEPS_MISSING_FILES}" || -n "${BO_DEPS_MISSING_REQ}" ]]; then
+    bo_deps_report "sudo ${BO_REPO}/scripts/setup/setup-linux.sh --install" >&2 || true
+    echo "blueops: cannot continue; fix the items marked MISSING above." >&2
+    exit 3
+  fi
+}
+
+run_python_module() {
+  local module="$1"
+  shift
+  bo_deps_scan
+  if [[ -z "${BO_DEPS_PYTHON}" ]]; then
+    echo "blueops: Python >= 3.9 is required for '${module##*.}': ${BO_DEPS_PYTHON_NOTE}." >&2
+    echo "         The collectors do not need Python; run diff/detect on an analyst machine, or install it with:" >&2
+    echo "         sudo ${BO_REPO}/scripts/setup/setup-linux.sh --install" >&2
+    exit 3
+  fi
+  # -B: do not write __pycache__ into the checkout. PYTHONPATH makes the package importable from any cwd.
+  PYTHONPATH="${BO_REPO}${PYTHONPATH:+:${PYTHONPATH}}" exec "${BO_DEPS_PYTHON}" -B -m "${module}" "$@"
+}
+
+print_version() {
+  local commit="unknown"
+  if bo_deps_have git && [[ -e "${BO_REPO}/.git" ]]; then
+    commit="$(git -C "${BO_REPO}" rev-parse --short HEAD 2>/dev/null || echo unknown)"
+  fi
+  echo "blueops launcher; git commit: ${commit}; checkout: ${BO_REPO}"
+}
+
+main() {
+  local cmd="${1:-help}"
+  [[ $# -gt 0 ]] && shift
+  case "${cmd}" in
+    doctor)
+      bo_deps_scan
+      bo_deps_report "sudo ${BO_REPO}/scripts/setup/setup-linux.sh --install" || exit $?
+      ;;
+    audit)
+      require_ready
+      exec "${BASH}" "${BO_REPO}/linux/audit/audit-linux.sh" "$@"
+      ;;
+    persistence)
+      require_ready
+      exec "${BASH}" "${BO_REPO}/linux/persistence/check-persistence.sh" "$@"
+      ;;
+    diff) run_python_module shared.reporting.diff "$@" ;;
+    detect) run_python_module shared.reporting.detect "$@" ;;
+    version | --version) print_version ;;
+    help | --help | -h) usage ;;
+    *)
+      echo "blueops: unknown command: ${cmd}" >&2
+      usage >&2
+      exit 2
+      ;;
+  esac
+}
+
+main "$@"

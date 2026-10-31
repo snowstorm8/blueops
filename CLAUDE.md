@@ -23,6 +23,8 @@ Status: the repository is scaffolding. Do not claim a capability exists until it
 | `tests/{linux,windows,shared,fixtures}` | Bats, Pester, pytest tests; fixtures are synthetic data only. |
 | `docs/` | Architecture, development, deployment, security model, roadmap, contracts. |
 | `examples/` | Example reports and configs (synthetic). |
+| `blueops` (repo root) | Linux launcher: `doctor`, `audit`, `persistence`, `diff`, `detect`. Read-only; works from any cwd. |
+| `scripts/setup/` | Dependency setup, separate from auditing. Changes the system only with `--install`, after confirmation. |
 | `scripts/development/` | Maintainer/dev helpers (never deployed to targets). |
 
 Category semantics: **audit** = read-only inspection. **persistence** = read-only detection of persistence mechanisms. **incident** = evidence collection and (opt-in) containment. **hardening** = state-changing configuration. Never mix these in one script: a script lives in exactly one category and its behavior must match that category.
@@ -75,6 +77,14 @@ Category semantics: **audit** = read-only inspection. **persistence** = read-onl
 - Format and lint with Ruff (`ruff format`, `ruff check`; config in `pyproject.toml`). No `print` for library output — return data; CLI entry points use `argparse` and the shared exit codes.
 - Parse untrusted input defensively (evidence and logs are attacker-influenced). Never `eval`/`exec`/`pickle`/`shell=True`.
 - Tests: pytest (`tests/shared/`), no network, fixtures from `tests/fixtures/`.
+
+## 7a. Deployment contract (fresh clone)
+
+The supported deployment is `sudo apt install git; git clone https://github.com/snowstorm8/blueops.git; cd blueops`. Keep it true:
+
+- Everything a collector, the launcher or setup needs is tracked in Git (`tests/shared/test_fresh_clone.py` copies only tracked files and runs the flow from an unrelated cwd). Never rely on untracked, ignored or locally generated files, absolute dev paths, or a particular cwd; resolve paths from `BASH_SOURCE`/`$PSScriptRoot`.
+- Setup is separate from auditing. Collectors and `blueops` never install packages or edit configuration; a missing required command exits 3 with the fix. `scripts/setup/` modifies the system only with `--install`, after showing the exact commands and confirming (`--yes`; no TTY and no `--yes` exits 5).
+- New required commands go into `BO_DEPS_REQUIRED_CMDS` in `linux/lib/deps.sh` (with package names); new required files into `BO_DEPS_REQUIRED_FILES`.
 
 ## 8. Testing and quality
 

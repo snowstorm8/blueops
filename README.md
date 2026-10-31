@@ -4,6 +4,39 @@ A portable, cross-platform Blue Team toolkit for competitions, incident response
 
 > **Status: pre-alpha.** Linux and Windows read-only host auditing (v0.1) are implemented. Hardening, containment, and evidence collection are **not** implemented yet; everything marked "planned" below is a plan, not a feature.
 
+## Quick start
+
+```bash
+sudo apt install git
+git clone https://github.com/snowstorm8/blueops.git
+cd blueops
+```
+
+That is the whole install: everything the tools need is tracked in the repository, and they run from any directory. Then, on a Linux host:
+
+```bash
+./blueops doctor
+```
+
+`doctor` is read-only. It lists any missing dependency with the exact fix. Only if it reports something MISSING (or you want the optional tools), run the separate setup step; it prints the exact package-manager commands and asks before changing anything:
+
+```bash
+sudo ./scripts/setup/setup-linux.sh --install
+```
+
+Audit (read-only; run as root for full coverage) and compare against an earlier report:
+
+```bash
+sudo ./blueops audit --json --output-dir /root/blueops-out
+./blueops detect BASELINE_RUN_DIR CURRENT_RUN_DIR
+```
+
+- Auditing never installs or changes anything; setup never audits. Collectors that find a required command missing stop with exit code 3 and say what to run.
+- `diff` and `detect` need Python >= 3.9 (collectors do not). Ubuntu 22.04 provides it as the `python3` package (a minimal image has it uninstalled; setup adds it); Rocky 8's `python3` is too old (see below).
+- **Rocky / RHEL:** use `sudo dnf install -y git` instead of the `apt` line. Setup uses `dnf`; on Rocky 8 it requests `python3.11` for `diff`/`detect`. Rocky and Arch are untested targets; expect reported coverage gaps.
+- **Windows:** install Git for Windows (or copy the repository from another machine), then run `powershell.exe -NoProfile -ExecutionPolicy Bypass -File .\windows\audit\Invoke-WindowsAudit.ps1 -Json -OutputDir C:\blueops-out` from an elevated prompt. Only built-in PowerShell 5.1+ is needed. Details: [docs/deployment.md](docs/deployment.md).
+- If the clone sits on a `noexec` mount, run `bash ./blueops ...` instead.
+
 ## Motivation
 
 In CCDC-style Red vs. Blue exercises and real incidents, defenders take over unfamiliar Linux and Windows hosts with little time, no internet, and services that must stay up. Existing tools are often heavyweight, platform-specific, need installation or network access, or change systems without clear safeguards. BlueOps aims to give defenders a small, auditable set of scripts that:
@@ -62,7 +95,7 @@ scripts/development/                                         Maintainer helpers
 
 ## Installation and deployment philosophy
 
-There is no installer. BlueOps is meant to be copied to a host (or run from read-only media) after verifying its integrity against a checksum you obtained out-of-band. It never downloads or executes remote code, and never needs internet access. See [docs/deployment.md](docs/deployment.md).
+There is no installer. BlueOps is meant to be cloned (see Quick start) or copied to a host (or run from read-only media); verify what you cloned with `./blueops version` (prints the Git commit) or a checksum you obtained out-of-band. It never downloads or executes remote code, and never needs internet access. See [docs/deployment.md](docs/deployment.md). Event-specific guide: [WCComps 2026 Invitational 2](docs/ccdc-invitational-2.md).
 
 ## Configuration overview
 
