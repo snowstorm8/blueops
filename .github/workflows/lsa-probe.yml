@@ -1,0 +1,32 @@
+# Throwaway diagnostic (branch diag/** only, never merged): repeat the live audit's before/after
+# snapshot around each phase to see whether the Lsa key changes by itself.
+name: Lsa probe
+on:
+  push:
+    branches: ['diag/**']
+permissions:
+  contents: read
+jobs:
+  probe:
+    runs-on: windows-latest
+    timeout-minutes: 90
+    strategy:
+      fail-fast: false
+      matrix:
+        shell: [powershell, pwsh]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/checkout@v4
+        with:
+          ref: 9ee2b8416694e5f34b9b2820bad1f6cc48ab6fd6
+          path: base
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Host
+        run: |
+          [System.Environment]::OSVersion.VersionString
+          $PSVersionTable.PSVersion.ToString()
+        shell: pwsh
+      - name: Probe
+        run: python .diag/lsa_probe.py --shell ${{ matrix.shell }} --base base --iterations 6
