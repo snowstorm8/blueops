@@ -61,7 +61,7 @@ main() {
   fam="$(bo_deps_family)"
   bo_deps_scan
   local rc=0
-  bo_deps_report || rc=$?
+  bo_deps_report "sudo ${BO_DEPS_ROOT}/scripts/setup/setup-linux.sh --install" || rc=$?
   while IFS= read -r p; do [[ -n "${p}" ]] && pkgs+=("${p}"); done < <(bo_deps_packages "${fam}" "${minimal}")
 
   # The script's IFS is newline/tab, so join explicitly with spaces for display and command strings.
@@ -133,7 +133,7 @@ main() {
 
   echo
   bo_deps_scan
-  bo_deps_report || exit 6
+  bo_deps_report "sudo ${BO_DEPS_ROOT}/scripts/setup/setup-linux.sh --install" || exit 6
   echo "Setup complete. Next: ./blueops audit --json --output-dir <dir>"
 }
 
