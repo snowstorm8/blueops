@@ -90,3 +90,28 @@ jobs:
           $config.Run.Exit = $true
           $config.Output.Verbosity = 'Normal'
           Invoke-Pester -Configuration $config
+
+  fresh-clone:
+    name: Fresh clone workflow (ubuntu)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Clone the commit under test and run the documented flow from an unrelated directory
+        shell: bash
+        run: |
+          set -eu
+          d="$(mktemp -d)"
+          git clone --no-local "$GITHUB_WORKSPACE" "$d/blueops"
+          git -C "$d/blueops" checkout --quiet "$(git -C "$GITHUB_WORKSPACE" rev-parse HEAD)"
+          cd /
+          "$d/blueops/blueops" doctor
+          "$d/blueops/blueops" version
+          for n in 1 2; do
+            rc=0
+            "$d/blueops/blueops" audit --json --quiet --output-dir "$d/out$n" || rc=$?
+            case "$rc" in 0|4|6) ;; *) echo "audit exited $rc"; exit 1;; esac
+          done
+          rc=0
+          "$d/blueops/blueops" detect "$d"/out1/blueops-run-* "$d"/out2/blueops-run-* --quiet > /dev/null || rc=$?
+          case "$rc" in 0|4|6) ;; *) echo "detect exited $rc"; exit 1;; esac
+          test -z "$(git -C "$d/blueops" status --porcelain)" || { echo "running the tools modified the clone"; exit 1; }
