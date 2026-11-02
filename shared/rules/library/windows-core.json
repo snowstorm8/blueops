@@ -1,0 +1,1098 @@
+{
+  "schema_version": "0.1.0",
+  "kind": "rule-pack",
+  "pack": {
+    "name": "windows-core",
+    "version": "1.0.0",
+    "description": "Windows detections over accounts, services, scheduled tasks, security settings, logging and persistence."
+  },
+  "rules": [
+    {
+      "enabled": true,
+      "false_positives": [
+        "Legacy service accounts created without passwords for local-only use."
+      ],
+      "confidence_boosters": [],
+      "id": "DR-WIN-ACC-001",
+      "version": "1.0.0",
+      "name": "Enabled local account that is hidden or needs no password",
+      "description": "An enabled local account has a name ending in $ (hidden from some tools) or does not require a password.",
+      "platforms": [
+        "windows"
+      ],
+      "category": "accounts",
+      "severity": "high",
+      "severity_reason": "Either condition gives access without a normal visible, authenticated account.",
+      "confidence": "medium",
+      "confidence_reason": "Machine-style names and passwordless service accounts exist legitimately in some environments.",
+      "nature": "indicator",
+      "requires_coverage": [
+        "inventory:users"
+      ],
+      "clauses": [
+        {
+          "id": "nopass",
+          "source": "inventory",
+          "description": "An enabled account without a required password",
+          "where": {
+            "all": [
+              {
+                "field": "domain",
+                "op": "eq",
+                "value": "users"
+              },
+              {
+                "field": "attrs.enabled",
+                "op": "is_true"
+              },
+              {
+                "field": "attrs.password_required",
+                "op": "is_false"
+              }
+            ]
+          },
+          "optional": true
+        },
+        {
+          "id": "hidden",
+          "source": "inventory",
+          "description": "An enabled local account whose name ends in $",
+          "where": {
+            "all": [
+              {
+                "field": "domain",
+                "op": "eq",
+                "value": "users"
+              },
+              {
+                "field": "attrs.enabled",
+                "op": "is_true"
+              },
+              {
+                "field": "attrs.name",
+                "op": "regex",
+                "value": "\\$$"
+              }
+            ]
+          },
+          "optional": true
+        }
+      ],
+      "require": {
+        "any": [
+          "nopass",
+          "hidden"
+        ]
+      },
+      "title": "Suspicious local account configuration: {nopass.attrs.name}{hidden.attrs.name}",
+      "rationale": "A $-suffixed name hides an account from net user and some GUIs; a password-not-required flag lets the account authenticate with a blank password if policy allows.",
+      "investigation": [
+        "Compare the account against the documented account list and its creation time.",
+        "Check group memberships (especially Administrators) and recent logons.",
+        "Review the registry SAM entry creation time if available."
+      ],
+      "remediation": "Disable or remove unauthorised accounts after preserving evidence; require passwords on all enabled accounts.",
+      "references": {
+        "attack": [
+          {
+            "id": "T1136.001",
+            "relationship": "possible",
+            "explanation": "Hidden or passwordless local accounts are a way to keep access; creation by an adversary is not shown."
+          },
+          {
+            "id": "T1564.002",
+            "relationship": "possible",
+            "explanation": "A $-suffixed account name hides the account from some listings (Hidden Users technique family)."
+          }
+        ],
+        "nist": [
+          "AC-2",
+          "IA-5"
+        ]
+      },
+      "examples": [
+        {
+          "name": "password not required",
+          "expect": "match",
+          "platform": "windows",
+          "current": {
+            "findings": [],
+            "inventory": [
+              {
+                "domain": "users",
+                "key": "user:S-1-5-21-1-1001",
+                "attrs": {
+                  "name": "svc_old",
+                  "enabled": true,
+                  "password_required": false
+                }
+              }
+            ]
+          }
+        },
+        {
+          "name": "hidden $ account",
+          "expect": "match",
+          "platform": "windows",
+          "current": {
+            "findings": [],
+            "inventory": [
+              {
+                "domain": "users",
+                "key": "user:S-1-5-21-1-1002",
+                "attrs": {
+                  "name": "support$",
+                  "enabled": true,
+                  "password_required": true
+                }
+              }
+            ]
+          }
+        },
+        {
+          "name": "normal enabled account",
+          "expect": "no_match",
+          "platform": "windows",
+          "current": {
+            "findings": [],
+            "inventory": [
+              {
+                "domain": "users",
+                "key": "user:S-1-5-21-1-1003",
+                "attrs": {
+                  "name": "alice",
+                  "enabled": true,
+                  "password_required": true
+                }
+              }
+            ]
+          }
+        },
+        {
+          "name": "disabled passwordless guest",
+          "expect": "no_match",
+          "platform": "windows",
+          "current": {
+            "findings": [],
+            "inventory": [
+              {
+                "domain": "users",
+                "key": "user:S-1-5-21-1-501",
+                "attrs": {
+                  "name": "Guest",
+                  "enabled": false,
+                  "password_required": false
+                }
+              }
+            ]
+          }
+        }
+      ],
+      "join": {
+        "on": "key",
+        "mode": "equal"
+      }
+    },
+    {
+      "enabled": true,
+      "false_positives": [
+        "Per-machine installers that place agent services under ProgramData."
+      ],
+      "confidence_boosters": [
+        "ACLs on the binary and its directory showing write access for non-administrators.",
+        "Missing or invalid Authenticode signature on the binary."
+      ],
+      "id": "DR-WIN-SVC-001",
+      "version": "1.0.0",
+      "name": "Privileged service runs a binary from a user-writable path",
+      "description": "A service that runs as LocalSystem (or another built-in privileged account) has its executable under Users, ProgramData or Temp.",
+      "platforms": [
+        "windows"
+      ],
+      "category": "services",
+      "severity": "high",
+      "severity_reason": "Anyone who can write the binary or its folder gains SYSTEM privileges when the service starts.",
+      "confidence": "medium",
+      "confidence_reason": "Some software legitimately installs services under ProgramData, and the data does not show the folder's permissions.",
+      "nature": "indicator",
+      "requires_coverage": [
+        "inventory:services"
+      ],
+      "clauses": [
+        {
+          "id": "svc",
+          "source": "inventory",
+          "description": "A privileged service with an image path in a user-writable folder",
+          "where": {
+            "all": [
+              {
+                "field": "domain",
+                "op": "eq",
+                "value": "services"
+              },
+              {
+                "field": "attrs.account",
+                "op": "in",
+                "value": [
+                  "LocalSystem",
+                  "NT AUTHORITY\\SYSTEM",
+                  "SYSTEM",
+                  "NT AUTHORITY\\LocalService",
+                  "NT AUTHORITY\\NetworkService"
+                ]
+              },
+              {
+                "field": "attrs.image_path",
+                "op": "regex",
+                "value": "(?i)^\\\"?[a-z]:\\\\(users\\\\|programdata\\\\|windows\\\\temp\\\\|temp\\\\|perflogs\\\\|\\$recycle\\.bin\\\\)"
+              }
+            ]
+          }
+        }
+      ],
+      "title": "Privileged service runs from a user-writable path: {svc.key}",
+      "rationale": "A SYSTEM service whose binary lives where standard users can write is a ready-made privilege escalation and a common persistence location.",
+      "investigation": [
+        "Check the signature and hash of the binary and its folder ACLs.",
+        "Find out when the service was created (event 7045) and by whom.",
+        "Look for sibling services or tasks pointing at the same folder."
+      ],
+      "remediation": "Move the binary to a protected location or reinstall the product; remove the service if unauthorised (disable first).",
+      "references": {
+        "attack": [
+          {
+            "id": "T1543.003",
+            "relationship": "possible",
+            "explanation": "Services are a common Windows persistence mechanism; this shows exposure, not creation by an adversary."
+          }
+        ],
+        "nist": [
+          "CM-7",
+          "AC-6"
+        ]
+      },
+      "examples": [
+        {
+          "name": "service in ProgramData as LocalSystem",
+          "expect": "match",
+          "platform": "windows",
+          "current": {
+            "findings": [],
+            "inventory": [
+              {
+                "domain": "services",
+                "key": "service:evilsvc",
+                "attrs": {
+                  "account": "LocalSystem",
+                  "image_path": "C:\\ProgramData\\Oracle\\agent.exe",
+                  "state": "Running"
+                }
+              }
+            ]
+          }
+        },
+        {
+          "name": "service in System32",
+          "expect": "no_match",
+          "platform": "windows",
+          "current": {
+            "findings": [],
+            "inventory": [
+              {
+                "domain": "services",
+                "key": "service:spooler",
+                "attrs": {
+                  "account": "LocalSystem",
+                  "image_path": "C:\\Windows\\System32\\spoolsv.exe"
+                }
+              }
+            ]
+          }
+        },
+        {
+          "name": "user-writable path but ordinary user account",
+          "expect": "no_match",
+          "platform": "windows",
+          "current": {
+            "findings": [],
+            "inventory": [
+              {
+                "domain": "services",
+                "key": "service:mytool",
+                "attrs": {
+                  "account": ".\\bob",
+                  "image_path": "C:\\Users\\bob\\tool.exe"
+                }
+              }
+            ]
+          }
+        },
+        {
+          "name": "quoted path in Temp",
+          "expect": "match",
+          "platform": "windows",
+          "current": {
+            "findings": [],
+            "inventory": [
+              {
+                "domain": "services",
+                "key": "service:x",
+                "attrs": {
+                  "account": "NT AUTHORITY\\SYSTEM",
+                  "image_path": "\"C:\\Windows\\Temp\\x.exe\" -k"
+                }
+              }
+            ]
+          }
+        }
+      ],
+      "join": {
+        "on": "key",
+        "mode": "equal"
+      }
+    },
+    {
+      "enabled": true,
+      "false_positives": [
+        "Vendor update tasks that stage executables under ProgramData."
+      ],
+      "confidence_boosters": [],
+      "id": "DR-WIN-TSK-001",
+      "version": "1.0.0",
+      "name": "Privileged scheduled task runs from a user-writable path",
+      "description": "A scheduled task running as SYSTEM or with the highest run level executes a file in a user-writable folder.",
+      "platforms": [
+        "windows"
+      ],
+      "category": "scheduled-tasks",
+      "severity": "high",
+      "severity_reason": "A task that runs with SYSTEM rights from a folder users can write to is both an escalation path and a persistence mechanism.",
+      "confidence": "medium",
+      "confidence_reason": "Update agents sometimes keep helpers in ProgramData; folder permissions are not part of the data.",
+      "nature": "indicator",
+      "requires_coverage": [
+        "inventory:scheduled_tasks"
+      ],
+      "clauses": [
+        {
+          "id": "task",
+          "source": "inventory",
+          "description": "A privileged task with an action in a user-writable folder",
+          "where": {
+            "all": [
+              {
+                "field": "domain",
+                "op": "eq",
+                "value": "scheduled_tasks"
+              },
+              {
+                "not": {
+                  "field": "key",
+                  "op": "regex",
+                  "value": "^task:\\\\microsoft\\\\windows\\\\"
+                }
+              },
+              {
+                "any": [
+                  {
+                    "field": "attrs.user",
+                    "op": "in",
+                    "value": [
+                      "SYSTEM",
+                      "NT AUTHORITY\\SYSTEM"
+                    ]
+                  },
+                  {
+                    "field": "attrs.run_level",
+                    "op": "eq",
+                    "value": "Highest"
+                  }
+                ]
+              },
+              {
+                "field": "attrs.actions",
+                "op": "regex",
+                "value": "(?i)^\\\"?[a-z]:\\\\(users\\\\|programdata\\\\|windows\\\\temp\\\\|temp\\\\|perflogs\\\\|\\$recycle\\.bin\\\\)"
+              }
+            ]
+          }
+        }
+      ],
+      "title": "Privileged scheduled task runs from a user-writable path: {task.key}",
+      "rationale": "Scheduled tasks start at boot or logon with the task's privileges; pointing one at a writable folder is a standard Windows persistence pattern.",
+      "investigation": [
+        "Export the task XML and check its author, creation date and triggers.",
+        "Verify the executable's signature and hash.",
+        "Check for other tasks created at the same time."
+      ],
+      "remediation": "Disable the task if unauthorised (disable, then remove after evidence capture) and restrict write access to the folder.",
+      "references": {
+        "attack": [
+          {
+            "id": "T1053.005",
+            "relationship": "possible",
+            "explanation": "Scheduled tasks are a documented persistence and escalation mechanism; the data does not show who created this one."
+          }
+        ],
+        "nist": [
+          "CM-7",
+          "SI-7"
+        ]
+      },
+      "examples": [
+        {
+          "name": "SYSTEM task from Users folder",
+          "expect": "match",
+          "platform": "windows",
+          "current": {
+            "findings": [],
+            "inventory": [
+              {
+                "domain": "scheduled_tasks",
+                "key": "task:\\backup\\sync",
+                "attrs": {
+                  "user": "SYSTEM",
+                  "run_level": "Highest",
+                  "actions": [
+                    "C:\\Users\\Public\\sync.exe"
+                  ]
+                },
+                "scope": "tasks"
+              }
+            ]
+          }
+        },
+        {
+          "name": "built-in Microsoft task",
+          "expect": "no_match",
+          "platform": "windows",
+          "current": {
+            "findings": [],
+            "inventory": [
+              {
+                "domain": "scheduled_tasks",
+                "key": "task:\\microsoft\\windows\\updateorchestrator\\reboot",
+                "attrs": {
+                  "user": "SYSTEM",
+                  "run_level": "Highest",
+                  "actions": [
+                    "C:\\ProgramData\\Microsoft\\x.exe"
+                  ]
+                },
+                "scope": "tasks"
+              }
+            ]
+          }
+        },
+        {
+          "name": "task in System32",
+          "expect": "no_match",
+          "platform": "windows",
+          "current": {
+            "findings": [],
+            "inventory": [
+              {
+                "domain": "scheduled_tasks",
+                "key": "task:\\backup\\native",
+                "attrs": {
+                  "user": "SYSTEM",
+                  "actions": [
+                    "C:\\Windows\\System32\\cleanmgr.exe"
+                  ]
+                },
+                "scope": "tasks"
+              }
+            ]
+          }
+        }
+      ],
+      "join": {
+        "on": "key",
+        "mode": "equal"
+      }
+    },
+    {
+      "enabled": true,
+      "false_positives": [
+        "Freshly installed or unmanaged hosts that never had logging policy applied."
+      ],
+      "confidence_boosters": [
+        "Event log service stop/start events (7036) or log-clear events (1102, 104) in the retained logs.",
+        "Evidence that these settings were configured after the baseline."
+      ],
+      "id": "DR-WIN-LOG-001",
+      "version": "1.0.0",
+      "name": "Several event-logging and audit weaknesses together",
+      "description": "Three or more different logging weaknesses (Event Log service, disabled channels, audit policy, PowerShell logging, log size) are present.",
+      "platforms": [
+        "windows"
+      ],
+      "category": "defense-evasion",
+      "severity": "medium",
+      "severity_reason": "Each weakness reduces visibility; together they leave little to investigate with, but they also describe an unconfigured host as readily as a tampered one.",
+      "confidence": "medium",
+      "confidence_reason": "The findings are accurate individually; whether they were set deliberately is unknown.",
+      "nature": "correlated",
+      "requires_coverage": [
+        "module:eventlog",
+        "module:security"
+      ],
+      "clauses": [
+        {
+          "id": "weak",
+          "source": "findings",
+          "description": "Logging or audit-configuration findings (at least 3 different checks)",
+          "where": {
+            "field": "check_id",
+            "op": "in",
+            "value": [
+              "EVT-SVC-001",
+              "EVT-CHAN-001",
+              "EVT-SIZE-001",
+              "EVT-RET-001",
+              "SEC-AUDIT-001",
+              "SEC-AUDIT-002",
+              "SEC-PS-001"
+            ]
+          },
+          "distinct": {
+            "field": "check_id",
+            "count": 3
+          }
+        }
+      ],
+      "title": "Multiple logging weaknesses on {host}",
+      "rationale": "Adversaries reduce logging before acting. Several independent gaps in one area are worth checking together, but the severity stays medium because default Windows installs also show several of them.",
+      "investigation": [
+        "Compare each setting with the organisation's logging baseline and group policy.",
+        "Look for log clear events and Event Log service state changes.",
+        "Check whether settings changed since the previous assessment."
+      ],
+      "remediation": "Apply the organisation's audit policy, enable PowerShell script block logging, set adequate log sizes and forward events off the host.",
+      "references": {
+        "attack": [
+          {
+            "id": "T1562.002",
+            "relationship": "possible",
+            "explanation": "Disabling or reducing Windows event logging is an evasion technique; these findings may equally reflect default settings."
+          }
+        ],
+        "nist": [
+          "AU-2",
+          "AU-12"
+        ]
+      },
+      "examples": [
+        {
+          "name": "three distinct weaknesses",
+          "expect": "match",
+          "platform": "windows",
+          "current": {
+            "findings": [
+              {
+                "check_id": "EVT-SVC-001",
+                "severity": "high",
+                "category": "eventlog",
+                "confidence": "high"
+              },
+              {
+                "check_id": "SEC-AUDIT-001",
+                "severity": "medium",
+                "category": "security-config",
+                "confidence": "high"
+              },
+              {
+                "check_id": "SEC-PS-001",
+                "severity": "low",
+                "category": "security-config",
+                "confidence": "high"
+              }
+            ],
+            "inventory": [],
+            "modules": {
+              "eventlog": "ok",
+              "security": "ok"
+            }
+          },
+          "count": 1
+        },
+        {
+          "name": "two weaknesses only",
+          "expect": "no_match",
+          "platform": "windows",
+          "current": {
+            "findings": [
+              {
+                "check_id": "EVT-SVC-001",
+                "severity": "high",
+                "category": "eventlog",
+                "confidence": "high"
+              },
+              {
+                "check_id": "SEC-PS-001",
+                "severity": "low",
+                "category": "security-config",
+                "confidence": "high"
+              }
+            ],
+            "inventory": [],
+            "modules": {
+              "eventlog": "ok",
+              "security": "ok"
+            }
+          }
+        },
+        {
+          "name": "same check three times is not three weaknesses",
+          "expect": "no_match",
+          "platform": "windows",
+          "current": {
+            "findings": [
+              {
+                "check_id": "EVT-SIZE-001",
+                "severity": "low",
+                "category": "eventlog",
+                "confidence": "high"
+              },
+              {
+                "check_id": "SEC-PS-001",
+                "severity": "low",
+                "category": "security-config",
+                "confidence": "high"
+              }
+            ],
+            "inventory": [],
+            "modules": {
+              "eventlog": "ok",
+              "security": "ok"
+            }
+          }
+        },
+        {
+          "name": "eventlog module did not run",
+          "expect": "indeterminate",
+          "platform": "windows",
+          "current": {
+            "findings": [
+              {
+                "check_id": "SEC-PS-001",
+                "severity": "low",
+                "category": "security-config",
+                "confidence": "high"
+              }
+            ],
+            "inventory": [],
+            "modules": {
+              "security": "ok"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "enabled": true,
+      "false_positives": [
+        "Legacy compatibility settings kept for old applications (for example WDigest for old SSO)."
+      ],
+      "confidence_boosters": [
+        "Event log evidence of LSASS access or of Defender tamper events.",
+        "Changes to these settings since the previous snapshot."
+      ],
+      "id": "DR-WIN-CRED-001",
+      "version": "1.0.0",
+      "name": "Credential protections weakened alongside weakened endpoint defences",
+      "description": "LSA/credential-protection settings are weak and UAC or Microsoft Defender is also weakened.",
+      "platforms": [
+        "windows"
+      ],
+      "category": "credential-access",
+      "severity": "medium",
+      "severity_reason": "Weak credential protection makes credential theft easier, but no theft is observed; severity rises only when Defender is actually disabled.",
+      "severity_rules": [
+        {
+          "when": "defender",
+          "value": "high",
+          "reason": "Microsoft Defender protection is disabled, removing the main control against credential-dumping tools."
+        }
+      ],
+      "confidence": "medium",
+      "confidence_reason": "The settings are exact; whether they were weakened deliberately is not known.",
+      "nature": "correlated",
+      "requires_coverage": [
+        "module:security"
+      ],
+      "clauses": [
+        {
+          "id": "lsa",
+          "source": "findings",
+          "description": "A weak LSA or credential-protection setting",
+          "where": {
+            "all": [
+              {
+                "field": "check_id",
+                "op": "eq",
+                "value": "SEC-LSA-001"
+              },
+              {
+                "field": "evidence.excerpts",
+                "op": "regex",
+                "value": "(?i)(WDigest|RunAsPPL|LM hashes|LmCompatibility|blank-password|anonymous)"
+              }
+            ]
+          }
+        },
+        {
+          "id": "posture",
+          "source": "findings",
+          "description": "UAC weakened or Defender disabled / broadly excluded",
+          "where": {
+            "field": "check_id",
+            "op": "in",
+            "value": [
+              "SEC-UAC-001",
+              "SEC-DEF-001",
+              "SEC-DEF-002"
+            ]
+          }
+        },
+        {
+          "id": "defender",
+          "source": "findings",
+          "description": "Defender protection disabled",
+          "where": {
+            "field": "check_id",
+            "op": "eq",
+            "value": "SEC-DEF-001"
+          },
+          "optional": true
+        }
+      ],
+      "require": {
+        "all": [
+          "lsa",
+          "posture"
+        ]
+      },
+      "title": "Credential protections and endpoint defences are both weakened",
+      "rationale": "Credential-dumping tools need weak LSA protection and little interference from endpoint protection. Seeing both together is a preparation pattern, though it also matches poorly hardened hosts.",
+      "investigation": [
+        "Check when each setting was changed (registry key last-write times, GPO history).",
+        "Review Defender operational logs for disabled or excluded paths.",
+        "Look for tools in user-writable folders (see the filesystem findings)."
+      ],
+      "remediation": "Enable RunAsPPL, disable WDigest, restore UAC and Defender defaults, and remove broad exclusions; test for application compatibility first.",
+      "references": {
+        "attack": [
+          {
+            "id": "T1003.001",
+            "relationship": "possible",
+            "explanation": "Weak LSA protection facilitates LSASS credential dumping; no dumping is observed."
+          },
+          {
+            "id": "T1562.001",
+            "relationship": "possible",
+            "explanation": "Disabled or excluded endpoint protection can indicate impairment of defences; it can also be misconfiguration."
+          }
+        ],
+        "nist": [
+          "CM-6",
+          "SI-3"
+        ]
+      },
+      "examples": [
+        {
+          "name": "WDigest plus UAC weakened",
+          "expect": "match",
+          "platform": "windows",
+          "current": {
+            "findings": [
+              {
+                "check_id": "SEC-LSA-001",
+                "severity": "high",
+                "category": "security-config",
+                "confidence": "high",
+                "evidence": [
+                  {
+                    "ref": "HKLM\\..\\WDigest :: UseLogonCredential",
+                    "excerpt": "WDigest stores plaintext credentials in memory"
+                  }
+                ]
+              },
+              {
+                "check_id": "SEC-UAC-001",
+                "severity": "medium",
+                "category": "security-config",
+                "confidence": "high"
+              }
+            ],
+            "inventory": [],
+            "modules": {
+              "security": "ok"
+            }
+          },
+          "count": 1
+        },
+        {
+          "name": "LSA weak only",
+          "expect": "no_match",
+          "platform": "windows",
+          "current": {
+            "findings": [
+              {
+                "check_id": "SEC-LSA-001",
+                "severity": "low",
+                "category": "security-config",
+                "confidence": "high",
+                "evidence": [
+                  {
+                    "ref": "HKLM\\..\\Lsa :: RunAsPPL",
+                    "excerpt": "LSA protection (RunAsPPL) not enabled"
+                  }
+                ]
+              }
+            ],
+            "inventory": [],
+            "modules": {
+              "security": "ok"
+            }
+          }
+        },
+        {
+          "name": "UAC weak only",
+          "expect": "no_match",
+          "platform": "windows",
+          "current": {
+            "findings": [
+              {
+                "check_id": "SEC-UAC-001",
+                "severity": "medium",
+                "category": "security-config",
+                "confidence": "high"
+              }
+            ],
+            "inventory": [],
+            "modules": {
+              "security": "ok"
+            }
+          }
+        },
+        {
+          "name": "defender disabled raises severity",
+          "expect": "match",
+          "platform": "windows",
+          "current": {
+            "findings": [
+              {
+                "check_id": "SEC-LSA-001",
+                "severity": "low",
+                "category": "security-config",
+                "confidence": "high",
+                "evidence": [
+                  {
+                    "ref": "k",
+                    "excerpt": "LSA protection (RunAsPPL) not enabled"
+                  }
+                ]
+              },
+              {
+                "check_id": "SEC-DEF-001",
+                "severity": "high",
+                "category": "security-config",
+                "confidence": "high"
+              }
+            ],
+            "inventory": [],
+            "modules": {
+              "security": "ok"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "enabled": true,
+      "false_positives": [
+        "Endpoint security and application-compatibility tools that register WMI consumers, IFEO entries or AppInit DLLs."
+      ],
+      "confidence_boosters": [
+        "Binary signature, hash reputation and creation time of the referenced file or consumer.",
+        "The same artefact appearing in an earlier snapshot (then it is long-standing, not new)."
+      ],
+      "id": "DR-WIN-PER-001",
+      "version": "1.0.0",
+      "name": "Registry or WMI persistence mechanism commonly used for stealthy execution",
+      "description": "A persistence mechanism that normal software rarely uses (WMI event consumers, IFEO debuggers, AppInit/AppCert DLLs, LSA packages, Winlogon changes, accessibility-binary replacement, ...) is configured.",
+      "platforms": [
+        "windows"
+      ],
+      "category": "persistence",
+      "severity": "high",
+      "severity_reason": "These locations are rarely configured by legitimate software and execute code automatically.",
+      "confidence": "medium",
+      "confidence_reason": "Security and accessibility products occasionally use these hooks; the collector already filters stock Windows values.",
+      "nature": "indicator",
+      "requires_coverage": [
+        "module:persistence"
+      ],
+      "clauses": [
+        {
+          "id": "per",
+          "source": "findings",
+          "description": "A high-signal Windows persistence finding",
+          "where": {
+            "field": "check_id",
+            "op": "in",
+            "value": [
+              "PER-WMI-001",
+              "PER-IFEO-001",
+              "PER-SILENT-001",
+              "PER-APPINIT-001",
+              "PER-APPCERT-001",
+              "PER-ACCESS-001",
+              "PER-LSA-001",
+              "PER-TIMEPROV-001",
+              "PER-CMDAUTORUN-001",
+              "PER-BOOT-001",
+              "PER-LOGON-001",
+              "PER-BITS-001",
+              "AUT-WINLOGON-001",
+              "PER-PROFILE-002"
+            ]
+          }
+        }
+      ],
+      "title": "Stealthy persistence mechanism configured: {per.title}",
+      "rationale": "Run keys are common and noisy; these mechanisms are specifically chosen by adversaries to execute code at logon, boot or process start without appearing in the usual autorun lists.",
+      "investigation": [
+        "Open the evidence reference and read the configured command or DLL.",
+        "Verify the signature and compare the hash with a trusted source.",
+        "Establish when it was added (registry last-write, WMI repository, event logs) and by which account."
+      ],
+      "remediation": "Capture the artefact, then remove or disable the mechanism and the binary it points to; reset the registry value to its Windows default.",
+      "references": {
+        "attack": [
+          {
+            "id": "T1546.003",
+            "relationship": "possible",
+            "explanation": "WMI event subscription persistence is one of the checks covered (PER-WMI-001)."
+          },
+          {
+            "id": "T1546.012",
+            "relationship": "possible",
+            "explanation": "Image File Execution Options injection is covered by PER-IFEO-001."
+          },
+          {
+            "id": "T1547.004",
+            "relationship": "possible",
+            "explanation": "Winlogon helper changes are covered by AUT-WINLOGON-001."
+          }
+        ],
+        "nist": [
+          "SI-7",
+          "CM-7"
+        ]
+      },
+      "examples": [
+        {
+          "name": "WMI consumer executes a command",
+          "expect": "match",
+          "platform": "windows",
+          "current": {
+            "findings": [
+              {
+                "check_id": "PER-WMI-001",
+                "severity": "high",
+                "category": "persistence",
+                "confidence": "high",
+                "evidence": [
+                  {
+                    "ref": "root\\subscription:CommandLineEventConsumer",
+                    "excerpt": "powershell -enc ..."
+                  }
+                ]
+              }
+            ],
+            "inventory": [],
+            "modules": {
+              "persistence": "ok"
+            }
+          },
+          "count": 1
+        },
+        {
+          "name": "benign Run key listing",
+          "expect": "no_match",
+          "platform": "windows",
+          "current": {
+            "findings": [
+              {
+                "check_id": "AUT-RUN-001",
+                "severity": "info",
+                "category": "autoruns",
+                "confidence": "high",
+                "evidence": [
+                  {
+                    "ref": "HKLM\\..\\Run"
+                  }
+                ]
+              }
+            ],
+            "inventory": [],
+            "modules": {
+              "persistence": "ok"
+            }
+          }
+        },
+        {
+          "name": "IFEO debugger",
+          "expect": "match",
+          "platform": "windows",
+          "current": {
+            "findings": [
+              {
+                "check_id": "PER-IFEO-001",
+                "severity": "high",
+                "category": "persistence",
+                "confidence": "high",
+                "evidence": [
+                  {
+                    "ref": "HKLM\\..\\Image File Execution Options\\sethc.exe",
+                    "excerpt": "debugger cmd.exe"
+                  }
+                ]
+              }
+            ],
+            "inventory": [],
+            "modules": {
+              "persistence": "ok"
+            }
+          }
+        },
+        {
+          "name": "persistence module failed",
+          "expect": "indeterminate",
+          "platform": "windows",
+          "current": {
+            "findings": [
+              {
+                "check_id": "SEC-INFO-001",
+                "severity": "info",
+                "category": "security-config",
+                "confidence": "high"
+              }
+            ],
+            "inventory": [],
+            "modules": {
+              "persistence": "failed",
+              "security": "ok"
+            }
+          }
+        }
+      ],
+      "join": {
+        "on": "id",
+        "mode": "equal"
+      }
+    }
+  ]
+}

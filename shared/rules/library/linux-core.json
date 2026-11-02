@@ -1,0 +1,1581 @@
+{
+  "schema_version": "0.1.0",
+  "kind": "rule-pack",
+  "pack": {
+    "name": "linux-core",
+    "version": "1.0.0",
+    "description": "Linux detections over accounts, authentication, services, filesystem, persistence, logging and integrity."
+  },
+  "rules": [
+    {
+      "enabled": true,
+      "false_positives": [
+        "Some appliance images or migration leftovers deliberately keep a second uid-0 account (for example 'toor').",
+        "A documented break-glass account."
+      ],
+      "confidence_boosters": [
+        "Account creation time and who created it (auth log, /var/log/wtmp, file times of the home directory).",
+        "A shell history or SSH key for the account that nobody recognises."
+      ],
+      "id": "DR-LNX-ACC-001",
+      "version": "1.0.0",
+      "name": "Non-root account with UID 0",
+      "description": "An account other than root has user id 0 and therefore the same privileges as root.",
+      "platforms": [
+        "linux"
+      ],
+      "category": "accounts",
+      "severity": "high",
+      "severity_reason": "UID 0 grants full control of the host, but the data alone does not show who created the account or why.",
+      "confidence": "high",
+      "confidence_reason": "The uid comes directly from /etc/passwd; the only uncertainty is intent, not the observation.",
+      "nature": "indicator",
+      "requires_coverage": [
+        "inventory:users"
+      ],
+      "clauses": [
+        {
+          "id": "acct",
+          "source": "inventory",
+          "description": "A user record other than root has uid 0",
+          "where": {
+            "all": [
+              {
+                "field": "domain",
+                "op": "eq",
+                "value": "users"
+              },
+              {
+                "field": "key",
+                "op": "regex",
+                "value": "^user:"
+              },
+              {
+                "not": {
+                  "field": "key",
+                  "op": "eq",
+                  "value": "user:root"
+                }
+              },
+              {
+                "field": "attrs.uid",
+                "op": "eq",
+                "value": "0"
+              }
+            ]
+          }
+        }
+      ],
+      "title": "Account {acct.key} has UID 0",
+      "rationale": "Linux treats every account with uid 0 as root. Attackers add such an account (often named like a system account) to keep root access that survives a password change of root itself.",
+      "investigation": [
+        "Compare the account against the host's documented account list.",
+        "Check /etc/passwd and /etc/shadow modification times and the home directory contents.",
+        "Look for logins by this account in wtmp/auth logs and for SSH keys in its home."
+      ],
+      "remediation": "If unauthorised, lock the account (usermod -L) after preserving evidence, then remove it and rotate credentials of accounts it could have reached; if legitimate, document it and give it a distinct non-zero uid where possible.",
+      "references": {
+        "attack": [
+          {
+            "id": "T1136.001",
+            "relationship": "possible",
+            "explanation": "A second uid-0 local account is one way to persist with root access; the data does not show it was created by an adversary."
+          },
+          {
+            "id": "T1078.003",
+            "relationship": "possible",
+            "explanation": "Such an account could be used as a valid local account for later access."
+          }
+        ],
+        "nist": [
+          "AC-2",
+          "AC-6"
+        ]
+      },
+      "examples": [
+        {
+          "name": "extra uid 0 account",
+          "expect": "match",
+          "platform": "linux",
+          "current": {
+            "findings": [],
+            "inventory": [
+              {
+                "domain": "users",
+                "key": "user:root",
+                "attrs": {
+                  "uid": "0"
+                }
+              },
+              {
+                "domain": "users",
+                "key": "user:toor",
+                "attrs": {
+                  "uid": "0"
+                }
+              }
+            ]
+          },
+          "count": 1
+        },
+        {
+          "name": "only root has uid 0",
+          "expect": "no_match",
+          "platform": "linux",
+          "current": {
+            "findings": [],
+            "inventory": [
+              {
+                "domain": "users",
+                "key": "user:root",
+                "attrs": {
+                  "uid": "0"
+                }
+              },
+              {
+                "domain": "users",
+                "key": "user:alice",
+                "attrs": {
+                  "uid": "1000"
+                }
+              }
+            ]
+          }
+        },
+        {
+          "name": "uid like 0 but not 0",
+          "expect": "no_match",
+          "platform": "linux",
+          "current": {
+            "findings": [],
+            "inventory": [
+              {
+                "domain": "users",
+                "key": "user:root",
+                "attrs": {
+                  "uid": "0"
+                }
+              },
+              {
+                "domain": "users",
+                "key": "user:bob",
+                "attrs": {
+                  "uid": "1000"
+                }
+              },
+              {
+                "domain": "users",
+                "key": "user:svc",
+                "attrs": {
+                  "uid": "10"
+                }
+              }
+            ]
+          }
+        },
+        {
+          "name": "users inventory not collected",
+          "expect": "indeterminate",
+          "platform": "linux",
+          "current": {
+            "findings": [
+              {
+                "check_id": "SYS-INFO-001",
+                "severity": "info",
+                "category": "system",
+                "confidence": "high"
+              }
+            ],
+            "inventory": [],
+            "coverage": [
+              {
+                "domain": "users",
+                "status": "unavailable"
+              }
+            ]
+          }
+        }
+      ],
+      "join": {
+        "on": "key",
+        "mode": "equal"
+      }
+    },
+    {
+      "enabled": true,
+      "false_positives": [
+        "Accounts intended for console-only kiosk use on an isolated host."
+      ],
+      "confidence_boosters": [],
+      "id": "DR-LNX-ACC-002",
+      "version": "1.0.0",
+      "name": "Login-capable account with an empty password",
+      "description": "An account that can obtain a login shell has an empty password field in /etc/shadow.",
+      "platforms": [
+        "linux"
+      ],
+      "category": "accounts",
+      "severity": "high",
+      "severity_reason": "Depending on PAM and sshd settings an empty password can allow a login without any credential.",
+      "confidence": "high",
+      "confidence_reason": "The password state is read from the shadow file; whether remote login is possible depends on PAM/sshd configuration that this rule does not evaluate.",
+      "nature": "observation",
+      "requires_coverage": [
+        "inventory:users"
+      ],
+      "clauses": [
+        {
+          "id": "acct",
+          "source": "inventory",
+          "description": "A user record with an empty password and an interactive shell",
+          "where": {
+            "all": [
+              {
+                "field": "domain",
+                "op": "eq",
+                "value": "users"
+              },
+              {
+                "field": "attrs.password",
+                "op": "eq",
+                "value": "empty"
+              },
+              {
+                "field": "attrs.shell",
+                "op": "present"
+              },
+              {
+                "not": {
+                  "any": [
+                    {
+                      "field": "attrs.shell",
+                      "op": "regex",
+                      "value": "(nologin|/false|/sync|/shutdown|/halt)$"
+                    }
+                  ]
+                }
+              }
+            ]
+          }
+        }
+      ],
+      "title": "Account {acct.key} can log in with an empty password",
+      "rationale": "An empty password field means no credential is required where PAM accepts it (nullok). Combined with a login shell this is a direct way in.",
+      "investigation": [
+        "Check whether pam_unix is configured with nullok and whether sshd allows empty passwords (see the PAM and sshd findings).",
+        "Review when the password field was last changed."
+      ],
+      "remediation": "Set a strong password or lock the account (passwd -l); coordinate with owners of scored-service accounts before changing credentials.",
+      "references": {
+        "attack": [
+          {
+            "id": "T1078.003",
+            "relationship": "possible",
+            "explanation": "An account without a password is a valid local account usable without credentials."
+          }
+        ],
+        "nist": [
+          "IA-5",
+          "AC-2"
+        ]
+      },
+      "examples": [
+        {
+          "name": "empty password and bash",
+          "expect": "match",
+          "platform": "linux",
+          "current": {
+            "findings": [],
+            "inventory": [
+              {
+                "domain": "users",
+                "key": "user:nopass",
+                "attrs": {
+                  "uid": "1002",
+                  "shell": "/bin/bash",
+                  "password": "empty"
+                }
+              }
+            ]
+          }
+        },
+        {
+          "name": "empty password but nologin shell",
+          "expect": "no_match",
+          "platform": "linux",
+          "current": {
+            "findings": [],
+            "inventory": [
+              {
+                "domain": "users",
+                "key": "user:svc",
+                "attrs": {
+                  "uid": "5",
+                  "shell": "/usr/sbin/nologin",
+                  "password": "empty"
+                }
+              }
+            ]
+          }
+        },
+        {
+          "name": "locked password",
+          "expect": "no_match",
+          "platform": "linux",
+          "current": {
+            "findings": [],
+            "inventory": [
+              {
+                "domain": "users",
+                "key": "user:alice",
+                "attrs": {
+                  "uid": "1000",
+                  "shell": "/bin/bash",
+                  "password": "locked"
+                }
+              }
+            ]
+          }
+        },
+        {
+          "name": "password state unknown (shadow unreadable)",
+          "expect": "no_match",
+          "platform": "linux",
+          "current": {
+            "findings": [],
+            "inventory": [
+              {
+                "domain": "users",
+                "key": "user:alice",
+                "attrs": {
+                  "uid": "1000",
+                  "shell": "/bin/bash",
+                  "password": null
+                }
+              }
+            ]
+          }
+        }
+      ],
+      "join": {
+        "on": "key",
+        "mode": "equal"
+      }
+    },
+    {
+      "enabled": true,
+      "false_positives": [
+        "Root password login is sometimes enabled deliberately on lab or competition hosts."
+      ],
+      "confidence_boosters": [],
+      "id": "DR-LNX-SSH-001",
+      "version": "1.0.0",
+      "name": "sshd permits empty passwords or root password login",
+      "description": "The effective sshd configuration allows PermitEmptyPasswords or password-based root login.",
+      "platforms": [
+        "linux"
+      ],
+      "category": "authentication",
+      "severity": "medium",
+      "severity_reason": "Root login with a password exposes the most privileged account to guessing; it is common and often intended.",
+      "severity_rules": [
+        {
+          "when": "empty_pw",
+          "value": "high",
+          "reason": "PermitEmptyPasswords yes lets accounts without a password log in over the network."
+        }
+      ],
+      "confidence": "high",
+      "confidence_reason": "The settings are quoted from the effective sshd configuration the collector parsed.",
+      "nature": "observation",
+      "requires_coverage": [
+        "module:network"
+      ],
+      "clauses": [
+        {
+          "id": "empty_pw",
+          "source": "findings",
+          "description": "sshd allows empty passwords",
+          "where": {
+            "all": [
+              {
+                "field": "check_id",
+                "op": "eq",
+                "value": "NET-SSHD-002"
+              },
+              {
+                "field": "evidence.excerpts",
+                "op": "regex",
+                "value": "PermitEmptyPasswords yes"
+              }
+            ]
+          },
+          "optional": true
+        },
+        {
+          "id": "root_pw",
+          "source": "findings",
+          "description": "sshd allows root login with a password",
+          "where": {
+            "all": [
+              {
+                "field": "check_id",
+                "op": "eq",
+                "value": "NET-SSHD-002"
+              },
+              {
+                "field": "evidence.excerpts",
+                "op": "regex",
+                "value": "PermitRootLogin yes"
+              }
+            ]
+          },
+          "optional": true
+        }
+      ],
+      "require": {
+        "any": [
+          "empty_pw",
+          "root_pw"
+        ]
+      },
+      "title": "sshd allows weak authentication ({host})",
+      "rationale": "Network-reachable authentication that accepts blank passwords, or a direct password login for root, removes layers an attacker would otherwise have to defeat.",
+      "investigation": [
+        "Read /etc/ssh/sshd_config and drop-ins under sshd_config.d (first occurrence wins).",
+        "Check auth logs for root or blank-password logins.",
+        "Confirm which accounts have empty passwords (DR-LNX-ACC-002)."
+      ],
+      "remediation": "Set PermitEmptyPasswords no and PermitRootLogin prohibit-password (or no), reload sshd (not restart), and verify key-based admin access works first.",
+      "references": {
+        "attack": [
+          {
+            "id": "T1078",
+            "relationship": "possible",
+            "explanation": "Weak sshd authentication settings make valid-account use or guessing easier; no abuse is shown."
+          }
+        ],
+        "nist": [
+          "IA-5",
+          "CM-6"
+        ]
+      },
+      "examples": [
+        {
+          "name": "empty passwords allowed",
+          "expect": "match",
+          "platform": "linux",
+          "current": {
+            "findings": [
+              {
+                "check_id": "NET-SSHD-002",
+                "severity": "high",
+                "category": "network",
+                "confidence": "high",
+                "evidence": [
+                  {
+                    "ref": "/etc/ssh/sshd_config",
+                    "excerpt": "PermitEmptyPasswords yes allows accounts with empty passwords to log in"
+                  }
+                ]
+              }
+            ],
+            "inventory": [],
+            "modules": {
+              "network": "ok"
+            }
+          },
+          "count": 1
+        },
+        {
+          "name": "root password login only",
+          "expect": "match",
+          "platform": "linux",
+          "current": {
+            "findings": [
+              {
+                "check_id": "NET-SSHD-002",
+                "severity": "high",
+                "category": "network",
+                "confidence": "high",
+                "evidence": [
+                  {
+                    "ref": "/etc/ssh/sshd_config",
+                    "excerpt": "PermitRootLogin yes allows direct root login with a password"
+                  }
+                ]
+              }
+            ],
+            "inventory": []
+          }
+        },
+        {
+          "name": "sshd finding about another setting",
+          "expect": "no_match",
+          "platform": "linux",
+          "current": {
+            "findings": [
+              {
+                "check_id": "NET-SSHD-002",
+                "severity": "high",
+                "category": "network",
+                "confidence": "high",
+                "evidence": [
+                  {
+                    "ref": "/etc/ssh/sshd_config",
+                    "excerpt": "PermitUserEnvironment yes lets users inject environment variables"
+                  }
+                ]
+              }
+            ],
+            "inventory": []
+          }
+        },
+        {
+          "name": "network module failed",
+          "expect": "indeterminate",
+          "platform": "linux",
+          "current": {
+            "findings": [
+              {
+                "check_id": "USR-INFO-001",
+                "severity": "info",
+                "category": "users",
+                "confidence": "high"
+              }
+            ],
+            "inventory": [],
+            "modules": {
+              "network": "failed"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "enabled": true,
+      "false_positives": [
+        "Portable application bundles or user-mounted media containing set-ID files (usually mounted nosuid)."
+      ],
+      "confidence_boosters": [],
+      "id": "DR-LNX-FS-001",
+      "version": "1.0.0",
+      "name": "SUID/SGID binary in a user-writable location",
+      "description": "A set-user-ID or set-group-ID file lives under /tmp, /var/tmp, /dev/shm, /home, /mnt, /media or a web root.",
+      "platforms": [
+        "linux"
+      ],
+      "category": "filesystem",
+      "severity": "high",
+      "severity_reason": "Set-ID programs run with the owner's privileges; in a directory ordinary users or services can write to, one may have been planted or may be replaceable.",
+      "confidence": "medium",
+      "confidence_reason": "The path is exact, but some installers and portable tools legitimately place set-ID files outside system directories.",
+      "nature": "indicator",
+      "requires_coverage": [
+        "inventory:config:suid"
+      ],
+      "clauses": [
+        {
+          "id": "suid",
+          "source": "inventory",
+          "description": "A SUID/SGID record in a user-writable location",
+          "where": {
+            "all": [
+              {
+                "field": "domain",
+                "op": "eq",
+                "value": "config"
+              },
+              {
+                "field": "scope",
+                "op": "eq",
+                "value": "suid"
+              },
+              {
+                "field": "key",
+                "op": "regex",
+                "value": "^config:suid:/(tmp|var/tmp|dev/shm|home|mnt|media|var/www|srv)/"
+              }
+            ]
+          }
+        }
+      ],
+      "title": "SUID/SGID file in a user-writable location: {suid.key}",
+      "rationale": "Placing a set-ID copy of a shell or helper in a writable directory is a classic local privilege-escalation persistence trick. Legitimate packages install set-ID files in system directories.",
+      "investigation": [
+        "Identify the file's owner, hash and modification time.",
+        "Check whether the mount is nosuid and whether any process has executed it.",
+        "Compare with the package database (rpm -qf / dpkg -S)."
+      ],
+      "remediation": "If unauthorised, preserve a copy and its metadata as evidence, then remove the set-ID bit or the file; mount user-writable filesystems nosuid.",
+      "references": {
+        "attack": [
+          {
+            "id": "T1548.001",
+            "relationship": "possible",
+            "explanation": "Setuid/setgid files can be abused for privilege escalation; this rule only shows one exists in a writable place."
+          }
+        ],
+        "nist": [
+          "AC-3",
+          "SI-7"
+        ]
+      },
+      "examples": [
+        {
+          "name": "suid file in /tmp",
+          "expect": "match",
+          "platform": "linux",
+          "current": {
+            "findings": [],
+            "inventory": [
+              {
+                "domain": "config",
+                "key": "config:suid:/tmp/.x/helper",
+                "attrs": {
+                  "mode": "4755",
+                  "owner": "root"
+                },
+                "scope": "suid"
+              }
+            ]
+          }
+        },
+        {
+          "name": "suid su in /usr/bin",
+          "expect": "no_match",
+          "platform": "linux",
+          "current": {
+            "findings": [],
+            "inventory": [
+              {
+                "domain": "config",
+                "key": "config:suid:/usr/bin/su",
+                "attrs": {
+                  "mode": "4755",
+                  "owner": "root"
+                },
+                "scope": "suid"
+              }
+            ]
+          }
+        },
+        {
+          "name": "suid under /home",
+          "expect": "match",
+          "platform": "linux",
+          "current": {
+            "findings": [],
+            "inventory": [
+              {
+                "domain": "config",
+                "key": "config:suid:/home/alice/bin/tool",
+                "attrs": {
+                  "mode": "6755",
+                  "owner": "alice"
+                },
+                "scope": "suid"
+              }
+            ]
+          }
+        },
+        {
+          "name": "path that only contains /tmp",
+          "expect": "no_match",
+          "platform": "linux",
+          "current": {
+            "findings": [],
+            "inventory": [
+              {
+                "domain": "config",
+                "key": "config:suid:/usr/lib/tmp/helper",
+                "attrs": {
+                  "mode": "4755"
+                },
+                "scope": "suid"
+              }
+            ]
+          }
+        }
+      ],
+      "join": {
+        "on": "key",
+        "mode": "equal"
+      }
+    },
+    {
+      "enabled": true,
+      "false_positives": [
+        "Backup or monitoring scripts that use /tmp or /dev/tcp for legitimate reasons."
+      ],
+      "confidence_boosters": [
+        "The file's owner, creation time and package ownership.",
+        "Outbound connections to the address named in the command."
+      ],
+      "id": "DR-LNX-PER-001",
+      "version": "1.0.0",
+      "name": "Persistence entry with attacker-style behaviour",
+      "description": "A cron job, systemd unit, startup script or shell profile was flagged for reverse-shell, download-and-execute or world-writable-path behaviour.",
+      "platforms": [
+        "linux"
+      ],
+      "category": "persistence",
+      "severity": "high",
+      "severity_reason": "The collector matched command-content patterns that are rarely written by administrators.",
+      "confidence": "medium",
+      "confidence_reason": "Pattern matching on command text has false positives (admin scripts using /tmp, backup tools using /dev/tcp).",
+      "confidence_rules": [
+        {
+          "when": "reverse",
+          "value": "high",
+          "reason": "A /dev/tcp or netcat reverse-shell pattern has few benign explanations."
+        }
+      ],
+      "nature": "indicator",
+      "requires_coverage": [
+        "module:persistence"
+      ],
+      "clauses": [
+        {
+          "id": "entry",
+          "source": "findings",
+          "description": "A persistence finding for suspicious commands",
+          "where": {
+            "all": [
+              {
+                "field": "check_id",
+                "op": "in",
+                "value": [
+                  "PER-CRON-002",
+                  "PER-SYSTEMD-001",
+                  "PER-STARTUP-001",
+                  "PER-SHELL-001",
+                  "PER-UDEV-001",
+                  "PER-APT-001",
+                  "PER-AUTOSTART-001",
+                  "PER-LDCONF-001"
+                ]
+              }
+            ]
+          }
+        },
+        {
+          "id": "reverse",
+          "source": "findings",
+          "description": "...whose evidence shows a reverse-shell pattern",
+          "where": {
+            "all": [
+              {
+                "field": "check_id",
+                "op": "in",
+                "value": [
+                  "PER-CRON-002",
+                  "PER-SYSTEMD-001",
+                  "PER-STARTUP-001",
+                  "PER-SHELL-001",
+                  "PER-UDEV-001",
+                  "PER-APT-001",
+                  "PER-AUTOSTART-001",
+                  "PER-LDCONF-001"
+                ]
+              },
+              {
+                "field": "evidence.excerpts",
+                "op": "regex",
+                "value": "(?i)(/dev/tcp/|reverse-shell|nc(at)? .* -e|mkfifo)"
+              }
+            ]
+          },
+          "optional": true
+        }
+      ],
+      "require": "entry",
+      "title": "Suspicious persistence entry: {entry.title}",
+      "rationale": "Jobs and units that open network shells, fetch and run code, or execute from world-writable directories are common footholds that survive reboots.",
+      "investigation": [
+        "Read the full file and identify who last modified it (stat, package verification).",
+        "Check for the destination host/port in network logs and current connections.",
+        "Look for sibling persistence (other cron.d entries, units, profile scripts)."
+      ],
+      "remediation": "Preserve the file as evidence, disable it (do not delete first), and review the accounts and files it touches; restore from a known-good package or backup.",
+      "references": {
+        "attack": [
+          {
+            "id": "T1053.003",
+            "relationship": "possible",
+            "explanation": "Cron is a common way to schedule attacker commands; the finding concerns a cron entry only if the check id is PER-CRON-002."
+          },
+          {
+            "id": "T1543.002",
+            "relationship": "possible",
+            "explanation": "A suspicious systemd unit would be a systemd service persistence candidate."
+          }
+        ],
+        "nist": [
+          "SI-7",
+          "CM-7"
+        ]
+      },
+      "examples": [
+        {
+          "name": "reverse shell in cron",
+          "expect": "match",
+          "platform": "linux",
+          "current": {
+            "findings": [
+              {
+                "check_id": "PER-CRON-002",
+                "severity": "high",
+                "category": "persistence",
+                "confidence": "high",
+                "evidence": [
+                  {
+                    "ref": "/etc/cron.d/backdoor",
+                    "excerpt": "bash /dev/tcp redirect (reverse-shell pattern)"
+                  }
+                ]
+              }
+            ],
+            "inventory": [],
+            "modules": {
+              "persistence": "ok"
+            }
+          },
+          "count": 1
+        },
+        {
+          "name": "only inventory persistence info",
+          "expect": "no_match",
+          "platform": "linux",
+          "current": {
+            "findings": [
+              {
+                "check_id": "PER-CRON-001",
+                "severity": "info",
+                "category": "persistence",
+                "confidence": "high",
+                "evidence": [
+                  {
+                    "ref": "/etc/crontab"
+                  }
+                ]
+              }
+            ],
+            "inventory": [],
+            "modules": {
+              "persistence": "ok"
+            }
+          }
+        },
+        {
+          "name": "systemd unit running from /tmp",
+          "expect": "match",
+          "platform": "linux",
+          "current": {
+            "findings": [
+              {
+                "check_id": "PER-SYSTEMD-001",
+                "severity": "high",
+                "category": "persistence",
+                "confidence": "high",
+                "evidence": [
+                  {
+                    "ref": "/etc/systemd/system/evil.service",
+                    "excerpt": "references world-writable directory: ExecStart=/tmp/.hidden/agent"
+                  }
+                ]
+              }
+            ],
+            "inventory": []
+          }
+        },
+        {
+          "name": "persistence module failed",
+          "expect": "indeterminate",
+          "platform": "linux",
+          "current": {
+            "findings": [
+              {
+                "check_id": "USR-INFO-001",
+                "severity": "info",
+                "category": "users",
+                "confidence": "high"
+              }
+            ],
+            "inventory": [],
+            "modules": {
+              "persistence": "timeout"
+            }
+          }
+        }
+      ],
+      "join": {
+        "on": "id",
+        "mode": "equal"
+      }
+    },
+    {
+      "enabled": true,
+      "false_positives": [
+        "Deliberately disabling noisy logs on a diskless or embedded image (rare for auth logs)."
+      ],
+      "confidence_boosters": [],
+      "id": "DR-LNX-LOG-001",
+      "version": "1.0.0",
+      "name": "System log redirected to a device",
+      "description": "A system log file is a symbolic link to /dev/null or another device, which silently discards log records.",
+      "platforms": [
+        "linux"
+      ],
+      "category": "defense-evasion",
+      "severity": "high",
+      "severity_reason": "Discarded logs remove the evidence defenders depend on, and the configuration has no common benign purpose.",
+      "confidence": "high",
+      "confidence_reason": "A link from a log path to a device is an unambiguous configuration fact.",
+      "nature": "indicator",
+      "requires_coverage": [
+        "module:sysconfig"
+      ],
+      "clauses": [
+        {
+          "id": "log",
+          "source": "findings",
+          "description": "The log-redirect finding",
+          "where": {
+            "field": "check_id",
+            "op": "eq",
+            "value": "CFG-LOG-001"
+          }
+        }
+      ],
+      "title": "System log redirected to a device",
+      "rationale": "Linking /var/log files to /dev/null is a known way to stop recording activity without stopping the logging service.",
+      "investigation": [
+        "Record the link, its target and timestamps (stat), then check who changed it (auth logs from before the change, shell history).",
+        "Look for other defense-evasion signs: cleared history files, stopped auditd, altered rsyslog configuration."
+      ],
+      "remediation": "Replace the link with a regular file with correct ownership and mode, restart the logging service, and forward logs off the host.",
+      "references": {
+        "attack": [
+          {
+            "id": "T1562.006",
+            "relationship": "possible",
+            "explanation": "Discarding log output is a form of blocking indicators; the data does not show who did it."
+          },
+          {
+            "id": "T1070.002",
+            "relationship": "possible",
+            "explanation": "Related to clearing Linux system logs; no clearing is observed, only the redirect."
+          }
+        ],
+        "nist": [
+          "AU-9",
+          "AU-2"
+        ]
+      },
+      "examples": [
+        {
+          "name": "auth.log linked to /dev/null",
+          "expect": "match",
+          "platform": "linux",
+          "current": {
+            "findings": [
+              {
+                "check_id": "CFG-LOG-001",
+                "severity": "high",
+                "category": "sysconfig",
+                "confidence": "high",
+                "evidence": [
+                  {
+                    "ref": "/var/log/auth.log",
+                    "excerpt": "is a symbolic link to /dev/null"
+                  }
+                ]
+              }
+            ],
+            "inventory": [],
+            "modules": {
+              "sysconfig": "ok"
+            }
+          },
+          "count": 1
+        },
+        {
+          "name": "other sysconfig finding",
+          "expect": "no_match",
+          "platform": "linux",
+          "current": {
+            "findings": [
+              {
+                "check_id": "CFG-MNT-001",
+                "severity": "low",
+                "category": "sysconfig",
+                "confidence": "high",
+                "evidence": [
+                  {
+                    "ref": "/proc/mounts",
+                    "excerpt": "/tmp mounted without noexec"
+                  }
+                ]
+              }
+            ],
+            "inventory": [],
+            "modules": {
+              "sysconfig": "ok"
+            }
+          }
+        },
+        {
+          "name": "sysconfig module partial",
+          "expect": "indeterminate",
+          "platform": "linux",
+          "current": {
+            "findings": [
+              {
+                "check_id": "CFG-MNT-001",
+                "severity": "low",
+                "category": "sysconfig",
+                "confidence": "high"
+              }
+            ],
+            "inventory": [],
+            "modules": {
+              "sysconfig": "partial"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "enabled": true,
+      "false_positives": [
+        "Vendor crash-reporting agents (monitoring suites) that install their own handler."
+      ],
+      "confidence_boosters": [],
+      "id": "DR-LNX-SYS-001",
+      "version": "1.0.0",
+      "name": "Crash-dump handler runs an unrecognised program",
+      "description": "kernel.core_pattern pipes crash dumps to a program that is not a known distribution handler.",
+      "platforms": [
+        "linux"
+      ],
+      "category": "system-config",
+      "severity": "high",
+      "severity_reason": "The kernel runs the handler as root whenever a process crashes, so whoever controls it has a root execution hook.",
+      "confidence": "medium",
+      "confidence_reason": "Site-specific handlers (for example crash collectors) are legitimate and not in the known list.",
+      "nature": "indicator",
+      "requires_coverage": [
+        "inventory:config:core"
+      ],
+      "clauses": [
+        {
+          "id": "core",
+          "source": "inventory",
+          "description": "core_pattern pipes to a handler outside the known list",
+          "where": {
+            "all": [
+              {
+                "field": "domain",
+                "op": "eq",
+                "value": "config"
+              },
+              {
+                "field": "key",
+                "op": "eq",
+                "value": "config:core:core_pattern"
+              },
+              {
+                "field": "attrs.value",
+                "op": "startswith",
+                "value": "|"
+              },
+              {
+                "not": {
+                  "any": [
+                    {
+                      "field": "attrs.value",
+                      "op": "startswith",
+                      "value": "|/usr/lib/systemd/systemd-coredump"
+                    },
+                    {
+                      "field": "attrs.value",
+                      "op": "startswith",
+                      "value": "|/lib/systemd/systemd-coredump"
+                    },
+                    {
+                      "field": "attrs.value",
+                      "op": "startswith",
+                      "value": "|/usr/share/apport/apport"
+                    },
+                    {
+                      "field": "attrs.value",
+                      "op": "startswith",
+                      "value": "|/usr/libexec/abrt-hook-ccpp"
+                    }
+                  ]
+                }
+              }
+            ]
+          }
+        }
+      ],
+      "title": "core_pattern pipes crashes to an unrecognised program",
+      "rationale": "A crash handler is an unusual place to look for persistence, which is why it works: it executes as root with attacker-influenced crash data and survives reboots if set in sysctl.d.",
+      "investigation": [
+        "Identify the handler binary, its package owner and hash.",
+        "Find where the setting is persisted (/etc/sysctl.conf, /etc/sysctl.d).",
+        "Review recent root-owned file changes next to it."
+      ],
+      "remediation": "Restore the distribution default (kernel.core_pattern) in sysctl configuration after preserving the handler as evidence.",
+      "references": {
+        "attack": [
+          {
+            "id": "T1546",
+            "relationship": "possible",
+            "explanation": "A crash handler is an event-triggered execution point; this does not map to a more specific technique and no abuse is shown."
+          }
+        ],
+        "nist": [
+          "CM-6",
+          "SI-7"
+        ]
+      },
+      "examples": [
+        {
+          "name": "handler in /tmp",
+          "expect": "match",
+          "platform": "linux",
+          "current": {
+            "findings": [],
+            "inventory": [
+              {
+                "domain": "config",
+                "key": "config:core:core_pattern",
+                "attrs": {
+                  "value": "|/tmp/.x/handler %p"
+                },
+                "scope": "core"
+              }
+            ]
+          }
+        },
+        {
+          "name": "systemd-coredump",
+          "expect": "no_match",
+          "platform": "linux",
+          "current": {
+            "findings": [],
+            "inventory": [
+              {
+                "domain": "config",
+                "key": "config:core:core_pattern",
+                "attrs": {
+                  "value": "|/usr/lib/systemd/systemd-coredump %P %u %g"
+                },
+                "scope": "core"
+              }
+            ]
+          }
+        },
+        {
+          "name": "plain file pattern",
+          "expect": "no_match",
+          "platform": "linux",
+          "current": {
+            "findings": [],
+            "inventory": [
+              {
+                "domain": "config",
+                "key": "config:core:core_pattern",
+                "attrs": {
+                  "value": "core"
+                },
+                "scope": "core"
+              }
+            ]
+          }
+        },
+        {
+          "name": "look-alike handler path",
+          "expect": "match",
+          "platform": "linux",
+          "current": {
+            "findings": [],
+            "inventory": [
+              {
+                "domain": "config",
+                "key": "config:core:core_pattern",
+                "attrs": {
+                  "value": "|/home/x/usr/lib/systemd/systemd-coredump %p"
+                },
+                "scope": "core"
+              }
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "enabled": true,
+      "false_positives": [
+        "Local patching, prelinking or manual replacements by the administrator.",
+        "Files restored from backup with different timestamps do not matter, but content changes do."
+      ],
+      "confidence_boosters": [
+        "Timestamps of the mismatching files compared with package update history.",
+        "An independent hash from a trusted package source."
+      ],
+      "id": "DR-LNX-PKG-001",
+      "version": "1.0.0",
+      "name": "Installed programs differ from their package checksums",
+      "description": "Package verification reports that installed programs or libraries no longer match what their package shipped.",
+      "platforms": [
+        "linux"
+      ],
+      "category": "integrity",
+      "severity": "high",
+      "severity_reason": "Modified system binaries can hide activity or provide access, and they should only change through package updates.",
+      "confidence": "medium",
+      "confidence_reason": "Local changes after manual installs or admin edits also cause mismatches; the check trusts the local package database.",
+      "confidence_rules": [
+        {
+          "when": "recent",
+          "value": "high",
+          "reason": "Executables were also reported as recently modified (not necessarily the same files)."
+        }
+      ],
+      "nature": "indicator",
+      "requires_coverage": [
+        "module:filesystem"
+      ],
+      "clauses": [
+        {
+          "id": "pkg",
+          "source": "findings",
+          "description": "Package integrity reports changed programs or libraries",
+          "where": {
+            "field": "check_id",
+            "op": "eq",
+            "value": "FS-PKG-001"
+          }
+        },
+        {
+          "id": "recent",
+          "source": "findings",
+          "description": "Executables were modified recently",
+          "where": {
+            "field": "check_id",
+            "op": "eq",
+            "value": "FS-RECENT-001"
+          },
+          "optional": true
+        }
+      ],
+      "require": "pkg",
+      "title": "Packaged programs have been modified: {pkg.title}",
+      "rationale": "System programs change through package managers. A mismatch outside an update window is a reason to check for trojaned binaries.",
+      "investigation": [
+        "List the mismatching files from the evidence and compare hashes with a fresh package download.",
+        "Check package manager logs for updates around the modification times.",
+        "Look for persistence or accounts created around the same time."
+      ],
+      "remediation": "Reinstall the affected packages from a trusted source after preserving the modified files as evidence.",
+      "references": {
+        "attack": [
+          {
+            "id": "T1554",
+            "relationship": "possible",
+            "explanation": "Compromising host software binaries is a way to persist; a checksum mismatch alone does not show that."
+          }
+        ],
+        "nist": [
+          "SI-7"
+        ]
+      },
+      "examples": [
+        {
+          "name": "modified system binary",
+          "expect": "match",
+          "platform": "linux",
+          "current": {
+            "findings": [
+              {
+                "check_id": "FS-PKG-001",
+                "severity": "high",
+                "category": "filesystem",
+                "confidence": "high",
+                "evidence": [
+                  {
+                    "ref": "/usr/bin/ssh",
+                    "excerpt": "digest differs"
+                  }
+                ]
+              }
+            ],
+            "inventory": [],
+            "modules": {
+              "filesystem": "ok"
+            }
+          },
+          "count": 1
+        },
+        {
+          "name": "only the package summary",
+          "expect": "no_match",
+          "platform": "linux",
+          "current": {
+            "findings": [
+              {
+                "check_id": "FS-PKG-003",
+                "severity": "info",
+                "category": "filesystem",
+                "confidence": "high"
+              }
+            ],
+            "inventory": [],
+            "modules": {
+              "filesystem": "ok"
+            }
+          }
+        },
+        {
+          "name": "recent executable changes raise confidence",
+          "expect": "match",
+          "platform": "linux",
+          "current": {
+            "findings": [
+              {
+                "check_id": "FS-PKG-001",
+                "severity": "high",
+                "category": "filesystem",
+                "confidence": "high",
+                "evidence": [
+                  {
+                    "ref": "/usr/bin/ssh"
+                  }
+                ]
+              },
+              {
+                "check_id": "FS-RECENT-001",
+                "severity": "medium",
+                "category": "filesystem",
+                "confidence": "high",
+                "evidence": [
+                  {
+                    "ref": "/usr/bin/ssh"
+                  }
+                ]
+              }
+            ],
+            "inventory": [],
+            "modules": {
+              "filesystem": "ok"
+            }
+          }
+        },
+        {
+          "name": "filesystem module timed out",
+          "expect": "indeterminate",
+          "platform": "linux",
+          "current": {
+            "findings": [
+              {
+                "check_id": "USR-INFO-001",
+                "severity": "info",
+                "category": "users",
+                "confidence": "high"
+              }
+            ],
+            "inventory": [],
+            "modules": {
+              "filesystem": "timeout"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "enabled": true,
+      "false_positives": [
+        "Isolated management networks or labs that depend on tftp/ftp for provisioning."
+      ],
+      "confidence_boosters": [
+        "Firewall rules showing the port reachable from outside the management network."
+      ],
+      "id": "DR-LNX-SVC-001",
+      "version": "1.0.0",
+      "name": "Legacy cleartext service enabled and listening",
+      "description": "A legacy service known for cleartext authentication (telnet, r-services, tftp, FTP) is enabled and a matching process is listening.",
+      "platforms": [
+        "linux"
+      ],
+      "category": "services",
+      "severity": "high",
+      "severity_reason": "Credentials sent in cleartext and unauthenticated file transfer are directly exploitable on a reachable network.",
+      "confidence": "medium",
+      "confidence_reason": "Names identify the service; they do not prove it is reachable from untrusted networks.",
+      "nature": "correlated",
+      "requires_coverage": [
+        "inventory:services",
+        "inventory:listeners"
+      ],
+      "clauses": [
+        {
+          "id": "unit",
+          "source": "inventory",
+          "description": "A legacy cleartext service is enabled",
+          "where": {
+            "all": [
+              {
+                "field": "domain",
+                "op": "eq",
+                "value": "services"
+              },
+              {
+                "field": "key",
+                "op": "regex",
+                "value": "^service:(telnet|rsh|rlogin|rexec|tftp|vsftpd|proftpd|pure-ftpd|xinetd|inetd)"
+              },
+              {
+                "field": "attrs.enabled",
+                "op": "in",
+                "value": [
+                  "enabled",
+                  "static",
+                  "yes"
+                ]
+              }
+            ]
+          }
+        },
+        {
+          "id": "port",
+          "source": "inventory",
+          "description": "A matching legacy daemon is listening",
+          "where": {
+            "all": [
+              {
+                "field": "domain",
+                "op": "eq",
+                "value": "listeners"
+              },
+              {
+                "field": "attrs.process",
+                "op": "regex",
+                "value": "(in\\.)?(telnetd|rshd|rlogind|rexecd|tftpd|vsftpd|proftpd|pure-ftpd|xinetd|inetd)"
+              }
+            ]
+          }
+        }
+      ],
+      "title": "Legacy cleartext service enabled and listening ({unit.key})",
+      "rationale": "An enabled unit says the service starts at boot; a listening process says it is running now. Together they show an exposed cleartext service rather than a stray package.",
+      "investigation": [
+        "Confirm the service owner and whether the port is scored.",
+        "Check the firewall policy for the listening port.",
+        "Review authentication logs for the service."
+      ],
+      "remediation": "Disable the service in favour of SSH/SFTP once confirmed it is not required (disable, do not delete; reload dependants).",
+      "references": {
+        "attack": [
+          {
+            "id": "T1133",
+            "relationship": "possible",
+            "explanation": "An exposed remote service can be used for external access; reachability is not established by this rule."
+          }
+        ],
+        "nist": [
+          "CM-7",
+          "SC-7"
+        ]
+      },
+      "examples": [
+        {
+          "name": "telnet enabled and listening",
+          "expect": "match",
+          "platform": "linux",
+          "current": {
+            "findings": [],
+            "inventory": [
+              {
+                "domain": "services",
+                "key": "service:telnet.service",
+                "attrs": {
+                  "enabled": "enabled",
+                  "active": "running"
+                }
+              },
+              {
+                "domain": "listeners",
+                "key": "listener:tcp/0.0.0.0/23",
+                "attrs": {
+                  "proto": "tcp",
+                  "bind": "0.0.0.0",
+                  "port": "23",
+                  "process": "telnetd"
+                }
+              }
+            ]
+          },
+          "count": 1
+        },
+        {
+          "name": "enabled but not listening",
+          "expect": "no_match",
+          "platform": "linux",
+          "current": {
+            "findings": [],
+            "inventory": [
+              {
+                "domain": "services",
+                "key": "service:telnet.service",
+                "attrs": {
+                  "enabled": "enabled",
+                  "active": "failed"
+                }
+              },
+              {
+                "domain": "listeners",
+                "key": "listener:tcp/0.0.0.0/22",
+                "attrs": {
+                  "proto": "tcp",
+                  "bind": "0.0.0.0",
+                  "port": "22",
+                  "process": "sshd"
+                }
+              }
+            ]
+          }
+        },
+        {
+          "name": "listening but unit disabled",
+          "expect": "no_match",
+          "platform": "linux",
+          "current": {
+            "findings": [],
+            "inventory": [
+              {
+                "domain": "services",
+                "key": "service:vsftpd.service",
+                "attrs": {
+                  "enabled": "disabled"
+                }
+              },
+              {
+                "domain": "listeners",
+                "key": "listener:tcp/0.0.0.0/21",
+                "attrs": {
+                  "proto": "tcp",
+                  "bind": "0.0.0.0",
+                  "port": "21",
+                  "process": "vsftpd"
+                }
+              }
+            ]
+          }
+        }
+      ]
+    }
+  ]
+}

@@ -1,0 +1,271 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://blueops.invalid/schemas/detection-results/0.1.0",
+  "title": "BlueOps detection results",
+  "description": "Explainable detections produced by the rule engine from one assessment (and, optionally, earlier snapshots). Every contributing item and evidence id refers back to the assessment. A detection is a lead for investigation: see `nature` and `explanation.disclaimer`; none claims to prove malicious activity. Investigation state is kept separately (case store), never in this document.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema_version", "kind", "generated_at", "engine", "host", "assessment", "history", "rule_packs", "rules", "rule_results", "detections", "indeterminate", "rule_errors", "summary"],
+  "properties": {
+    "schema_version": { "type": "string", "pattern": "^0\\.\\d+\\.\\d+$" },
+    "kind": { "const": "detection-results" },
+    "generated_at": { "$ref": "#/$defs/timestamp" },
+    "engine": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["name", "version"],
+      "properties": { "name": { "type": "string" }, "version": { "type": "string" } }
+    },
+    "host": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["hostname", "host_id", "os_family"],
+      "properties": {
+        "hostname": { "type": "string", "minLength": 1 },
+        "host_id": { "type": "string", "pattern": "^H-[a-f0-9]{12}$" },
+        "os_family": { "enum": ["linux", "windows"] }
+      }
+    },
+    "assessment": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "started_at", "finished_at", "profile"],
+      "properties": {
+        "id": { "type": "string", "minLength": 1 },
+        "started_at": { "$ref": "#/$defs/timestamp" },
+        "finished_at": { "$ref": "#/$defs/timestamp" },
+        "profile": { "type": "string" }
+      }
+    },
+    "history": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["snapshots", "compared_with", "comparison_trend", "excluded"],
+      "properties": {
+        "snapshots": { "type": "integer", "minimum": 0 },
+        "compared_with": { "type": ["string", "null"] },
+        "comparison_trend": { "type": ["string", "null"] },
+        "excluded": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["source", "reason"],
+            "properties": { "source": { "type": "string" }, "reason": { "type": "string" } }
+          }
+        }
+      }
+    },
+    "rule_packs": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["name", "version", "source", "sha256", "rules"],
+        "properties": {
+          "name": { "type": ["string", "null"] },
+          "version": { "type": ["string", "null"] },
+          "source": { "type": "string" },
+          "sha256": { "type": "string", "pattern": "^[a-f0-9]{64}$" },
+          "rules": { "type": "integer", "minimum": 0 }
+        }
+      }
+    },
+    "rules": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["total", "evaluated", "disabled", "not_applicable", "indeterminate", "error"],
+      "properties": {
+        "total": { "type": "integer", "minimum": 0 },
+        "evaluated": { "type": "integer", "minimum": 0 },
+        "disabled": { "type": "integer", "minimum": 0 },
+        "not_applicable": { "type": "integer", "minimum": 0 },
+        "indeterminate": { "type": "integer", "minimum": 0 },
+        "error": { "type": "integer", "minimum": 0 }
+      }
+    },
+    "rule_results": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["rule", "status", "detections"],
+        "properties": {
+          "rule": { "type": "string" },
+          "status": { "enum": ["evaluated", "disabled", "not_applicable", "indeterminate", "error"] },
+          "detections": { "type": "integer", "minimum": 0 },
+          "reason": { "type": "string" }
+        }
+      }
+    },
+    "detections": { "type": "array", "items": { "$ref": "#/$defs/detection" } },
+    "indeterminate": {
+      "description": "Rules that could not reach a conclusion (missing module coverage, no earlier snapshot, ...). Never read as 'no detection'.",
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["rule", "reason", "nature", "category"],
+        "properties": {
+          "rule": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["id", "name"],
+            "properties": { "id": { "type": "string" }, "name": { "type": "string" } }
+          },
+          "reason": { "type": "string" },
+          "nature": { "$ref": "#/$defs/nature" },
+          "category": { "type": "string" }
+        }
+      }
+    },
+    "rule_errors": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["rule", "code", "message"],
+        "properties": { "rule": { "type": "string" }, "code": { "type": "string" }, "message": { "type": "string" } }
+      }
+    },
+    "summary": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["total", "by_severity", "by_confidence", "by_nature", "by_category", "indeterminate", "rule_errors"],
+      "properties": {
+        "total": { "type": "integer", "minimum": 0 },
+        "by_severity": { "type": "object", "additionalProperties": { "type": "integer", "minimum": 0 } },
+        "by_confidence": { "type": "object", "additionalProperties": { "type": "integer", "minimum": 0 } },
+        "by_nature": { "type": "object", "additionalProperties": { "type": "integer", "minimum": 0 } },
+        "by_category": { "type": "object", "additionalProperties": { "type": "integer", "minimum": 0 } },
+        "indeterminate": { "type": "integer", "minimum": 0 },
+        "rule_errors": { "type": "integer", "minimum": 0 }
+      }
+    }
+  },
+  "$defs": {
+    "timestamp": { "type": "string", "pattern": "^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}(\\.\\d+)?Z$" },
+    "severity": { "enum": ["info", "low", "medium", "high", "critical"] },
+    "confidence": { "enum": ["low", "medium", "high"] },
+    "nature": { "enum": ["observation", "indicator", "correlated", "hypothesis"] },
+    "detection": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "rule", "title", "description", "severity", "confidence", "nature", "category", "detected_at", "host", "components", "contributing", "evidence", "matched_conditions", "explanation", "investigation_steps", "remediation", "references"],
+      "properties": {
+        "id": { "type": "string", "pattern": "^DT-[a-f0-9]{16}$" },
+        "rule": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["id", "name", "version", "pack"],
+          "properties": {
+            "id": { "type": "string", "pattern": "^DR-[A-Z]{2,4}-[A-Z0-9]{2,8}-\\d{3}$" },
+            "name": { "type": "string" },
+            "version": { "type": "string" },
+            "pack": { "type": "string" }
+          }
+        },
+        "title": { "type": "string", "minLength": 1 },
+        "description": { "type": "string" },
+        "severity": { "$ref": "#/$defs/severity" },
+        "confidence": { "$ref": "#/$defs/confidence" },
+        "nature": { "$ref": "#/$defs/nature" },
+        "category": { "type": "string" },
+        "detected_at": { "$ref": "#/$defs/timestamp" },
+        "host": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["hostname", "host_id"],
+          "properties": { "hostname": { "type": "string" }, "host_id": { "type": "string", "pattern": "^H-[a-f0-9]{12}$" } }
+        },
+        "components": { "type": "array", "items": { "type": "string" } },
+        "contributing": {
+          "description": "The assessment items behind the detection. type=finding: id is a BOF- id. type=inventory: domain/scope/key. type=change: a configuration change between snapshots. type=snapshot: snapshot-level facts.",
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "type": "object",
+            "properties": {
+              "clause": { "type": "string" },
+              "type": { "enum": ["finding", "inventory", "change", "snapshot"] },
+              "label": { "type": "string" },
+              "severity": { "$ref": "#/$defs/severity" },
+              "id": { "type": "string" },
+              "check_id": { "type": "string" },
+              "domain": { "type": "string" },
+              "scope": { "type": "string" },
+              "key": { "type": "string" },
+              "change": { "type": "string" },
+              "detail": { "type": "object" }
+            },
+            "required": ["clause", "type", "label"]
+          }
+        },
+        "evidence": { "type": "array", "items": { "type": "string", "pattern": "^EV-[a-f0-9]{16}$" } },
+        "matched_conditions": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["clause", "description", "optional", "matched_items", "conditions"],
+            "properties": {
+              "clause": { "type": "string" },
+              "description": { "type": "string" },
+              "optional": { "type": "boolean" },
+              "matched_items": { "type": "integer", "minimum": 1 },
+              "conditions": { "type": "array", "items": { "type": "string" } }
+            }
+          }
+        },
+        "explanation": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["why_flagged", "why_correlated", "severity_rationale", "confidence_rationale", "missing_corroboration", "possible_benign_causes", "caveats", "disclaimer"],
+          "properties": {
+            "why_flagged": { "type": "string" },
+            "why_correlated": { "type": "string" },
+            "severity_rationale": { "type": "string" },
+            "confidence_rationale": { "type": "string" },
+            "missing_corroboration": { "type": "array", "items": { "type": "string" } },
+            "possible_benign_causes": { "type": "array", "items": { "type": "string" } },
+            "caveats": { "type": "array", "items": { "type": "string" } },
+            "disclaimer": { "type": "string" }
+          }
+        },
+        "investigation_steps": { "type": "array", "minItems": 1, "items": { "type": "string" } },
+        "remediation": { "type": "string" },
+        "references": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["attack", "nist", "other"],
+          "properties": {
+            "attack": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "additionalProperties": false,
+                "required": ["id", "relationship", "explanation", "url"],
+                "properties": {
+                  "id": { "type": "string", "pattern": "^T\\d{4}(\\.\\d{3})?$" },
+                  "relationship": { "enum": ["direct", "possible"] },
+                  "explanation": { "type": "string" },
+                  "url": { "type": "string" }
+                }
+              }
+            },
+            "nist": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "additionalProperties": false,
+                "required": ["id", "title"],
+                "properties": { "id": { "type": "string" }, "title": { "type": "string" } }
+              }
+            },
+            "other": { "type": "array", "items": { "type": "string" } }
+          }
+        }
+      }
+    }
+  }
+}

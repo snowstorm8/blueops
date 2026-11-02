@@ -15,12 +15,18 @@ concurrency:
 jobs:
   python:
     name: Python tests (${{ matrix.os }}, py${{ matrix.python }})
-    runs-on: ${{ matrix.os }}
+    runs-on: ${{ matrix.runner || matrix.os }}
     strategy:
       fail-fast: false
       matrix:
         os: [ubuntu-latest, windows-latest]
         python: ["3.9", "3.12"]
+        include:
+          # setup-python has no Python 3.9 build for the Ubuntu 26.04 image behind
+          # ubuntu-latest; pin only this combination (the job name stays unchanged).
+          - os: ubuntu-latest
+            python: "3.9"
+            runner: ubuntu-24.04
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
@@ -75,6 +81,18 @@ jobs:
           python -m shared.engine validate "$b/assessment.json"
           python -m shared.engine report "$b" --compare "$a" --format html --output "$work/r.html"
           grep -q "Content-Security-Policy" "$work/r.html"
+      - name: Detection engine smoke test (rule validation, embedded examples, detection run)
+        shell: bash
+        run: |
+          set -e
+          python -m shared.engine rules validate --examples
+          python -m shared.engine rules test
+          set +e
+          python -m shared.engine detect run tests/fixtures/rules/linux-compromised.assessment.json --quiet > detections.json
+          code=$?
+          test "$code" -eq 4 || { echo "expected exit 4 for the compromised fixture, got $code"; exit 1; }
+          python -m shared.engine detect run tests/fixtures/rules/linux-compromised.assessment.json --quiet --fail-on critical --min-severity critical > /dev/null
+          python -m shared.engine validate detections.json
       - name: Run-manifest smoke test (offline collector + verifier)
         if: runner.os != 'Windows'
         shell: bash

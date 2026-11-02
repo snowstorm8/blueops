@@ -1,0 +1,2251 @@
+{
+  "schema_version": "0.1.0",
+  "kind": "rule-pack",
+  "pack": {
+    "name": "correlation",
+    "version": "1.0.0",
+    "description": "Cross-platform rules that correlate independent findings and inventory."
+  },
+  "rules": [
+    {
+      "enabled": true,
+      "false_positives": [
+        "Legacy device management on an isolated network.",
+        "A different service that happens to use one of these ports."
+      ],
+      "confidence_boosters": [
+        "The listening process name matching the protocol.",
+        "Firewall rules allowing the port from untrusted networks."
+      ],
+      "id": "DR-ANY-NET-001",
+      "version": "1.0.0",
+      "name": "Cleartext remote-access service listening on a non-loopback address",
+      "description": "A telnet, FTP, TFTP or r-service port is listening on an address other than loopback.",
+      "platforms": [
+        "any"
+      ],
+      "category": "network-exposure",
+      "severity": "high",
+      "severity_reason": "These protocols send credentials or data unprotected, and TFTP has no authentication at all.",
+      "confidence": "medium",
+      "confidence_reason": "The port number identifies the usual service; the process may be something else, and reachability depends on filtering.",
+      "nature": "indicator",
+      "requires_coverage": [
+        "inventory:listeners"
+      ],
+      "clauses": [
+        {
+          "id": "lst",
+          "source": "inventory",
+          "description": "A cleartext-protocol port bound to a non-loopback address",
+          "where": {
+            "all": [
+              {
+                "field": "domain",
+                "op": "eq",
+                "value": "listeners"
+              },
+              {
+                "field": "attrs.port",
+                "op": "in",
+                "value": [
+                  "21",
+                  "23",
+                  "69",
+                  "512",
+                  "513",
+                  "514"
+                ]
+              },
+              {
+                "not": {
+                  "any": [
+                    {
+                      "field": "attrs.bind",
+                      "op": "regex",
+                      "value": "^127\\."
+                    },
+                    {
+                      "field": "attrs.bind",
+                      "op": "in",
+                      "value": [
+                        "127.0.0.1",
+                        "::1",
+                        "localhost",
+                        "[::1]"
+                      ]
+                    }
+                  ]
+                }
+              }
+            ]
+          }
+        }
+      ],
+      "title": "Cleartext service port {lst.attrs.port} listening on {lst.attrs.bind}",
+      "rationale": "Cleartext remote-access protocols expose credentials to anyone on the path and are frequent entry points; a listener on a routable address makes them reachable.",
+      "investigation": [
+        "Identify the owning process and package.",
+        "Check firewall policy for the port.",
+        "Review authentication logs for the service."
+      ],
+      "remediation": "Replace with SSH/SFTP (or restrict to a management network) and disable the service once confirmed unnecessary.",
+      "references": {
+        "attack": [
+          {
+            "id": "T1133",
+            "relationship": "possible",
+            "explanation": "An exposed remote-access service can serve as an external access point; exposure to attackers is not established."
+          }
+        ],
+        "nist": [
+          "SC-7",
+          "CM-7",
+          "IA-2"
+        ]
+      },
+      "examples": [
+        {
+          "name": "telnet on all interfaces",
+          "expect": "match",
+          "platform": "linux",
+          "current": {
+            "findings": [],
+            "inventory": [
+              {
+                "domain": "listeners",
+                "key": "listener:tcp/0.0.0.0/23",
+                "attrs": {
+                  "proto": "tcp",
+                  "bind": "0.0.0.0",
+                  "port": "23",
+                  "process": "telnetd"
+                }
+              }
+            ]
+          },
+          "count": 1
+        },
+        {
+          "name": "telnet on loopback only",
+          "expect": "no_match",
+          "platform": "linux",
+          "current": {
+            "findings": [],
+            "inventory": [
+              {
+                "domain": "listeners",
+                "key": "listener:tcp/127.0.0.1/23",
+                "attrs": {
+                  "proto": "tcp",
+                  "bind": "127.0.0.1",
+                  "port": "23",
+                  "process": "telnetd"
+                }
+              }
+            ]
+          }
+        },
+        {
+          "name": "ssh on all interfaces",
+          "expect": "no_match",
+          "platform": "linux",
+          "current": {
+            "findings": [],
+            "inventory": [
+              {
+                "domain": "listeners",
+                "key": "listener:tcp/0.0.0.0/22",
+                "attrs": {
+                  "proto": "tcp",
+                  "bind": "0.0.0.0",
+                  "port": "22",
+                  "process": "sshd"
+                }
+              }
+            ]
+          }
+        },
+        {
+          "name": "windows ftp service on IPv6 wildcard",
+          "expect": "match",
+          "platform": "windows",
+          "current": {
+            "findings": [],
+            "inventory": [
+              {
+                "domain": "listeners",
+                "key": "listener:tcp/::/21",
+                "attrs": {
+                  "proto": "tcp",
+                  "bind": "::",
+                  "port": "21",
+                  "process": "ftpsvc"
+                }
+              }
+            ]
+          }
+        },
+        {
+          "name": "IPv6 loopback",
+          "expect": "no_match",
+          "platform": "linux",
+          "current": {
+            "findings": [],
+            "inventory": [
+              {
+                "domain": "listeners",
+                "key": "listener:tcp/::1/21",
+                "attrs": {
+                  "proto": "tcp",
+                  "bind": "::1",
+                  "port": "21",
+                  "process": "x"
+                }
+              }
+            ]
+          }
+        }
+      ],
+      "join": {
+        "on": "key",
+        "mode": "equal"
+      }
+    },
+    {
+      "enabled": true,
+      "false_positives": [
+        "Planned onboarding or role changes."
+      ],
+      "confidence_boosters": [
+        "Change tickets for the account added.",
+        "Logon activity of the added account."
+      ],
+      "id": "DR-ANY-PRIV-001",
+      "version": "1.0.0",
+      "name": "Membership of a privileged group changed",
+      "description": "Since the previous snapshot the membership of an administrative group (sudo, wheel, admin, root, local Administrators) changed.",
+      "platforms": [
+        "any"
+      ],
+      "category": "privilege",
+      "severity": "high",
+      "severity_reason": "Administrative group membership grants full control; any change should be explainable by an approved request.",
+      "confidence": "medium",
+      "confidence_reason": "The change is exact; most such changes are legitimate administration.",
+      "nature": "indicator",
+      "requires_coverage": [
+        "comparison",
+        "inventory:groups"
+      ],
+      "clauses": [
+        {
+          "id": "grp",
+          "source": "config_changes",
+          "description": "A privileged group record whose members changed",
+          "where": {
+            "all": [
+              {
+                "field": "domain",
+                "op": "eq",
+                "value": "groups"
+              },
+              {
+                "field": "change",
+                "op": "eq",
+                "value": "modified"
+              },
+              {
+                "field": "attributes.names",
+                "op": "in",
+                "value": [
+                  "members",
+                  "primary_members"
+                ]
+              },
+              {
+                "any": [
+                  {
+                    "field": "key",
+                    "op": "in",
+                    "value": [
+                      "group:sudo",
+                      "group:wheel",
+                      "group:admin",
+                      "group:root"
+                    ]
+                  },
+                  {
+                    "field": "key",
+                    "op": "regex",
+                    "value": "-544$"
+                  }
+                ]
+              }
+            ]
+          }
+        }
+      ],
+      "title": "Privileged group membership changed: {grp.key}",
+      "rationale": "Adding an account to sudo/wheel/Administrators is the simplest privilege escalation once someone can edit group files, and it is easy to overlook between assessments.",
+      "investigation": [
+        "Compare the before and after member lists in the detail of the contributing change.",
+        "Check the account's creation time and recent logons.",
+        "Confirm the change against an approved request."
+      ],
+      "remediation": "Remove unauthorised members, reset their credentials and review what they accessed; document approved changes.",
+      "references": {
+        "attack": [
+          {
+            "id": "T1098",
+            "relationship": "possible",
+            "explanation": "Changing group membership is a form of account manipulation to maintain or elevate access; it is also routine administration."
+          }
+        ],
+        "nist": [
+          "AC-2",
+          "AC-6",
+          "CM-3"
+        ]
+      },
+      "examples": [
+        {
+          "name": "sudo group gained a member",
+          "expect": "match",
+          "platform": "linux",
+          "current": {
+            "findings": [],
+            "inventory": [
+              {
+                "domain": "groups",
+                "key": "group:sudo",
+                "attrs": {
+                  "gid": "27",
+                  "members": [
+                    "alice",
+                    "mallory"
+                  ]
+                }
+              }
+            ]
+          },
+          "previous": [
+            {
+              "findings": [],
+              "inventory": [
+                {
+                  "domain": "groups",
+                  "key": "group:sudo",
+                  "attrs": {
+                    "gid": "27",
+                    "members": [
+                      "alice"
+                    ]
+                  }
+                }
+              ]
+            }
+          ],
+          "count": 1
+        },
+        {
+          "name": "unrelated group changed",
+          "expect": "no_match",
+          "platform": "linux",
+          "current": {
+            "findings": [],
+            "inventory": [
+              {
+                "domain": "groups",
+                "key": "group:staff",
+                "attrs": {
+                  "gid": "50",
+                  "members": [
+                    "alice",
+                    "bob"
+                  ]
+                }
+              }
+            ]
+          },
+          "previous": [
+            {
+              "findings": [],
+              "inventory": [
+                {
+                  "domain": "groups",
+                  "key": "group:staff",
+                  "attrs": {
+                    "gid": "50",
+                    "members": [
+                      "alice"
+                    ]
+                  }
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "name": "no change",
+          "expect": "no_match",
+          "platform": "linux",
+          "current": {
+            "findings": [],
+            "inventory": [
+              {
+                "domain": "groups",
+                "key": "group:sudo",
+                "attrs": {
+                  "gid": "27",
+                  "members": [
+                    "alice"
+                  ]
+                }
+              }
+            ]
+          },
+          "previous": [
+            {
+              "findings": [],
+              "inventory": [
+                {
+                  "domain": "groups",
+                  "key": "group:sudo",
+                  "attrs": {
+                    "gid": "27",
+                    "members": [
+                      "alice"
+                    ]
+                  }
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "name": "no earlier snapshot",
+          "expect": "indeterminate",
+          "platform": "linux",
+          "current": {
+            "findings": [],
+            "inventory": [
+              {
+                "domain": "groups",
+                "key": "group:sudo",
+                "attrs": {
+                  "gid": "27",
+                  "members": [
+                    "alice"
+                  ]
+                }
+              }
+            ]
+          }
+        },
+        {
+          "name": "windows Administrators changed",
+          "expect": "match",
+          "platform": "windows",
+          "current": {
+            "findings": [],
+            "inventory": [
+              {
+                "domain": "groups",
+                "key": "group:S-1-5-32-544",
+                "attrs": {
+                  "name": "Administrators",
+                  "members": [
+                    "S-1-5-21-1-500",
+                    "S-1-5-21-1-1001"
+                  ]
+                }
+              }
+            ]
+          },
+          "previous": [
+            {
+              "findings": [],
+              "inventory": [
+                {
+                  "domain": "groups",
+                  "key": "group:S-1-5-32-544",
+                  "attrs": {
+                    "name": "Administrators",
+                    "members": [
+                      "S-1-5-21-1-500"
+                    ]
+                  }
+                }
+              ]
+            }
+          ]
+        }
+      ],
+      "join": {
+        "on": "key",
+        "mode": "equal"
+      }
+    },
+    {
+      "enabled": true,
+      "false_positives": [
+        "Competition or lab hosts configured deliberately weak."
+      ],
+      "confidence_boosters": [
+        "Evidence that the weak control applies to the privileged account (for example sshd allowing that account).",
+        "Logons by the privileged account from unusual sources."
+      ],
+      "id": "DR-ANY-PRIV-002",
+      "version": "1.0.0",
+      "name": "Privileged-account anomaly together with weak authentication settings",
+      "description": "An unexpected or over-privileged account configuration was found on a host that also has weak authentication controls.",
+      "platforms": [
+        "any"
+      ],
+      "category": "privilege",
+      "severity": "medium",
+      "severity_reason": "Each side is a configuration concern; together they widen the path from a guessed or missing credential to administrative access. Severity is raised only when the weak control can be bypassed outright.",
+      "severity_rules": [
+        {
+          "when": "bypass",
+          "value": "high",
+          "reason": "An authentication-bypass-class weakness (PAM accepts without credential, passwordless accounts, no NLA, auto-logon) is present."
+        }
+      ],
+      "confidence": "medium",
+      "confidence_reason": "Both sides are exact findings; their relationship (same accounts, reachable service) is not established by the data.",
+      "nature": "correlated",
+      "requires_coverage": [
+        "module:users"
+      ],
+      "clauses": [
+        {
+          "id": "priv",
+          "source": "findings",
+          "description": "A privileged-account anomaly",
+          "where": {
+            "field": "check_id",
+            "op": "in",
+            "value": [
+              "USR-UID0-001",
+              "USR-SUDO-002",
+              "USR-SUDO-004",
+              "USR-SUDO-005",
+              "USR-GROUP-003",
+              "USR-HIDDEN-001",
+              "USR-ADMIN-002",
+              "USR-RID500-001"
+            ]
+          }
+        },
+        {
+          "id": "auth",
+          "source": "findings",
+          "description": "A weak authentication control",
+          "where": {
+            "field": "check_id",
+            "op": "in",
+            "value": [
+              "PAM-PERMIT-001",
+              "PAM-NULLOK-001",
+              "PAM-HASH-001",
+              "NET-SSHD-002",
+              "ATH-LOCKOUT-001",
+              "SEC-PWD-002",
+              "SEC-PWD-001",
+              "SEC-RDP-002",
+              "USR-PWD-001",
+              "SEC-AUTOLOGON-001"
+            ]
+          }
+        },
+        {
+          "id": "bypass",
+          "source": "findings",
+          "description": "...of the bypass class",
+          "where": {
+            "field": "check_id",
+            "op": "in",
+            "value": [
+              "PAM-PERMIT-001",
+              "USR-PWD-001",
+              "SEC-RDP-002",
+              "SEC-AUTOLOGON-001"
+            ]
+          },
+          "optional": true
+        }
+      ],
+      "require": {
+        "all": [
+          "priv",
+          "auth"
+        ]
+      },
+      "title": "Privileged-account anomaly with weak authentication on {host}",
+      "rationale": "An attacker needs a way to authenticate and a privileged identity to use. Seeing a questionable privileged account and weak authentication on one host is more actionable than either alone.",
+      "investigation": [
+        "Check whether the privileged account can use the weak authentication path (sshd AllowUsers, PAM stack for the service).",
+        "Review authentication logs for the privileged accounts.",
+        "Fix the bypass-class weakness first."
+      ],
+      "remediation": "Remove or justify the anomalous privileged account, then close the authentication weakness (PAM/sshd/NLA/lockout) in the order of the severity rationale.",
+      "references": {
+        "attack": [
+          {
+            "id": "T1078",
+            "relationship": "possible",
+            "explanation": "Valid accounts are often used with weak authentication to gain access; nothing here shows use."
+          },
+          {
+            "id": "T1098",
+            "relationship": "possible",
+            "explanation": "Account manipulation is one way a privileged anomaly arises."
+          }
+        ],
+        "nist": [
+          "AC-2",
+          "IA-5",
+          "AC-6"
+        ]
+      },
+      "examples": [
+        {
+          "name": "uid0 account plus PAM bypass",
+          "expect": "match",
+          "platform": "linux",
+          "current": {
+            "findings": [
+              {
+                "check_id": "USR-UID0-001",
+                "severity": "critical",
+                "category": "users",
+                "confidence": "high",
+                "evidence": [
+                  {
+                    "ref": "/etc/passwd",
+                    "excerpt": "account 'toor'"
+                  }
+                ]
+              },
+              {
+                "check_id": "PAM-PERMIT-001",
+                "severity": "high",
+                "category": "pam",
+                "confidence": "high",
+                "evidence": [
+                  {
+                    "ref": "/etc/pam.d/login",
+                    "excerpt": "pam_permit"
+                  }
+                ]
+              }
+            ],
+            "inventory": [],
+            "modules": {
+              "users": "ok",
+              "pam": "ok"
+            }
+          },
+          "count": 1
+        },
+        {
+          "name": "privileged anomaly only",
+          "expect": "no_match",
+          "platform": "linux",
+          "current": {
+            "findings": [
+              {
+                "check_id": "USR-UID0-001",
+                "severity": "critical",
+                "category": "users",
+                "confidence": "high"
+              }
+            ],
+            "inventory": [],
+            "modules": {
+              "users": "ok"
+            }
+          }
+        },
+        {
+          "name": "weak auth only",
+          "expect": "no_match",
+          "platform": "linux",
+          "current": {
+            "findings": [
+              {
+                "check_id": "ATH-LOCKOUT-001",
+                "severity": "low",
+                "category": "auth",
+                "confidence": "high"
+              }
+            ],
+            "inventory": [],
+            "modules": {
+              "users": "ok"
+            }
+          }
+        },
+        {
+          "name": "anomaly with lockout missing is medium",
+          "expect": "match",
+          "platform": "linux",
+          "current": {
+            "findings": [
+              {
+                "check_id": "USR-SUDO-002",
+                "severity": "medium",
+                "category": "users",
+                "confidence": "high"
+              },
+              {
+                "check_id": "ATH-LOCKOUT-001",
+                "severity": "low",
+                "category": "auth",
+                "confidence": "high"
+              }
+            ],
+            "inventory": [],
+            "modules": {
+              "users": "ok",
+              "auth": "ok"
+            }
+          }
+        },
+        {
+          "name": "windows hidden admin plus no NLA",
+          "expect": "match",
+          "platform": "windows",
+          "current": {
+            "findings": [
+              {
+                "check_id": "USR-HIDDEN-001",
+                "severity": "high",
+                "category": "accounts",
+                "confidence": "high"
+              },
+              {
+                "check_id": "SEC-RDP-002",
+                "severity": "high",
+                "category": "security-config",
+                "confidence": "high"
+              }
+            ],
+            "inventory": [],
+            "modules": {
+              "users": "ok"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "enabled": true,
+      "false_positives": [
+        "Hosts protected by a dedicated upstream firewall and reachable only from a management VLAN."
+      ],
+      "confidence_boosters": [
+        "Confirmation from network scans or upstream ACLs that the ports are reachable.",
+        "Firewall configuration changes since the previous snapshot."
+      ],
+      "id": "DR-ANY-NET-002",
+      "version": "1.0.0",
+      "name": "Host firewall absent or permissive while management or data services listen",
+      "description": "The host firewall is disabled, default-allow, or allows everything inbound, and remote-management or database ports are listening on non-loopback addresses.",
+      "platforms": [
+        "any"
+      ],
+      "category": "network-exposure",
+      "severity": "high",
+      "severity_reason": "With no effective host filtering, every listed service is reachable by anything that can route to the host.",
+      "confidence": "medium",
+      "confidence_reason": "Both facts are exact; a network firewall in front of the host may still provide protection that is not visible here.",
+      "nature": "correlated",
+      "requires_coverage": [
+        "inventory:listeners"
+      ],
+      "clauses": [
+        {
+          "id": "fw",
+          "source": "findings",
+          "description": "Host firewall disabled, default-allow or allow-all",
+          "where": {
+            "field": "check_id",
+            "op": "in",
+            "value": [
+              "FW-PROFILE-001",
+              "FW-DEFAULT-001",
+              "FW-RULE-002",
+              "NET-FW-002"
+            ]
+          }
+        },
+        {
+          "id": "svc",
+          "source": "inventory",
+          "description": "A management or data port listening on a non-loopback address",
+          "where": {
+            "all": [
+              {
+                "field": "domain",
+                "op": "eq",
+                "value": "listeners"
+              },
+              {
+                "field": "attrs.port",
+                "op": "in",
+                "value": [
+                  "23",
+                  "21",
+                  "445",
+                  "3389",
+                  "5900",
+                  "5985",
+                  "5986",
+                  "3306",
+                  "1433",
+                  "5432",
+                  "6379",
+                  "27017",
+                  "2375",
+                  "9200"
+                ]
+              },
+              {
+                "not": {
+                  "any": [
+                    {
+                      "field": "attrs.bind",
+                      "op": "regex",
+                      "value": "^127\\."
+                    },
+                    {
+                      "field": "attrs.bind",
+                      "op": "in",
+                      "value": [
+                        "127.0.0.1",
+                        "::1",
+                        "localhost",
+                        "[::1]"
+                      ]
+                    }
+                  ]
+                }
+              }
+            ]
+          }
+        }
+      ],
+      "title": "Open host firewall with listening management/data services",
+      "rationale": "A host firewall is the last filter for services bound to every interface. Its absence plus a listening management or database port is a concrete exposure, not just a hygiene gap.",
+      "investigation": [
+        "Verify reachability of the listed ports from an untrusted segment.",
+        "Check upstream filtering and the firewall change history.",
+        "Identify owners of the listening services."
+      ],
+      "remediation": "Enable the host firewall with an allow-list for required ports (reload rather than flush; verify scored ports first), or bind the services to loopback.",
+      "references": {
+        "attack": [
+          {
+            "id": "T1190",
+            "relationship": "possible",
+            "explanation": "Exposed services without filtering enlarge the attack surface for exploitation of public-facing applications; none is exploited here."
+          }
+        ],
+        "nist": [
+          "SC-7",
+          "CM-7"
+        ]
+      },
+      "examples": [
+        {
+          "name": "windows firewall off with RDP and SMB listening",
+          "expect": "match",
+          "platform": "windows",
+          "current": {
+            "findings": [
+              {
+                "check_id": "FW-PROFILE-001",
+                "severity": "high",
+                "category": "firewall",
+                "confidence": "high"
+              }
+            ],
+            "inventory": [
+              {
+                "domain": "listeners",
+                "key": "listener:tcp/0.0.0.0/3389",
+                "attrs": {
+                  "proto": "tcp",
+                  "bind": "0.0.0.0",
+                  "port": "3389",
+                  "process": "svchost.exe"
+                }
+              },
+              {
+                "domain": "listeners",
+                "key": "listener:tcp/0.0.0.0/445",
+                "attrs": {
+                  "proto": "tcp",
+                  "bind": "0.0.0.0",
+                  "port": "445",
+                  "process": "System"
+                }
+              }
+            ]
+          },
+          "count": 1
+        },
+        {
+          "name": "firewall open but only ssh listens",
+          "expect": "no_match",
+          "platform": "linux",
+          "current": {
+            "findings": [
+              {
+                "check_id": "NET-FW-002",
+                "severity": "medium",
+                "category": "network",
+                "confidence": "high"
+              }
+            ],
+            "inventory": [
+              {
+                "domain": "listeners",
+                "key": "listener:tcp/0.0.0.0/22",
+                "attrs": {
+                  "proto": "tcp",
+                  "bind": "0.0.0.0",
+                  "port": "22",
+                  "process": "sshd"
+                }
+              }
+            ]
+          }
+        },
+        {
+          "name": "redis on loopback with open firewall",
+          "expect": "no_match",
+          "platform": "linux",
+          "current": {
+            "findings": [
+              {
+                "check_id": "NET-FW-002",
+                "severity": "medium",
+                "category": "network",
+                "confidence": "high"
+              }
+            ],
+            "inventory": [
+              {
+                "domain": "listeners",
+                "key": "listener:tcp/127.0.0.1/6379",
+                "attrs": {
+                  "proto": "tcp",
+                  "bind": "127.0.0.1",
+                  "port": "6379",
+                  "process": "redis-server"
+                }
+              }
+            ]
+          }
+        },
+        {
+          "name": "redis exposed and firewall open",
+          "expect": "match",
+          "platform": "linux",
+          "current": {
+            "findings": [
+              {
+                "check_id": "NET-FW-002",
+                "severity": "medium",
+                "category": "network",
+                "confidence": "high"
+              }
+            ],
+            "inventory": [
+              {
+                "domain": "listeners",
+                "key": "listener:tcp/*/6379",
+                "attrs": {
+                  "proto": "tcp",
+                  "bind": "*",
+                  "port": "6379",
+                  "process": "redis-server"
+                }
+              }
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "enabled": true,
+      "false_positives": [
+        "Software legitimately installed under ProgramData or /opt that is also unsigned or recently updated."
+      ],
+      "confidence_boosters": [
+        "Hash and signature of the file; creation time relative to the startup entry.",
+        "Network connections made by the process started from this path."
+      ],
+      "id": "DR-ANY-COR-001",
+      "version": "1.0.0",
+      "name": "Persistence entry executes a file that the filesystem checks also flagged",
+      "description": "A service, task, autorun, cron job or unit refers to a path that a filesystem finding (world-writable, temporary, unsigned, hidden or recently modified executable) also lists.",
+      "platforms": [
+        "any"
+      ],
+      "category": "persistence",
+      "severity": "high",
+      "severity_reason": "A startup mechanism that points at a file sitting in an unsafe place or flagged as unusual is the shape of a planted foothold.",
+      "confidence": "medium",
+      "confidence_reason": "Linking is by a shared path string in two independent findings; the path is exact but the file's purpose is still unknown.",
+      "nature": "correlated",
+      "requires_coverage": [
+        "module:persistence"
+      ],
+      "clauses": [
+        {
+          "id": "start",
+          "source": "findings",
+          "description": "A suspicious service, task, autorun or cron/unit finding",
+          "where": {
+            "field": "check_id",
+            "op": "in",
+            "value": [
+              "PER-CRON-002",
+              "PER-SYSTEMD-001",
+              "PER-STARTUP-001",
+              "PER-SHELL-001",
+              "SVC-PATH-001",
+              "SVC-UNQUOTED-001",
+              "SVC-CMD-001",
+              "TSK-PATH-001",
+              "TSK-CMD-001",
+              "AUT-PATH-001",
+              "AUT-CMD-001",
+              "AUT-STARTUP-001"
+            ]
+          }
+        },
+        {
+          "id": "file",
+          "source": "findings",
+          "description": "A filesystem finding about an unusual executable or writable file",
+          "where": {
+            "field": "check_id",
+            "op": "in",
+            "value": [
+              "FS-PERM-003",
+              "FS-PERM-001",
+              "FS-PERM-002",
+              "FS-SUID-002",
+              "FS-HIDDEN-001",
+              "FS-EXE-001",
+              "FS-SCRIPT-001",
+              "FS-RECENT-001",
+              "FS-ROOT-001"
+            ]
+          }
+        }
+      ],
+      "join": {
+        "on": "evidence.paths",
+        "mode": "casefold"
+      },
+      "title": "Persistence entry runs a file flagged by the filesystem checks: {file.evidence.paths}",
+      "rationale": "Two independent collectors (startup configuration and file inspection) describe the same path. That agreement is stronger than either finding alone and shows where to look first.",
+      "investigation": [
+        "Open the shared path: owner, hash, signature, timestamps.",
+        "Read the startup entry that references it.",
+        "Check whether other entries reference the same path."
+      ],
+      "remediation": "Preserve the file and the entry as evidence, disable the startup entry, then remove or restore the file from a trusted source.",
+      "references": {
+        "attack": [
+          {
+            "id": "T1543",
+            "relationship": "possible",
+            "explanation": "Service/unit persistence can launch attacker-placed files; here the link is only a shared path."
+          },
+          {
+            "id": "T1053",
+            "relationship": "possible",
+            "explanation": "Scheduled execution can launch attacker-placed files; here the link is only a shared path."
+          }
+        ],
+        "nist": [
+          "SI-7",
+          "CM-7"
+        ]
+      },
+      "examples": [
+        {
+          "name": "unit executes file in /tmp that is also flagged",
+          "expect": "match",
+          "platform": "linux",
+          "current": {
+            "findings": [
+              {
+                "check_id": "PER-SYSTEMD-001",
+                "severity": "high",
+                "category": "persistence",
+                "confidence": "high",
+                "evidence": [
+                  {
+                    "ref": "/etc/systemd/system/evil.service",
+                    "excerpt": "references world-writable directory: ExecStart=/tmp/.hidden/agent"
+                  }
+                ]
+              },
+              {
+                "check_id": "FS-PERM-003",
+                "severity": "high",
+                "category": "filesystem",
+                "confidence": "high",
+                "evidence": [
+                  {
+                    "ref": "/tmp/.hidden/agent"
+                  }
+                ]
+              }
+            ],
+            "inventory": [],
+            "modules": {
+              "persistence": "ok",
+              "filesystem": "ok"
+            }
+          },
+          "count": 1
+        },
+        {
+          "name": "different paths",
+          "expect": "no_match",
+          "platform": "linux",
+          "current": {
+            "findings": [
+              {
+                "check_id": "PER-SYSTEMD-001",
+                "severity": "high",
+                "category": "persistence",
+                "confidence": "high",
+                "evidence": [
+                  {
+                    "ref": "/etc/systemd/system/evil.service",
+                    "excerpt": "ExecStart=/tmp/.a/agent"
+                  }
+                ]
+              },
+              {
+                "check_id": "FS-PERM-003",
+                "severity": "high",
+                "category": "filesystem",
+                "confidence": "high",
+                "evidence": [
+                  {
+                    "ref": "/tmp/.b/other"
+                  }
+                ]
+              }
+            ],
+            "inventory": [],
+            "modules": {
+              "persistence": "ok",
+              "filesystem": "ok"
+            }
+          }
+        },
+        {
+          "name": "persistence finding without a filesystem finding",
+          "expect": "no_match",
+          "platform": "linux",
+          "current": {
+            "findings": [
+              {
+                "check_id": "PER-CRON-002",
+                "severity": "high",
+                "category": "persistence",
+                "confidence": "high",
+                "evidence": [
+                  {
+                    "ref": "/etc/cron.d/x",
+                    "excerpt": "bash /tmp/y/z.sh"
+                  }
+                ]
+              }
+            ],
+            "inventory": [],
+            "modules": {
+              "persistence": "ok"
+            }
+          }
+        },
+        {
+          "name": "windows service and unsigned exe",
+          "expect": "match",
+          "platform": "windows",
+          "current": {
+            "findings": [
+              {
+                "check_id": "SVC-PATH-001",
+                "severity": "medium",
+                "category": "services",
+                "confidence": "high",
+                "evidence": [
+                  {
+                    "ref": "svc evil",
+                    "excerpt": "C:\\Users\\Public\\payload.exe"
+                  }
+                ]
+              },
+              {
+                "check_id": "FS-EXE-001",
+                "severity": "medium",
+                "category": "filesystem",
+                "confidence": "high",
+                "evidence": [
+                  {
+                    "ref": "C:\\Users\\Public\\payload.exe",
+                    "excerpt": "unsigned"
+                  }
+                ]
+              }
+            ],
+            "inventory": [],
+            "modules": {
+              "persistence": "ok"
+            }
+          }
+        },
+        {
+          "name": "case differences in paths still join",
+          "expect": "match",
+          "platform": "windows",
+          "current": {
+            "findings": [
+              {
+                "check_id": "SVC-PATH-001",
+                "severity": "medium",
+                "category": "services",
+                "confidence": "high",
+                "evidence": [
+                  {
+                    "ref": "svc evil",
+                    "excerpt": "C:\\USERS\\Public\\Payload.exe"
+                  }
+                ]
+              },
+              {
+                "check_id": "FS-EXE-001",
+                "severity": "medium",
+                "category": "filesystem",
+                "confidence": "high",
+                "evidence": [
+                  {
+                    "ref": "c:\\users\\public\\payload.exe"
+                  }
+                ]
+              }
+            ],
+            "inventory": [],
+            "modules": {
+              "persistence": "ok"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "enabled": true,
+      "false_positives": [
+        "Planned deployment of a new service with its firewall rule."
+      ],
+      "confidence_boosters": [
+        "Change tickets for the new service.",
+        "The process name and package of the new listener."
+      ],
+      "id": "DR-ANY-COR-002",
+      "version": "1.0.0",
+      "name": "Firewall configuration changed and a new non-loopback listener appeared",
+      "description": "Between two snapshots the host firewall configuration changed and a new listener on a non-loopback address appeared.",
+      "platforms": [
+        "any"
+      ],
+      "category": "network-exposure",
+      "severity": "medium",
+      "severity_reason": "Either change can be routine administration; the combination warrants review, not alarm.",
+      "confidence": "medium",
+      "confidence_reason": "Both changes are exact; the ordering and the relationship between them are not known from two point-in-time snapshots.",
+      "nature": "correlated",
+      "requires_coverage": [
+        "comparison"
+      ],
+      "clauses": [
+        {
+          "id": "fw",
+          "source": "config_changes",
+          "description": "A firewall configuration record changed",
+          "where": {
+            "all": [
+              {
+                "field": "domain",
+                "op": "eq",
+                "value": "config"
+              },
+              {
+                "field": "scope",
+                "op": "eq",
+                "value": "firewall"
+              },
+              {
+                "field": "change",
+                "op": "in",
+                "value": [
+                  "added",
+                  "modified",
+                  "removed"
+                ]
+              }
+            ]
+          }
+        },
+        {
+          "id": "lst",
+          "source": "config_changes",
+          "description": "A new non-loopback listener",
+          "where": {
+            "all": [
+              {
+                "field": "domain",
+                "op": "eq",
+                "value": "listeners"
+              },
+              {
+                "field": "change",
+                "op": "eq",
+                "value": "added"
+              },
+              {
+                "not": {
+                  "any": [
+                    {
+                      "field": "attrs.bind",
+                      "op": "regex",
+                      "value": "^127\\."
+                    },
+                    {
+                      "field": "attrs.bind",
+                      "op": "in",
+                      "value": [
+                        "127.0.0.1",
+                        "::1",
+                        "localhost",
+                        "[::1]"
+                      ]
+                    }
+                  ]
+                }
+              }
+            ]
+          }
+        }
+      ],
+      "title": "Firewall changed and new listener appeared: {lst.key}",
+      "rationale": "Opening a firewall path and starting a listener are two halves of exposing a service. Seeing both since the last snapshot is worth confirming against change records.",
+      "investigation": [
+        "Compare the firewall record's before/after attributes.",
+        "Identify the process and package behind the new listener.",
+        "Confirm both against change records."
+      ],
+      "remediation": "Revert the firewall change and stop the service if unplanned; otherwise record the change and update the baseline.",
+      "references": {
+        "attack": [
+          {
+            "id": "T1562.004",
+            "relationship": "possible",
+            "explanation": "Modifying the host firewall is a defence-evasion technique; the change here may be legitimate."
+          }
+        ],
+        "nist": [
+          "CM-3",
+          "SC-7"
+        ]
+      },
+      "examples": [
+        {
+          "name": "firewall changed and listener added",
+          "expect": "match",
+          "platform": "windows",
+          "current": {
+            "findings": [],
+            "inventory": [
+              {
+                "domain": "config",
+                "key": "config:firewall:profile:public",
+                "attrs": {
+                  "enabled": false
+                },
+                "scope": "firewall"
+              },
+              {
+                "domain": "listeners",
+                "key": "listener:tcp/0.0.0.0/4444",
+                "attrs": {
+                  "proto": "tcp",
+                  "bind": "0.0.0.0",
+                  "port": "4444",
+                  "process": "x"
+                }
+              }
+            ]
+          },
+          "previous": [
+            {
+              "findings": [],
+              "inventory": [
+                {
+                  "domain": "config",
+                  "key": "config:firewall:profile:public",
+                  "attrs": {
+                    "enabled": true
+                  },
+                  "scope": "firewall"
+                }
+              ],
+              "coverage": [
+                {
+                  "domain": "config",
+                  "scope": "firewall",
+                  "status": "complete"
+                },
+                {
+                  "domain": "listeners",
+                  "status": "complete"
+                }
+              ]
+            }
+          ],
+          "count": 1
+        },
+        {
+          "name": "listener only",
+          "expect": "no_match",
+          "platform": "windows",
+          "current": {
+            "findings": [],
+            "inventory": [
+              {
+                "domain": "config",
+                "key": "config:firewall:profile:public",
+                "attrs": {
+                  "enabled": true
+                },
+                "scope": "firewall"
+              },
+              {
+                "domain": "listeners",
+                "key": "listener:tcp/0.0.0.0/4444",
+                "attrs": {
+                  "proto": "tcp",
+                  "bind": "0.0.0.0",
+                  "port": "4444",
+                  "process": "x"
+                }
+              }
+            ]
+          },
+          "previous": [
+            {
+              "findings": [],
+              "inventory": [
+                {
+                  "domain": "config",
+                  "key": "config:firewall:profile:public",
+                  "attrs": {
+                    "enabled": true
+                  },
+                  "scope": "firewall"
+                }
+              ],
+              "coverage": [
+                {
+                  "domain": "config",
+                  "scope": "firewall",
+                  "status": "complete"
+                },
+                {
+                  "domain": "listeners",
+                  "status": "complete"
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "name": "loopback listener",
+          "expect": "no_match",
+          "platform": "windows",
+          "current": {
+            "findings": [],
+            "inventory": [
+              {
+                "domain": "config",
+                "key": "config:firewall:profile:public",
+                "attrs": {
+                  "enabled": false
+                },
+                "scope": "firewall"
+              },
+              {
+                "domain": "listeners",
+                "key": "listener:tcp/127.0.0.1/8080",
+                "attrs": {
+                  "proto": "tcp",
+                  "bind": "127.0.0.1",
+                  "port": "8080",
+                  "process": "x"
+                }
+              }
+            ]
+          },
+          "previous": [
+            {
+              "findings": [],
+              "inventory": [
+                {
+                  "domain": "config",
+                  "key": "config:firewall:profile:public",
+                  "attrs": {
+                    "enabled": true
+                  },
+                  "scope": "firewall"
+                }
+              ],
+              "coverage": [
+                {
+                  "domain": "config",
+                  "scope": "firewall",
+                  "status": "complete"
+                },
+                {
+                  "domain": "listeners",
+                  "status": "complete"
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "name": "no earlier snapshot",
+          "expect": "indeterminate",
+          "platform": "windows",
+          "current": {
+            "findings": [],
+            "inventory": [
+              {
+                "domain": "config",
+                "key": "config:firewall:profile:public",
+                "attrs": {
+                  "enabled": false
+                },
+                "scope": "firewall"
+              }
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "enabled": true,
+      "false_positives": [
+        "Provisioning or configuration-management runs that create a service account and its job."
+      ],
+      "confidence_boosters": [
+        "The account owning or referenced by the job.",
+        "A recorded change request covering both."
+      ],
+      "id": "DR-ANY-COR-003",
+      "version": "1.0.0",
+      "name": "Scheduled-job change together with an account or group change",
+      "description": "Since the previous snapshot a scheduled job (cron entry or non-Microsoft task) was added or modified and a user or group record was also added or modified.",
+      "platforms": [
+        "any"
+      ],
+      "category": "persistence",
+      "severity": "medium",
+      "severity_reason": "New scheduled execution plus a new or changed account is a common attacker sequence, but also routine onboarding; severity is not raised further.",
+      "confidence": "low",
+      "confidence_reason": "Two point-in-time changes with no proof they are related; the rule excludes built-in Microsoft task churn to reduce noise.",
+      "nature": "correlated",
+      "requires_coverage": [
+        "comparison"
+      ],
+      "clauses": [
+        {
+          "id": "job",
+          "source": "config_changes",
+          "description": "A scheduled job added or modified (not a built-in Windows task)",
+          "where": {
+            "all": [
+              {
+                "field": "domain",
+                "op": "eq",
+                "value": "scheduled_tasks"
+              },
+              {
+                "field": "change",
+                "op": "in",
+                "value": [
+                  "added",
+                  "modified"
+                ]
+              },
+              {
+                "not": {
+                  "field": "key",
+                  "op": "regex",
+                  "value": "(?i)^task:\\\\microsoft\\\\windows\\\\"
+                }
+              }
+            ]
+          }
+        },
+        {
+          "id": "acct",
+          "source": "config_changes",
+          "description": "A user added or modified, or group membership changed",
+          "where": {
+            "any": [
+              {
+                "all": [
+                  {
+                    "field": "domain",
+                    "op": "eq",
+                    "value": "users"
+                  },
+                  {
+                    "field": "change",
+                    "op": "in",
+                    "value": [
+                      "added",
+                      "modified"
+                    ]
+                  }
+                ]
+              },
+              {
+                "all": [
+                  {
+                    "field": "domain",
+                    "op": "eq",
+                    "value": "groups"
+                  },
+                  {
+                    "field": "change",
+                    "op": "eq",
+                    "value": "modified"
+                  }
+                ]
+              }
+            ]
+          }
+        }
+      ],
+      "title": "Scheduled job and account changes appeared together ({job.key}, {acct.key})",
+      "rationale": "Persistence and access are often established together: a new account to log in with and a scheduled job to keep code running. Neither alone is notable; together they merit a look.",
+      "investigation": [
+        "Read the job's command and schedule; check the account named in it.",
+        "Compare the account's attributes before and after.",
+        "Check authentication logs for the new or changed account."
+      ],
+      "remediation": "If unplanned, disable the job and the account after preserving evidence; otherwise update the baseline.",
+      "references": {
+        "attack": [
+          {
+            "id": "T1053",
+            "relationship": "possible",
+            "explanation": "Scheduled execution is a persistence technique; the job here may be benign."
+          },
+          {
+            "id": "T1136",
+            "relationship": "possible",
+            "explanation": "Account creation is a persistence technique; the account here may be benign."
+          }
+        ],
+        "nist": [
+          "CM-3",
+          "AC-2"
+        ]
+      },
+      "examples": [
+        {
+          "name": "cron job and new user",
+          "expect": "match",
+          "platform": "linux",
+          "current": {
+            "findings": [],
+            "inventory": [
+              {
+                "domain": "scheduled_tasks",
+                "key": "cron:/etc/cron.d/x#1",
+                "attrs": {
+                  "entry": "* * * * * root /tmp/a"
+                },
+                "scope": "cron"
+              },
+              {
+                "domain": "users",
+                "key": "user:eve",
+                "attrs": {
+                  "uid": "1005"
+                }
+              }
+            ]
+          },
+          "previous": [
+            {
+              "findings": [],
+              "inventory": [
+                {
+                  "domain": "users",
+                  "key": "user:alice",
+                  "attrs": {
+                    "uid": "1000"
+                  }
+                }
+              ],
+              "coverage": [
+                {
+                  "domain": "users",
+                  "status": "complete"
+                },
+                {
+                  "domain": "scheduled_tasks",
+                  "scope": "cron",
+                  "status": "complete"
+                }
+              ]
+            }
+          ],
+          "count": 1
+        },
+        {
+          "name": "job only",
+          "expect": "no_match",
+          "platform": "linux",
+          "current": {
+            "findings": [],
+            "inventory": [
+              {
+                "domain": "scheduled_tasks",
+                "key": "cron:/etc/cron.d/x#1",
+                "attrs": {
+                  "entry": "* * * * * root /tmp/a"
+                },
+                "scope": "cron"
+              },
+              {
+                "domain": "users",
+                "key": "user:alice",
+                "attrs": {
+                  "uid": "1000"
+                }
+              }
+            ]
+          },
+          "previous": [
+            {
+              "findings": [],
+              "inventory": [
+                {
+                  "domain": "users",
+                  "key": "user:alice",
+                  "attrs": {
+                    "uid": "1000"
+                  }
+                }
+              ],
+              "coverage": [
+                {
+                  "domain": "users",
+                  "status": "complete"
+                },
+                {
+                  "domain": "scheduled_tasks",
+                  "scope": "cron",
+                  "status": "complete"
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "name": "built-in windows task churn",
+          "expect": "no_match",
+          "platform": "windows",
+          "current": {
+            "findings": [],
+            "inventory": [
+              {
+                "domain": "scheduled_tasks",
+                "key": "task:\\microsoft\\windows\\updateorchestrator\\reboot",
+                "attrs": {
+                  "user": "SYSTEM"
+                },
+                "scope": "tasks"
+              },
+              {
+                "domain": "users",
+                "key": "user:S-1-5-21-1-1010",
+                "attrs": {
+                  "name": "new"
+                }
+              }
+            ]
+          },
+          "previous": [
+            {
+              "findings": [],
+              "inventory": [
+                {
+                  "domain": "users",
+                  "key": "user:S-1-5-21-1-1001",
+                  "attrs": {
+                    "name": "old"
+                  }
+                }
+              ],
+              "coverage": [
+                {
+                  "domain": "users",
+                  "status": "complete"
+                },
+                {
+                  "domain": "scheduled_tasks",
+                  "scope": "tasks",
+                  "status": "complete"
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "name": "no earlier snapshot",
+          "expect": "indeterminate",
+          "platform": "linux",
+          "current": {
+            "findings": [],
+            "inventory": [
+              {
+                "domain": "users",
+                "key": "user:alice",
+                "attrs": {
+                  "uid": "1000"
+                }
+              }
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "enabled": true,
+      "false_positives": [
+        "Hosts using centralised authentication (LDAP/SSSD/AD) where local policy is intentionally minimal."
+      ],
+      "confidence_boosters": [
+        "Failed-logon volume in authentication logs.",
+        "Confirmation that no central policy compensates."
+      ],
+      "id": "DR-ANY-COR-004",
+      "version": "1.0.0",
+      "name": "Multiple authentication-configuration weaknesses",
+      "description": "Three or more different authentication-related weaknesses (PAM, sshd, password policy, lockout, RDP) are present on one host.",
+      "platforms": [
+        "any"
+      ],
+      "category": "authentication",
+      "severity": "medium",
+      "severity_reason": "Each weakness is individually low or medium; together they leave credential guessing unthrottled and unchecked. Severity is deliberately not raised for the count.",
+      "confidence": "medium",
+      "confidence_reason": "The findings are accurate individually; the rule only counts distinct weaknesses.",
+      "nature": "correlated",
+      "requires_coverage": [],
+      "clauses": [
+        {
+          "id": "weak",
+          "source": "findings",
+          "description": "Authentication findings (at least 3 different checks)",
+          "where": {
+            "field": "check_id",
+            "op": "in",
+            "value": [
+              "ATH-DEFS-001",
+              "ATH-PWQ-001",
+              "ATH-LOCKOUT-001",
+              "ATH-AGING-001",
+              "PAM-HASH-001",
+              "PAM-NULLOK-001",
+              "PAM-PERMIT-001",
+              "NET-SSHD-002",
+              "SEC-PWD-001",
+              "SEC-PWD-002",
+              "SEC-RDP-002",
+              "USR-PWD-002"
+            ]
+          },
+          "distinct": {
+            "field": "check_id",
+            "count": 3
+          }
+        }
+      ],
+      "title": "Several authentication weaknesses on {host}",
+      "rationale": "Password guessing and credential reuse succeed where policy, lockout and hashing are all weak. The grouping shows a systemic gap rather than one oversight.",
+      "investigation": [
+        "List the distinct findings and decide which gap to close first (bypass-class first).",
+        "Check authentication logs for guessing patterns.",
+        "Confirm whether central authentication policy applies."
+      ],
+      "remediation": "Enforce a password-quality module, account lockout, strong hashing and secure sshd/RDP settings; coordinate with scored-service account owners first.",
+      "references": {
+        "attack": [
+          {
+            "id": "T1110",
+            "relationship": "possible",
+            "explanation": "Weak lockout and password policy facilitate brute-force attacks; none is observed."
+          }
+        ],
+        "nist": [
+          "IA-5",
+          "AC-7"
+        ]
+      },
+      "examples": [
+        {
+          "name": "three authentication findings",
+          "expect": "match",
+          "platform": "linux",
+          "current": {
+            "findings": [
+              {
+                "check_id": "ATH-PWQ-001",
+                "severity": "low",
+                "category": "auth",
+                "confidence": "high"
+              },
+              {
+                "check_id": "ATH-LOCKOUT-001",
+                "severity": "low",
+                "category": "auth",
+                "confidence": "high"
+              },
+              {
+                "check_id": "PAM-NULLOK-001",
+                "severity": "low",
+                "category": "pam",
+                "confidence": "high"
+              }
+            ],
+            "inventory": [],
+            "modules": {
+              "users": "ok"
+            }
+          },
+          "count": 1
+        },
+        {
+          "name": "two findings",
+          "expect": "no_match",
+          "platform": "linux",
+          "current": {
+            "findings": [
+              {
+                "check_id": "ATH-PWQ-001",
+                "severity": "low",
+                "category": "auth",
+                "confidence": "high"
+              },
+              {
+                "check_id": "ATH-LOCKOUT-001",
+                "severity": "low",
+                "category": "auth",
+                "confidence": "high"
+              }
+            ],
+            "inventory": [],
+            "modules": {
+              "users": "ok"
+            }
+          }
+        },
+        {
+          "name": "count does not raise severity",
+          "expect": "match",
+          "platform": "linux",
+          "current": {
+            "findings": [
+              {
+                "check_id": "ATH-PWQ-001",
+                "severity": "low",
+                "category": "auth",
+                "confidence": "high"
+              },
+              {
+                "check_id": "ATH-LOCKOUT-001",
+                "severity": "low",
+                "category": "auth",
+                "confidence": "high"
+              },
+              {
+                "check_id": "PAM-NULLOK-001",
+                "severity": "low",
+                "category": "pam",
+                "confidence": "high"
+              },
+              {
+                "check_id": "ATH-AGING-001",
+                "severity": "low",
+                "category": "auth",
+                "confidence": "high"
+              },
+              {
+                "check_id": "ATH-DEFS-001",
+                "severity": "low",
+                "category": "auth",
+                "confidence": "high"
+              }
+            ],
+            "inventory": [],
+            "modules": {
+              "users": "ok"
+            }
+          },
+          "count": 1
+        },
+        {
+          "name": "windows policy findings",
+          "expect": "match",
+          "platform": "windows",
+          "current": {
+            "findings": [
+              {
+                "check_id": "SEC-PWD-001",
+                "severity": "low",
+                "category": "security-config",
+                "confidence": "high"
+              },
+              {
+                "check_id": "SEC-PWD-002",
+                "severity": "medium",
+                "category": "security-config",
+                "confidence": "high"
+              },
+              {
+                "check_id": "SEC-RDP-002",
+                "severity": "high",
+                "category": "security-config",
+                "confidence": "high"
+              }
+            ],
+            "inventory": [],
+            "modules": {
+              "users": "ok"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "enabled": true,
+      "false_positives": [
+        "Hosts with custom logging pipelines that look impaired to the collector, plus an unrelated admin script flagged as persistence."
+      ],
+      "confidence_boosters": [
+        "Timestamps showing the persistence artefact was created after logging was reduced.",
+        "Network activity from the artefact."
+      ],
+      "id": "DR-ANY-COR-005",
+      "version": "1.0.0",
+      "name": "Logging or protection impaired alongside a persistence indicator",
+      "description": "A log-impairment or protection-disabling finding appears on the same host as a high-signal persistence finding.",
+      "platforms": [
+        "any"
+      ],
+      "category": "defense-evasion",
+      "severity": "high",
+      "severity_reason": "Persistence indicators are concerning on their own; paired with reduced logging or protection they suggest the host was prepared to avoid detection.",
+      "confidence": "medium",
+      "confidence_reason": "Both are accurate findings; their link is that they co-occur, not that one caused the other.",
+      "nature": "correlated",
+      "requires_coverage": [
+        "module:persistence"
+      ],
+      "clauses": [
+        {
+          "id": "impair",
+          "source": "findings",
+          "description": "Logging or protection impaired",
+          "where": {
+            "field": "check_id",
+            "op": "in",
+            "value": [
+              "CFG-LOG-001",
+              "CFG-LOG-003",
+              "EVT-SVC-001",
+              "EVT-CHAN-001",
+              "SEC-DEF-001"
+            ]
+          }
+        },
+        {
+          "id": "persist",
+          "source": "findings",
+          "description": "A high-signal persistence indicator",
+          "where": {
+            "field": "check_id",
+            "op": "in",
+            "value": [
+              "PER-CRON-002",
+              "PER-SYSTEMD-001",
+              "PER-LDPRE-001",
+              "PER-WMI-001",
+              "PER-IFEO-001",
+              "AUT-CMD-001",
+              "AUT-WINLOGON-001",
+              "TSK-CMD-001",
+              "SVC-CMD-001"
+            ]
+          }
+        }
+      ],
+      "title": "Reduced logging/protection together with a persistence indicator",
+      "rationale": "Attackers who establish persistence commonly also reduce what is recorded. Co-occurrence prioritises this host for investigation over hosts with only one of the signals.",
+      "investigation": [
+        "Establish the timeline from file and configuration timestamps.",
+        "Check whether other hosts show the same pair.",
+        "Collect volatile evidence (processes, connections) before changing anything."
+      ],
+      "remediation": "Restore logging and protection, preserve and then remove the persistence artefact, and review the host for further changes.",
+      "references": {
+        "attack": [
+          {
+            "id": "T1562",
+            "relationship": "possible",
+            "explanation": "Impairing defences is a tactic used alongside persistence; co-occurrence here does not prove it."
+          }
+        ],
+        "nist": [
+          "AU-9",
+          "SI-4",
+          "SI-7"
+        ]
+      },
+      "examples": [
+        {
+          "name": "log redirect plus cron backdoor",
+          "expect": "match",
+          "platform": "linux",
+          "current": {
+            "findings": [
+              {
+                "check_id": "CFG-LOG-001",
+                "severity": "high",
+                "category": "sysconfig",
+                "confidence": "high",
+                "evidence": [
+                  {
+                    "ref": "/var/log/auth.log",
+                    "excerpt": "link to /dev/null"
+                  }
+                ]
+              },
+              {
+                "check_id": "PER-CRON-002",
+                "severity": "high",
+                "category": "persistence",
+                "confidence": "high",
+                "evidence": [
+                  {
+                    "ref": "/etc/cron.d/backdoor"
+                  }
+                ]
+              }
+            ],
+            "inventory": [],
+            "modules": {
+              "persistence": "ok",
+              "sysconfig": "ok"
+            }
+          },
+          "count": 1
+        },
+        {
+          "name": "persistence only",
+          "expect": "no_match",
+          "platform": "linux",
+          "current": {
+            "findings": [
+              {
+                "check_id": "PER-CRON-002",
+                "severity": "high",
+                "category": "persistence",
+                "confidence": "high"
+              }
+            ],
+            "inventory": [],
+            "modules": {
+              "persistence": "ok"
+            }
+          }
+        },
+        {
+          "name": "impairment only",
+          "expect": "no_match",
+          "platform": "windows",
+          "current": {
+            "findings": [
+              {
+                "check_id": "EVT-SVC-001",
+                "severity": "high",
+                "category": "eventlog",
+                "confidence": "high"
+              }
+            ],
+            "inventory": [],
+            "modules": {
+              "persistence": "ok"
+            }
+          }
+        },
+        {
+          "name": "windows event log service off plus WMI consumer",
+          "expect": "match",
+          "platform": "windows",
+          "current": {
+            "findings": [
+              {
+                "check_id": "EVT-SVC-001",
+                "severity": "high",
+                "category": "eventlog",
+                "confidence": "high"
+              },
+              {
+                "check_id": "PER-WMI-001",
+                "severity": "high",
+                "category": "persistence",
+                "confidence": "high"
+              }
+            ],
+            "inventory": [],
+            "modules": {
+              "persistence": "ok"
+            }
+          }
+        }
+      ]
+    }
+  ]
+}
