@@ -41,6 +41,7 @@ NIST_800_53_BY_CATEGORY: dict[str, list[tuple[str, str]]] = {
     ],
     "system": [("CM-2", "Baseline Configuration"), ("SI-2", "Flaw Remediation")],
     "config": [("CM-6", "Configuration Settings")],
+    "sysconfig": [("CM-6", "Configuration Settings"), ("AU-9", "Protection of Audit Information")],
     "security": [("CM-6", "Configuration Settings")],
     "logging": [("AU-2", "Event Logging"), ("AU-9", "Protection of Audit Information")],
     "eventlog": [("AU-2", "Event Logging"), ("AU-9", "Protection of Audit Information")],

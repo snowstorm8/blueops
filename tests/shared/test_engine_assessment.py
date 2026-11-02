@@ -32,6 +32,7 @@ from shared.engine.assessment import (
 from shared.engine.loader import LoadError, load_assessment
 from shared.engine.manifest import MANIFEST_NAME, verify_directory, write_manifest
 from shared.engine.module import ModuleSpec
+from shared.engine.registry import Registry
 from shared.engine.runner import ExecResult, RunContext
 from shared.reporting.contracts import ExitCode
 from shared.reporting.schema_lite import validate
@@ -311,6 +312,71 @@ def test_manifest_is_not_overwritten(tmp_path: Path) -> None:
     write_manifest(a.directory, a.document)
     with pytest.raises(FileExistsError):
         write_manifest(a.directory, a.document)
+
+
+def test_windows_modules_go_through_a_resolved_powershell(tmp_path: Path) -> None:
+    """The Windows path end to end with a fake PowerShell: argv shape, platform, host family."""
+    win_report = json.loads(
+        (ROOT / "tests/fixtures/baseline-e2e/windows/baseline.json").read_text("utf-8")
+    )
+    seen: list[list[str]] = []
+
+    def executor(
+        argv: list[str], timeout: int, env: dict[str, str], out: Path, err: Path
+    ) -> ExecResult:
+        seen.append(argv)
+        out.write_text("", encoding="utf-8")
+        err.write_text("", encoding="utf-8")
+        target = Path(argv[argv.index("-OutputDir") + 1])
+        target.mkdir(parents=True, exist_ok=True)
+        (target / "report.json").write_text(json.dumps(win_report), encoding="utf-8")
+        return ExecResult(0)
+
+    out_dir = make_assessment_dir(tmp_path, "20260301T100000Z", "t")
+    ctx = RunContext(
+        repo_root=ROOT,
+        out_root=out_dir,
+        executor=executor,
+        platform_name="windows",
+        which=lambda name: "C:/pwsh/pwsh.exe" if name == "pwsh" else None,
+        options={"recent_days": 5},
+    )
+    a = run_assessment(
+        Registry.with_builtins(), ["windows.users", "windows.security"], ctx, profile_name="t"
+    )
+    doc = a.document
+    _valid(doc)
+    assert doc["host"]["os"]["family"] == "windows" and [m["status"] for m in doc["modules"]] == [
+        "ok",
+        "ok",
+    ]
+    assert (
+        seen[0][0] == "C:/pwsh/pwsh.exe"
+        and "-NoProfile" in seen[0]
+        and "-NonInteractive" in seen[0]
+    )
+    assert seen[0][seen[0].index("-Modules") + 1] == "users"
+    assert seen[1][seen[1].index("-Modules") + 1] == "security"
+    assert seen[0][seen[0].index("-RecentDays") + 1] == "5"
+    assert seen[0][seen[0].index("-File") + 1].endswith("windows/audit/Invoke-WindowsAudit.ps1")
+    assert "-ExecutionPolicy" not in seen[0]  # the engine never weakens the execution policy
+
+
+def test_windows_only_selection_on_linux_is_skipped_without_starting_anything(
+    tmp_path: Path,
+) -> None:
+    started: list[Any] = []
+    out_dir = make_assessment_dir(tmp_path, "20260301T100000Z", "t")
+    ctx = RunContext(
+        repo_root=ROOT,
+        out_root=out_dir,
+        platform_name="linux",
+        executor=lambda *a: started.append(a) or ExecResult(0),
+    )
+    a = run_assessment(Registry.with_builtins(), ["windows.users"], ctx, profile_name="t")
+    assert started == [] and a.document["modules"][0]["status"] == "skipped"
+    assert a.exit_code == ExitCode.PRECONDITION
+    _valid(a.document)
 
 
 # ----------------------------------------------------------- real collector, synthetic host

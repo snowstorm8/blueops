@@ -62,4 +62,18 @@ Semantic versioning on `schema_version`.
 - The comparison output is `shared/schemas/baseline-diff.schema.json` (`kind: "baseline-diff"`); exit codes for `python -m shared.reporting.diff` are listed in [baseline-diff.md](baseline-diff.md#exit-codes) and reuse the table above (0, 4, 6, 3, 2, 1).
 - Compatibility: producers may add record keys and attributes in minor releases; renaming a key or changing an attribute's meaning is a breaking change (CHANGELOG entry and deprecation period).
 - Detections (`python -m shared.reporting.detect`) are described by `shared/schemas/detections.schema.json` (`kind: "detections"`, same `schema_version` line as the diff). Exit codes reuse the table above (0, 4, 6, 3, 2, 1); see [detection-rules.md](detection-rules.md#exit-codes). Rule ids (`BO-<AREA>-NNN`) and detection ids (`DET-<hash>`) are stable and never reused.
+## Assessment-platform documents (0.1.0)
+
+Independent version line (`ASSESSMENT_SCHEMA_VERSION`, `shared/engine/__init__.py`); same SemVer rules, `0.y.z` = pre-stable. All are validated at run time by `shared/reporting/schema_lite.py`.
+
+| Document | Schema | Produced by |
+|---|---|---|
+| `assessment` | `assessment.schema.json` | `python -m shared.engine run` |
+| `snapshot-comparison` | `snapshot-comparison.schema.json` | `python -m shared.engine compare` / `run --compare` |
+| `assessment-manifest` | `assessment-manifest.schema.json` | `run` (verified by `verify`) |
+| `module` (plugin manifest) | `module-manifest.schema.json` | plugin authors |
+| `profile` | `assessment-profile.schema.json` | `profiles/<platform>/*.json` |
+
+Contracts: finding ids `BOF-<16 hex>` and evidence ids `EV-<16 hex>` are derived as described in [findings.md](findings.md) and never change meaning; module ids are `<platform>.<name>` and, once published, are not renamed without a deprecation period; module statuses are `ok partial failed timeout invalid_output skipped`; remediation priorities are `P1`..`P4`. The report schema is unchanged by the platform. Exit codes of the new commands reuse the table above ([assessment-engine.md](assessment-engine.md#exit-codes)).
+
 - Tested by `tests/shared/test_contracts.py`, `tests/shared/test_baseline_diff.py`, `tests/shared/test_detection.py` and the golden files in `tests/fixtures/baseline/`.

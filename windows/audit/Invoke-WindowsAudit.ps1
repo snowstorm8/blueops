@@ -43,6 +43,7 @@ $libDir = Join-Path (Split-Path -Parent $PSScriptRoot) 'lib'
 . (Join-Path $PSScriptRoot 'Get-AutorunAudit.ps1')
 . (Join-Path $PSScriptRoot 'Get-FirewallAudit.ps1')
 . (Join-Path $PSScriptRoot 'Get-SecurityConfigAudit.ps1')
+. (Join-Path $PSScriptRoot 'Get-EventLogAudit.ps1')
 . (Join-Path $PSScriptRoot 'Get-FilesystemAudit.ps1')
 . (Join-Path (Join-Path (Split-Path -Parent $PSScriptRoot) 'persistence') 'Get-PersistenceAudit.ps1')
 

@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 import json
-import os
 import re
 import sys
 from pathlib import Path
@@ -237,7 +236,7 @@ def test_missing_plugin_directory(tmp_path: Path) -> None:
         Registry().discover(tmp_path / "nope")
 
 
-@pytest.mark.skipif(not POSIX or os.geteuid() == 0 and False, reason="POSIX permissions")
+@pytest.mark.skipif(not POSIX, reason="POSIX permissions")
 def test_group_or_world_writable_plugins_are_refused(tmp_path: Path) -> None:
     p = _manifest(tmp_path / "x.module.json")
     p.chmod(0o666)

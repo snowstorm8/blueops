@@ -252,6 +252,18 @@ def render_markdown(  # noqa: PLR0912, PLR0915 - one linear sequence of report s
                         f"- {esc(i['severity'])}: {esc(i['title'], 160)} ({code(i['check_id'])})"
                         for i in items[:50]
                     ] + [""]
+            moved = [
+                p
+                for p in c["findings"]["persistent"]
+                if p["evidence"]["added"] or p["evidence"]["removed"]
+            ]
+            if moved:
+                lines += ["**Persistent findings with changed evidence**", ""]
+                lines += [
+                    f"- {esc(p['severity'])}: {esc(p['title'], 160)} "
+                    f"(+{len(p['evidence']['added'])} / -{len(p['evidence']['removed'])} evidence)"
+                    for p in moved[:50]
+                ] + [""]
             for w in c["warnings"]:
                 lines.append(f"- Warning {esc(w['code'])}: {esc(w['message'], 400)}")
             lines.append("")
@@ -305,6 +317,18 @@ def render_comparison_markdown(cmp_doc: dict[str, Any]) -> str:
                 f"- {esc(i['severity'])}: {esc(i['title'], 160)} ({code(i['check_id'])}){extra}"
             )
         lines.append("")
+    moved = [
+        p
+        for p in cmp_doc["findings"]["persistent"]
+        if p["evidence"]["added"] or p["evidence"]["removed"]
+    ]
+    if moved:
+        lines += ["## Persistent findings with changed evidence", ""]
+        lines += [
+            f"- {esc(p['severity'])}: {esc(p['title'], 160)} ({code(p['check_id'])}): "
+            f"+{len(p['evidence']['added'])} / -{len(p['evidence']['removed'])} evidence"
+            for p in moved[:200]
+        ] + [""]
     cfg = cmp_doc["configuration"]
     lines += ["## Configuration changes", ""]
     if not cfg["available"]:

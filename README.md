@@ -2,7 +2,7 @@
 
 A portable, cross-platform Blue Team toolkit for competitions, incident response, host auditing, persistence detection, evidence collection, and system hardening — built on Bash and PowerShell with minimal dependencies.
 
-> **Status: pre-alpha.** Linux and Windows read-only host auditing (v0.1) are implemented. Hardening, containment, and evidence collection are **not** implemented yet; everything marked "planned" below is a plan, not a feature.
+> **Status: pre-alpha.** Linux and Windows read-only host auditing (v0.1) and the assessment platform on top of it (engine, findings, snapshot comparison, reports; v0.4) are implemented. Hardening, containment, and evidence collection are **not** implemented yet; everything marked "planned" below is a plan, not a feature.
 
 ## Motivation
 
@@ -30,12 +30,17 @@ Status per area; anything not marked implemented is **planned**.
 | Hardening profiles with service-dependency protection | planned | planned |
 | Baseline snapshots and offline change detection (`python -m shared.reporting.diff`) | **implemented (v0.2)** | **implemented (v0.2)** |
 | Explainable detection rules over baseline changes (`python -m shared.reporting.detect`) | **implemented (v0.3)** | **implemented (v0.3)** |
-| Shared analysis/reporting (multi-host merge, HTML render) in Python 3 | planned | planned |
+| Assessment engine: plugin modules, profiles, time limits, validated output (`python -m shared.engine`) | **implemented (v0.4)** | **implemented (v0.4)**, PowerShell path unverified |
+| Central findings and evidence with stable ids, deduplication, provenance | **implemented (v0.4)** | **implemented (v0.4)** |
+| Snapshot comparison (new / resolved / persistent / severity / configuration / coverage) | **implemented (v0.4)** | **implemented (v0.4)** |
+| JSON, Markdown and self-contained HTML reports | **implemented (v0.4)** | **implemented (v0.4)** |
+| Multi-host merge, fleet report | planned | planned |
 
 ## Implemented today
 
-- **Linux read-only audit** (`linux/audit/audit-linux.sh`): system, users, processes, network, services, persistence, filesystem; human and JSON output. See [docs/linux-audit.md](docs/linux-audit.md)
-- **Windows read-only audit** (`windows/audit/Invoke-WindowsAudit.ps1`, PowerShell 5.1+): system, users, processes, network, services, scheduled tasks, registry autoruns, persistence, Windows Firewall, security configuration, filesystem; human and JSON output. See [docs/windows-audit.md](docs/windows-audit.md)
+- **Assessment platform** (`python -m shared.engine`, Python 3.9+, optional on targets): runs a profile of modules (built-in collector modules and declarative plugins) one process each with time limits, validates every report against the schema, merges results into one `assessment.json` with stable finding ids (`BOF-…`), deduplicated evidence with provenance, remediation priorities and standards references, compares snapshots without drawing conclusions the coverage cannot support, and renders Markdown and a self-contained, responsive HTML report. See [docs/assessment-engine.md](docs/assessment-engine.md), [docs/findings.md](docs/findings.md), [docs/reporting.md](docs/reporting.md), [docs/plugins.md](docs/plugins.md)
+- **Linux read-only audit** (`linux/audit/audit-linux.sh`): system, users, authentication policy and groups (`auth`), PAM, processes, network, services, persistence, filesystem, system configuration and logging integrity (`sysconfig`); human and JSON output. See [docs/linux-audit.md](docs/linux-audit.md)
+- **Windows read-only audit** (`windows/audit/Invoke-WindowsAudit.ps1`, PowerShell 5.1+): system, users, processes, network, services, scheduled tasks, registry autoruns, persistence, Windows Firewall, security configuration, event-log configuration (`eventlog`, new and not yet run on a real PowerShell), filesystem; human and JSON output. See [docs/windows-audit.md](docs/windows-audit.md)
 - **Baseline snapshots and change detection** (`python -m shared.reporting.diff BASELINE CURRENT`): offline, read-only comparison of two audit reports (users, groups, services, processes, listeners, scheduled tasks, persistence, configuration) with text and JSON output; handles transient PIDs, ephemeral ports, incomplete audits and permission gaps without false conclusions. See [docs/baseline-diff.md](docs/baseline-diff.md)
 - **Detection rules** (`python -m shared.reporting.detect BASELINE CURRENT`): offline, read-only triage of the baseline changes with 31 explainable rules (privileged accounts and groups, SSH keys and sshd settings, persistence, command content of jobs and services, scheduled tasks, services, listeners, kernel modules, firewall/hardening changes, new or escalated high-severity audit findings). Each detection has a severity, a rationale, supporting evidence, investigation steps and an `observed`/`heuristic` basis; related detections are linked, not duplicated; reviewed changes can be accepted with a scoped, expiring, audited allowlist (`--accepted`). See [docs/detection-rules.md](docs/detection-rules.md)
 - **Integrity and hardening** (audit remediation): a `manifest.json` (SHA-256 of every output file and collector script) beside every report, `python -m shared.reporting.verify`, test hooks that need `BO_TEST_MODE=1`, a trusted `PATH`, strict JSON input handling, injective text escaping, and new standing-state checks (sudoers includes, sshd, firewall, kernel modules, PAM modules, auditd). See [docs/audit-remediation.md](docs/audit-remediation.md)
@@ -51,8 +56,8 @@ Platform collectors (Bash, PowerShell) are independent and dependency-free; they
 
 ```
 linux/      audit/ persistence/ incident/ hardening/ lib/    Bash tooling
+shared/     engine/ findings/ reporting/ schemas/ config/    assessment engine, findings, reports, schemas
 windows/    audit/ persistence/ incident/ hardening/ lib/    PowerShell tooling
-shared/     schemas/ reporting/ config/                      JSON schemas, Python, defaults
 profiles/   linux/ windows/                                  Named hardening/audit profiles
 tests/      linux/ windows/ shared/ fixtures/                Bats, Pester, pytest
 docs/                                                        Design and process docs
@@ -66,7 +71,7 @@ There is no installer. BlueOps is meant to be copied to a host (or run from read
 
 ## Configuration overview
 
-Defaults live in `shared/config/`; per-environment choices (protected services/ports, allowlists, output location) live in `profiles/<platform>/`. Local overrides (`*.local.*`, `local/`) are git-ignored. Configuration never contains credentials.
+Defaults live in `shared/config/`; per-environment choices (assessment profiles that select modules and collector options, and later protected services/ports and allowlists) live in `profiles/<platform>/`. See [docs/assessment-engine.md](docs/assessment-engine.md#profiles-and-configuration). Local overrides (`*.local.*`, `local/`) are git-ignored. Configuration never contains credentials.
 
 ## Usage conventions
 
@@ -84,6 +89,17 @@ Windows (PowerShell 5.1+, run as Administrator for full coverage):
 .\windows\audit\Invoke-WindowsAudit.ps1                          # full read-only audit, human summary
 .\windows\audit\Invoke-WindowsAudit.ps1 -Json -OutputDir out     # also write report.json/report.txt/run.log
 .\windows\audit\Invoke-WindowsAudit.ps1 -Modules users,network   # subset
+```
+
+Assess, compare and report with the engine (Python 3.9+, no network):
+
+```bash
+sudo python -m shared.engine run --output-dir out                       # default profile -> out/blueops-assessment-<UTC>-default/ (assessment.json, report.html, report.md, manifest.json)
+sudo python -m shared.engine run --profile quick --fail-on high --output-dir out
+python -m shared.engine run --output-dir out --compare snapshots/last  # adds a history section
+python -m shared.engine compare snapshots/last out/blueops-assessment-*  # new/resolved/persistent, severity and configuration changes
+python -m shared.engine report out/blueops-assessment-* --format markdown
+python -m shared.engine verify out/blueops-assessment-* --expect-sha256 DIGEST
 ```
 
 Compare a later audit with a baseline (analyst machine, Python 3.9+, no network):

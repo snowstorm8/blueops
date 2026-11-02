@@ -260,6 +260,19 @@ def _comparison(c: dict[str, Any]) -> str:
                 for i in items[:50]
             )
             out.append(f"<h3>{title} ({len(items)})</h3><ul>{lis}</ul>")
+    moved = [
+        p for p in c["findings"]["persistent"] if p["evidence"]["added"] or p["evidence"]["removed"]
+    ]
+    if moved:
+        lis = "".join(
+            f"<li>{_sev(p['severity'])} {e(p['title'], 200)} "
+            f"<span class='pill'>+{len(p['evidence']['added'])} / -{len(p['evidence']['removed'])} "
+            "evidence</span></li>"
+            for p in moved[:50]
+        )
+        out.append(
+            f"<h3>Persistent findings with changed evidence ({len(moved)})</h3><ul>{lis}</ul>"
+        )
     cfg = c["configuration"]
     if cfg["available"] and cfg["changes"]:
         lis = "".join(

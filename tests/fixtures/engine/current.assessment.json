@@ -1,0 +1,327 @@
+{
+  "schema_version": "0.1.0",
+  "kind": "assessment",
+  "engine": {
+    "name": "blueops-engine",
+    "version": "0.4.0"
+  },
+  "assessment": {
+    "id": "golden-current",
+    "profile": "test",
+    "platform": "linux",
+    "started_at": "2026-03-08T10:00:00Z",
+    "finished_at": "2026-03-08T10:00:00Z",
+    "mode": "read-only",
+    "fail_on": "medium",
+    "status": "complete",
+    "exit_code": 4,
+    "modules": [
+      "linux.users",
+      "linux.network"
+    ]
+  },
+  "modules": [
+    {
+      "id": "linux.users",
+      "status": "ok",
+      "started_at": "2026-03-08T10:00:00Z",
+      "finished_at": "2026-03-08T10:00:00Z",
+      "duration_seconds": 0.5,
+      "findings": 3,
+      "exit_code": 0,
+      "command": [
+        "collector",
+        "--modules",
+        "users"
+      ],
+      "report": {
+        "path": "modules/linux.users/output/report.json",
+        "sha256": "07cb58719f2be53ab707373bb453578d1babfd0e938936c2ac09e4fc2a29198e"
+      }
+    },
+    {
+      "id": "linux.network",
+      "status": "ok",
+      "started_at": "2026-03-08T10:00:00Z",
+      "finished_at": "2026-03-08T10:00:00Z",
+      "duration_seconds": 0.5,
+      "findings": 0,
+      "exit_code": 0,
+      "command": [
+        "collector",
+        "--modules",
+        "network"
+      ],
+      "report": {
+        "path": "modules/linux.network/output/report.json",
+        "sha256": "237f3eb287fb7ffe931d005a3135a58ab77735d27dece48060f9e0e4a9601dbd"
+      }
+    }
+  ],
+  "findings": [
+    {
+      "id": "BOF-915e4a45caefe294",
+      "check_id": "USR-UID0-001",
+      "title": "Non-root account with UID 0",
+      "description": "Synthetic finding for the golden regression files.",
+      "severity": "critical",
+      "confidence": "high",
+      "category": "users",
+      "component": "users",
+      "host": {
+        "hostname": "gold01",
+        "host_id": "H-5bb0828d3b74"
+      },
+      "detected_at": "2026-03-08T10:00:00Z",
+      "evidence": [
+        "EV-0ddfdf1f81616380",
+        "EV-9d31a1da3ba12231"
+      ],
+      "remediation": {
+        "summary": "Review USR-UID0-001 and remediate.",
+        "priority": "P1"
+      },
+      "standards": [
+        {
+          "framework": "NIST SP 800-53 Rev. 5",
+          "id": "AC-2",
+          "title": "Account Management"
+        },
+        {
+          "framework": "NIST SP 800-53 Rev. 5",
+          "id": "AC-6",
+          "title": "Least Privilege"
+        }
+      ],
+      "sources": [
+        {
+          "module": "linux.users",
+          "run_id": "r-users2",
+          "check_id": "USR-UID0-001"
+        }
+      ],
+      "occurrences": 1
+    },
+    {
+      "id": "BOF-1a8f1be75c9c94ac",
+      "check_id": "USR-SHELL-001",
+      "title": "System accounts with interactive shells",
+      "description": "Synthetic finding for the golden regression files.",
+      "severity": "medium",
+      "confidence": "high",
+      "category": "users",
+      "component": "users",
+      "host": {
+        "hostname": "gold01",
+        "host_id": "H-5bb0828d3b74"
+      },
+      "detected_at": "2026-03-08T10:00:00Z",
+      "evidence": [
+        "EV-0ddfdf1f81616380"
+      ],
+      "remediation": {
+        "summary": "Review USR-SHELL-001 and remediate.",
+        "priority": "P2"
+      },
+      "standards": [
+        {
+          "framework": "NIST SP 800-53 Rev. 5",
+          "id": "AC-2",
+          "title": "Account Management"
+        },
+        {
+          "framework": "NIST SP 800-53 Rev. 5",
+          "id": "AC-6",
+          "title": "Least Privilege"
+        }
+      ],
+      "sources": [
+        {
+          "module": "linux.users",
+          "run_id": "r-users2",
+          "check_id": "USR-SHELL-001"
+        }
+      ],
+      "occurrences": 1
+    },
+    {
+      "id": "BOF-48752e7330551e3f",
+      "check_id": "USR-NEW-001",
+      "title": "A new weak setting",
+      "description": "Synthetic finding for the golden regression files.",
+      "severity": "low",
+      "confidence": "high",
+      "category": "users",
+      "component": "users",
+      "host": {
+        "hostname": "gold01",
+        "host_id": "H-5bb0828d3b74"
+      },
+      "detected_at": "2026-03-08T10:00:00Z",
+      "evidence": [
+        "EV-c50723f1b37edbbe"
+      ],
+      "remediation": {
+        "summary": "Review USR-NEW-001 and remediate.",
+        "priority": "P3"
+      },
+      "standards": [
+        {
+          "framework": "NIST SP 800-53 Rev. 5",
+          "id": "AC-2",
+          "title": "Account Management"
+        },
+        {
+          "framework": "NIST SP 800-53 Rev. 5",
+          "id": "AC-6",
+          "title": "Least Privilege"
+        }
+      ],
+      "sources": [
+        {
+          "module": "linux.users",
+          "run_id": "r-users2",
+          "check_id": "USR-NEW-001"
+        }
+      ],
+      "occurrences": 1
+    }
+  ],
+  "evidence": [
+    {
+      "id": "EV-0ddfdf1f81616380",
+      "type": "file",
+      "ref": "/etc/passwd",
+      "provenance": [
+        {
+          "module": "linux.users",
+          "run_id": "r-users2",
+          "check_id": "USR-UID0-001",
+          "collected_at": "2026-03-08T10:00:00Z",
+          "collector": "synthetic-audit 0.0.0",
+          "report_sha256": "07cb58719f2be53ab707373bb453578d1babfd0e938936c2ac09e4fc2a29198e"
+        },
+        {
+          "module": "linux.users",
+          "run_id": "r-users2",
+          "check_id": "USR-SHELL-001",
+          "collected_at": "2026-03-08T10:00:00Z",
+          "collector": "synthetic-audit 0.0.0",
+          "report_sha256": "07cb58719f2be53ab707373bb453578d1babfd0e938936c2ac09e4fc2a29198e"
+        }
+      ]
+    },
+    {
+      "id": "EV-9d31a1da3ba12231",
+      "type": "file",
+      "ref": "/etc/passwd.bak",
+      "provenance": [
+        {
+          "module": "linux.users",
+          "run_id": "r-users2",
+          "check_id": "USR-UID0-001",
+          "collected_at": "2026-03-08T10:00:00Z",
+          "collector": "synthetic-audit 0.0.0",
+          "report_sha256": "07cb58719f2be53ab707373bb453578d1babfd0e938936c2ac09e4fc2a29198e"
+        }
+      ]
+    },
+    {
+      "id": "EV-c50723f1b37edbbe",
+      "type": "file",
+      "ref": "/etc/login.defs",
+      "provenance": [
+        {
+          "module": "linux.users",
+          "run_id": "r-users2",
+          "check_id": "USR-NEW-001",
+          "collected_at": "2026-03-08T10:00:00Z",
+          "collector": "synthetic-audit 0.0.0",
+          "report_sha256": "07cb58719f2be53ab707373bb453578d1babfd0e938936c2ac09e4fc2a29198e"
+        }
+      ]
+    }
+  ],
+  "inventory": {
+    "coverage": [
+      {
+        "domain": "listeners",
+        "status": "complete"
+      },
+      {
+        "domain": "users",
+        "status": "complete"
+      }
+    ],
+    "records": [
+      {
+        "domain": "listeners",
+        "key": "listener:tcp/0.0.0.0/22",
+        "attrs": {
+          "process": "sshd"
+        }
+      },
+      {
+        "domain": "users",
+        "key": "user:alice",
+        "attrs": {
+          "uid": "1000",
+          "shell": "/bin/sh"
+        }
+      },
+      {
+        "domain": "users",
+        "key": "user:eve",
+        "attrs": {
+          "uid": "0",
+          "shell": "/bin/bash"
+        }
+      }
+    ]
+  },
+  "errors": [],
+  "warnings": [],
+  "summary": {
+    "total": 3,
+    "by_severity": {
+      "info": 0,
+      "low": 1,
+      "medium": 1,
+      "high": 0,
+      "critical": 1
+    },
+    "by_confidence": {
+      "low": 0,
+      "medium": 0,
+      "high": 3
+    },
+    "by_category": {
+      "users": 3
+    },
+    "by_priority": {
+      "P1": 1,
+      "P2": 1,
+      "P3": 1,
+      "P4": 0
+    },
+    "evidence_items": 3,
+    "modules": {
+      "ok": 2,
+      "partial": 0,
+      "failed": 0,
+      "timeout": 0,
+      "invalid_output": 0,
+      "skipped": 0
+    }
+  },
+  "host": {
+    "hostname": "gold01",
+    "os": {
+      "family": "linux",
+      "name": "Synthetic",
+      "version": "1"
+    },
+    "arch": "x86_64",
+    "elevated": true
+  }
+}

@@ -45,6 +45,7 @@ _LINUX = {
         "recommended",
     ),
     "pam": ("PAM", "audit", ("config:pam",), "recommended"),
+    "auth": ("Authentication policy and groups", "audit", ("config:logindefs",), "recommended"),
     "processes": ("Processes", "audit", ("processes:",), "recommended"),
     "network": (
         "Network",
@@ -77,6 +78,12 @@ _LINUX = {
         "recommended",
     ),
     "filesystem": ("Filesystem", "audit", ("config:suid",), "recommended"),
+    "sysconfig": (
+        "System configuration and logging",
+        "audit",
+        ("config:mounts", "config:core", "config:logging"),
+        "recommended",
+    ),
 }
 _WINDOWS = {
     "system": ("System", "audit", (), "recommended"),
@@ -89,6 +96,7 @@ _WINDOWS = {
     "persistence": ("Persistence", "persistence", ("persistence:registry",), "recommended"),
     "firewall": ("Windows Firewall", "audit", ("config:firewall",), "recommended"),
     "security": ("Security configuration", "audit", ("config:security",), "recommended"),
+    "eventlog": ("Event log configuration", "audit", ("config:eventlog",), "recommended"),
     "filesystem": ("Filesystem", "audit", (), "recommended"),
 }
 

@@ -17,7 +17,7 @@ If script execution is restricted, run with `powershell.exe -NoProfile -Executio
 
 | Option | Meaning |
 |---|---|
-| `-Modules LIST` | Subset of `system,users,processes,network,services,tasks,autoruns,persistence,firewall,security,filesystem` (default: all). `-ListModules` prints them. |
+| `-Modules LIST` | Subset of `system,users,processes,network,services,tasks,autoruns,persistence,firewall,security,eventlog,filesystem` (default: all). `-ListModules` prints them. |
 | `-Json` / `-Format json` | JSON on stdout (or `report.json` with `-OutputDir`); human text goes to stderr. |
 | `-OutputDir DIR` | Create `DIR\blueops-run-<YYYYMMDDTHHMMSSZ>-audit-windows\` with `report.json`, `report.txt`, `run.log`. |
 | `-FailOn SEV` | Lowest severity that yields exit 4 (default `medium`). |
@@ -57,6 +57,7 @@ Reports conform to `shared/schemas/audit-report.schema.json` (0.1.0). Inventory 
 | persistence | PER-* | WMI event subscriptions, IFEO debuggers, SilentProcessExit, AppInit/AppCert DLLs, LSA packages, netsh helpers, time providers, print monitors, COM hijack candidates, screensavers, `Command Processor\AutoRun`, logon scripts, boot execute, PowerShell profiles, BITS jobs, accessibility-binary replacement |
 | firewall | FW-* | profile state, default actions, logging; rule review (broad inbound allow, risky ports, program rules in user-writable paths) read from the policy registry |
 | security | SEC-* | UAC, LSA protection, SMBv1/signing, RDP/NLA, auto-logon, LLMNR, Defender state and exclusions, audit policy, password policy, PowerShell logging, WinRM, Windows Update |
+| eventlog | EVT-* | Registry-only event-log configuration (no event is read): Event Log service start type (`EVT-SVC-001`, high when not automatic); configured maximum sizes below 196608 KB (Security) or 32768 KB (System, Application), with Group Policy winning over the local key (`EVT-SIZE-001`); never-overwrite retention (`EVT-RET-001`); the PowerShell, WinRM and Windows Defender operational channels explicitly disabled (`EVT-CHAN-001`). An unconfigured size is unknown, not "too small". |
 | filesystem | FS-* | executables and scripts in user-writable/temp locations (signature checked, capped), root-of-drive oddities, recent changes to system directories, writable ACLs on sensitive paths |
 
 ## Inventory for baseline comparison (schema 0.2.0)
@@ -78,7 +79,8 @@ Every run also emits `inventory` (stable-keyed records plus per-domain coverage)
 - Not elevated, the audit still runs but records `PERM_DENIED`-style gaps (other users' processes, services' paths, audit policy, some ACLs).
 - BITS jobs are listed only while the BITS service is running (`BITS_UNREADABLE` otherwise): starting a stopped BITS service changes its startup type from Manual to Automatic, which a read-only audit must not do.
 - Authenticode checks may contact certificate revocation endpoints (Windows decides this, not BlueOps, and BlueOps has no switch for it): on a connected host this is the one place a run can touch the network, and on an isolated host the lookups time out and are cached. Signature checks are capped. Residual risk, documented in [security-model.md](security-model.md).
-- Offline user hives, event-log analysis, Active Directory/domain controller checks, and memory inspection are not covered.
+- **`eventlog` is new and unverified on a real host.** It was written without a local PowerShell; its logic is covered by `tests/windows/EventLog.Tests.ps1`, which runs on the Windows CI runner only. The channel check reads keys such as `...\WINEVT\Channels\Microsoft-Windows-PowerShell/Operational`, whose names contain a `/`; whether the registry provider addresses such a key literally on every Windows version has not been confirmed, and if it does not the check finds nothing (a missed finding, never a false one). The size thresholds are BlueOps defaults in line with common hardening baselines, not a statement about any specific benchmark section.
+- Offline user hives, event-log content analysis, Active Directory/domain controller checks, and memory inspection are not covered.
 - Windows PowerShell 5.1 and PowerShell 7 are supported; Constrained Language Mode hosts may degrade (reported as gaps).
 - Tests run against synthetic fixtures; behaviour on real Windows editions beyond the CI runners is unverified. The hardening changes of the audit remediation (hook gating, run directory suffixes, manifest, text escapes, System32 tool paths) were written without a local PowerShell: they are covered by static Python tests (`tests/shared/test_windows_sources.py`) and by Pester tests (`tests/windows/Hardening.Tests.ps1`) that run on CI only.
 
