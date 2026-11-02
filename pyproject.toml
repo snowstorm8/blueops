@@ -15,6 +15,9 @@ ignore = ["PLR2004"]
 # readability and change nothing about the output.
 "shared/reporting/render_html.py" = ["E501"]
 "tests/shared/test_engine_examples.py" = ["E501"]
+# Rule validation/compilation passes diagnostics through recursive visitors (many parameters) and
+# builds messages inline; wrapping them would not make them clearer.
+"shared/rules/**" = ["PLR0913", "PLR0917", "E501"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests/shared"]

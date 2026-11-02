@@ -402,3 +402,8 @@ def comparison_exit_code(cmp: dict[str, Any]) -> ExitCode:
     if incomplete:
         return ExitCode.PARTIAL
     return ExitCode.OK
+
+
+def finding_coverage(doc: dict[str, Any], finding: dict[str, Any]) -> tuple[bool, str]:
+    """Public form of the coverage test used for new/resolved conclusions (see module docs)."""
+    return _coverage_of(doc, finding)
