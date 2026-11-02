@@ -64,3 +64,11 @@ profiles/**/local*
 !examples/**
 !tests/fixtures/**
 !.env.example
+
+# The re-includes above also match bytecode caches under those trees (a plugin example imported by a
+# test wrote examples/plugins/__pycache__/*.pyc and `git add -A` picked it up). Ignore them again;
+# these lines must stay after the negations.
+examples/**/__pycache__/
+examples/**/*.py[cod]
+tests/fixtures/**/__pycache__/
+tests/fixtures/**/*.py[cod]

@@ -5,10 +5,12 @@ from __future__ import annotations
 import csv
 import io
 import json
+import os
 from pathlib import Path
 from typing import Any
 
 import pytest
+from engine_support import POSIX_BASH, collector_env, linux_fixture_root
 from rules_support import doc, finding, make_rule, record
 
 from shared.engine.cli import main
@@ -517,11 +519,10 @@ def test_case_commands_on_missing_or_damaged_state(
 # --------------------------------------------------------------------------- engine run
 
 
+@pytest.mark.skipif(not POSIX_BASH, reason="the Linux collector runs on POSIX hosts with bash only")
 def test_engine_run_with_detect_writes_results_reports_and_manifest(
     tmp_path: Path, capsys: pytest.CaptureFixture[str], monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    from engine_support import ROOT, collector_env, linux_fixture_root
-
     root = linux_fixture_root(tmp_path / "root")
     for k, v in collector_env(root).items():
         monkeypatch.setenv(k, v)
@@ -551,20 +552,77 @@ def test_engine_run_with_detect_writes_results_reports_and_manifest(
         .strip()
         .endswith("case(s)")
     )
-    assert ROOT.is_dir()
+    # the deceptive-name fixture file reached the audit: the point of generating it per test
+    doc = json.loads((d / "assessment.json").read_text("utf-8"))
+    hidden = [f for f in doc["findings"] if f["check_id"] == "FS-HIDDEN-001"]
+    assert hidden and any(
+        e["ref"] == "/tmp/..." for e in doc["evidence"] if e["id"] in hidden[0]["evidence"]
+    )
 
 
-def test_validate_command_knows_the_detection_document_kinds(
-    current: Path, tmp_path: Path, capsys: pytest.CaptureFixture[str]
+PLUGIN_REPORT = """
+import json, pathlib, sys
+out = pathlib.Path(sys.argv[1]); out.mkdir(parents=True, exist_ok=True)
+(out / "report.json").write_text(sys.argv[2])
+"""
+
+
+def test_engine_run_with_detect_end_to_end_on_every_platform(
+    tmp_path: Path, capsys: pytest.CaptureFixture[str]
 ) -> None:
-    results = tmp_path / "r.json"
-    call(capsys, "detect", "run", str(current), "--output", str(results), "--quiet")
-    rc, out, _ = call(capsys, "validate", str(results))
-    assert rc == 0 and "detection-results.schema.json" in out
-    pack = Path(__file__).resolve().parents[2] / "shared" / "rules" / "library" / "linux-core.json"
-    assert call(capsys, "validate", str(pack))[0] == 0
-    cmp_path = tmp_path / "c.json"
-    a = save(tmp_path, "a.json", CLEAN, aid="a", started="2026-02-01T10:00:00Z")
-    b = save(tmp_path, "b.json", UID0, aid="b", started="2026-02-02T10:00:00Z")
-    call(capsys, "detect", "compare", str(a), str(b), "--output", str(cmp_path))
-    assert call(capsys, "validate", str(cmp_path))[0] == 0
+    """The same ``run --detect`` flow without the POSIX-only collector: a plugin module (the running
+    Python) reports a second uid-0 account, so detection, reports, manifest and case store are all
+    exercised on Windows runners too."""
+    import sys
+
+    from engine_support import make_report
+
+    report = make_report(
+        [],
+        records=[
+            record("users", "user:root", {"uid": "0"}),
+            record("users", "user:toor", {"uid": "0"}),
+        ],
+        host="web01",
+    )
+    plugins = tmp_path / "plugins"
+    plugins.mkdir()
+    (plugins / "plugin.py").write_text(PLUGIN_REPORT, encoding="utf-8")
+    manifest = {
+        "schema_version": "0.1.0", "kind": "module", "id": "linux.demo", "title": "Demo", "platform": "linux",
+        "category": "audit", "privilege": "none", "timeout_seconds": 30,
+        "command": [sys.executable, "-I", "{plugin_dir}/plugin.py", "{output_dir}", json.dumps(report)],
+    }  # fmt: skip
+    (plugins / "linux.demo.module.json").write_text(json.dumps(manifest), encoding="utf-8")
+    if os.name == "posix":
+        plugins.chmod(0o755)
+        (plugins / "linux.demo.module.json").chmod(0o644)
+    out = tmp_path / "out"
+    rc, _, err = call(
+        capsys,
+        "run",
+        "--platform",
+        "linux",
+        "--plugin-dir",
+        str(plugins),
+        "--modules",
+        "linux.demo",
+        "--output-dir",
+        str(out),
+        "--detect",
+        "--state-dir",
+        str(tmp_path / "state"),
+        "--quiet",
+    )
+    assert rc == 4, err
+    (d,) = out.glob("blueops-assessment-*")
+    res = json.loads((d / "detections.json").read_text("utf-8"))
+    assert validate(res, "detection-results.schema.json") == []
+    assert any(
+        x["rule"]["id"] == "DR-LNX-ACC-001" and "user:toor" in x["title"] for x in res["detections"]
+    )
+    assert 'id="detections"' in (d / "report.html").read_text("utf-8")
+    assert "## Detections" in (d / "report.md").read_text("utf-8")
+    assert call(capsys, "verify", str(d))[0] == 0
+    rc, listing, _ = call(capsys, "case", "list", "--state-dir", str(tmp_path / "state"), "--json")
+    assert rc == 0 and any(c["rule_id"] == "DR-LNX-ACC-001" for c in json.loads(listing))

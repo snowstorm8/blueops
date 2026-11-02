@@ -6,6 +6,7 @@ import importlib.util
 import json
 import os
 import shutil
+import sys
 from pathlib import Path
 
 import pytest
@@ -88,12 +89,15 @@ def test_example_plugin_reports_an_unreadable_directory_instead_of_crashing(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     """Regression: an unprivileged run cannot list /etc/sudoers.d; that is a gap (exit 6)."""
+    # Importing the plugin must not leave bytecode in examples/ (it was once committed that way).
+    monkeypatch.setattr(sys, "dont_write_bytecode", True)
     spec = importlib.util.spec_from_file_location(
         "sudoers_nopasswd", EXAMPLES / "plugins" / "sudoers_nopasswd.py"
     )
     assert spec and spec.loader
     mod = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(mod)
+    monkeypatch.setattr(sys, "dont_write_bytecode", True)  # never leave __pycache__ in examples/
     root = tmp_path / "root"
     (root / "etc" / "sudoers.d").mkdir(parents=True)
     (root / "etc" / "sudoers").write_text("root ALL=(ALL) ALL\n", encoding="utf-8")
