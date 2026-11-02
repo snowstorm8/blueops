@@ -42,7 +42,7 @@
       "required": ["id", "source", "description"],
       "properties": {
         "id": { "type": "string", "pattern": "^[a-z][a-z0-9_]{0,23}$" },
-        "source": { "enum": ["findings", "inventory", "new_findings", "resolved_findings", "persistent_findings", "severity_increased", "config_changes", "snapshot"] },
+        "source": { "enum": ["findings", "inventory", "new_findings", "resolved_findings", "persistent_findings", "severity_increased", "config_changes", "snapshot", "telemetry", "telemetry_changes"] },
         "description": { "type": "string", "minLength": 1, "maxLength": 300 },
         "where": { "$ref": "#/$defs/condition" },
         "optional": { "type": "boolean" },
@@ -93,7 +93,9 @@
         "count": { "type": "integer", "minimum": 0 },
         "platform": { "enum": ["linux", "windows"] },
         "current": { "type": "object" },
-        "previous": { "type": "array", "items": { "type": "object" } }
+        "previous": { "type": "array", "items": { "type": "object" } },
+        "telemetry": { "type": "object" },
+        "previous_telemetry": { "type": "object" }
       }
     },
     "rule": {
@@ -115,7 +117,7 @@
         "confidence_reason": { "type": "string", "minLength": 10, "maxLength": 500 },
         "confidence_rules": { "$ref": "#/$defs/adjust" },
         "nature": { "$ref": "#/$defs/nature" },
-        "requires_coverage": { "type": "array", "maxItems": 20, "items": { "type": "string", "pattern": "^(module:[a-z0-9_-]+|inventory:[a-z_]+(:[A-Za-z0-9_.-]*)?|comparison(:exists)?|history:\\d{1,3})$" } },
+        "requires_coverage": { "type": "array", "maxItems": 20, "items": { "type": "string", "pattern": "^(module:[a-z0-9_-]+|inventory:[a-z_]+(:[A-Za-z0-9_.-]*)?|comparison(:exists)?|telemetry:[a-z_]+(/[A-Za-z0-9_.-]*)?|history:\\d{1,3})$" } },
         "clauses": { "type": "array", "minItems": 1, "maxItems": 8, "items": { "$ref": "#/$defs/clause" } },
         "require": { "$ref": "#/$defs/expr" },
         "join": {

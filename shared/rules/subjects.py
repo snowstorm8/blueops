@@ -18,10 +18,14 @@ SEVERITY_RANK = {"info": 0, "low": 1, "medium": 2, "high": 3, "critical": 4}
 
 SOURCES = (
     "findings", "inventory", "new_findings", "resolved_findings", "persistent_findings",
-    "severity_increased", "config_changes", "snapshot",
+    "severity_increased", "config_changes", "snapshot", "telemetry", "telemetry_changes",
 )  # fmt: skip
 CURRENT_SOURCES = ("findings", "inventory")
-COMPARISON_SOURCES = tuple(s for s in SOURCES if s not in CURRENT_SOURCES)
+# Sources read from a telemetry document instead of the assessment (see shared/telemetry).
+TELEMETRY_SOURCES = ("telemetry", "telemetry_changes")
+COMPARISON_SOURCES = tuple(
+    s for s in SOURCES if s not in CURRENT_SOURCES and s not in TELEMETRY_SOURCES
+)
 
 _FINDING_FIELDS = (
     "id", "check_id", "title", "description", "severity", "severity_rank", "confidence",
@@ -50,6 +54,17 @@ FIELDS: dict[str, tuple[str, ...]] = {
         "new.max_severity_rank", "new.categories", "resolved.count", "severity_increased.count",
         "config.changes", "coverage.module_changes", "coverage.modules_degraded", "coverage.modules_removed", "comparison.complete", "history.snapshots",
     ),
+    "telemetry": (
+        "record_id", "category", "scope", "key", "identity", "status", "occurrences", "partial",
+        "observed_at", "event_time", "hour_utc", "weekday", "first_seen", "last_seen",
+        "source.type", "source.ref", "method", "collector", "limitations", "unknown_attributes",
+        "derived", "os_family",
+        "process.parent_name", "process.parent_exe", "process.parent_user", "process.ancestors",
+        "process.depth", "process.orphan", "process.children",
+    ),
+    "telemetry_changes": (
+        "record_id", "change", "category", "identity", "summary", "determinate", "attributes.names",
+    ),
 }  # fmt: skip
 # Open-ended families: ``attrs.<name>`` and ``attr.<name>.before|after``.
 _FAMILIES = {
@@ -57,6 +72,11 @@ _FAMILIES = {
     "config_changes": (
         re.compile(r"^attrs\.[A-Za-z0-9_.-]+$"),
         re.compile(r"^attr\.[A-Za-z0-9_.-]+\.(before|after)$"),
+    ),
+    "telemetry": (re.compile(r"^attrs\.[a-z][a-z0-9_]*$"),),
+    "telemetry_changes": (
+        re.compile(r"^attrs\.[a-z][a-z0-9_]*$"),
+        re.compile(r"^attr\.[a-z][a-z0-9_]*\.(before|after)$"),
     ),
 }
 

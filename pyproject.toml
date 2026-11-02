@@ -22,6 +22,9 @@ ignore = ["PLR2004"]
 # Telemetry normalization/ingestion are single linear validation passes over record dicts.
 "shared/telemetry/**" = ["PLR0913", "PLR0917", "E501"]
 "tests/shared/telemetry_support.py" = ["PLR0913", "PLR0917", "E501"]
+# Runs the repository's own collector script (a fixed path) against synthetic roots.
+"tests/shared/test_telemetry_linux.py" = ["S603", "E501"]
+"tests/shared/telemetry_linux_support.py" = ["E501", "PLR0913", "PLR0917"]
 "tests/shared/test_telemetry_*.py" = ["E501", "PLC0415"]
 # Detection tests are dense data tables (rules, hosts, expectations); wrapping them hides the shape.
 "tests/shared/test_rules_*.py" = ["E501", "PLC0415", "S311"]

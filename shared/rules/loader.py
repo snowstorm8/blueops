@@ -29,6 +29,14 @@ class RuleSet:
     def ordered(self) -> list[Rule]:
         return [self.rules[k] for k in sorted(self.rules)]
 
+    def only(self, keep: Any) -> RuleSet:
+        """A copy holding just the rules for which ``keep(rule)`` is true (diagnostics kept)."""
+        return RuleSet(
+            rules={k: r for k, r in self.rules.items() if keep(r)},
+            diagnostics=list(self.diagnostics),
+            packs=list(self.packs),
+        )
+
 
 def load_pack_file(path: Path) -> tuple[list[Rule], list[Diagnostic], dict[str, Any] | None]:
     try:

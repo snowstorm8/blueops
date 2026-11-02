@@ -36,13 +36,20 @@ from shared.rules.model import Adjust, Clause, Rule
 from shared.rules.subjects import (
     COMPARISON_SOURCES,
     SEVERITY_RANK,
+    TELEMETRY_SOURCES,
     Subject,
     change_subject,
     finding_subject,
     inventory_subject,
     snapshot_subject,
 )
+from shared.rules.telemetry_subjects import (
+    ProcessIndex,
+    telemetry_change_subjects,
+    telemetry_subject,
+)
 from shared.rules.validate import expr_uses_not
+from shared.telemetry.compare import CompareError, compare_telemetry
 
 MAX_ITEMS_PER_CLAUSE = 5000
 MAX_LISTED_PER_CLAUSE = 50
@@ -85,6 +92,10 @@ class Context:
     previous: list[Snap]
     comparison: dict[str, Any] | None
     comparison_note: str = ""
+    telemetry: dict[str, Any] | None = None
+    telemetry_base: dict[str, Any] | None = None
+    telemetry_comparison: dict[str, Any] | None = None
+    telemetry_note: str = ""
     history: HistoryView = field(init=False)
     _cache: dict[str, list[Subject]] = field(default_factory=dict)
 
@@ -116,6 +127,16 @@ class Context:
                 yield inventory_subject(r)
         elif source == "snapshot":
             yield snapshot_subject(cmpd, self.hist_arg, cur)
+        elif source == "telemetry":
+            if self.telemetry is not None:
+                index = ProcessIndex(self.telemetry["records"])
+                for rec in self.telemetry["records"]:
+                    yield telemetry_subject(rec, index)
+        elif source == "telemetry_changes":
+            if self.telemetry_comparison is not None and self.telemetry_base is not None:
+                yield from telemetry_change_subjects(
+                    self.telemetry_base, self.telemetry, self.telemetry_comparison
+                )
         elif cmpd is None:
             return
         elif source == "new_findings":
@@ -195,11 +216,51 @@ def _inventory_ok(doc: dict[str, Any], spec: str) -> tuple[bool, str]:
     )
 
 
+def _telemetry_ok(ctx: Context, spec: str, hard: list[str]) -> tuple[bool, str]:
+    """Coverage of a telemetry category. Never collected is a hard stop (nothing can be
+    concluded); partial coverage lets the rule run at lower confidence."""
+    tel = ctx.telemetry
+    if tel is None:
+        hard.append("no telemetry was supplied")
+        return True, ""
+    cat, _, scope = spec.partition("/")
+    parts = [
+        c
+        for c in tel["coverage"]
+        if c["category"] == cat and (not scope or c.get("scope", "") == scope)
+    ]
+    if not parts:
+        hard.append(f"telemetry category {spec} was not collected")
+        return True, ""
+    if all(c["status"] == "unavailable" for c in parts):
+        hard.append(
+            f"telemetry category {spec} could not be collected: {parts[0].get('reason', 'unavailable')}"
+        )
+        return True, ""
+    bad = [c for c in parts if c["status"] not in ("complete", "not_applicable")]
+    if not bad and ctx.telemetry_base is not None and ctx.telemetry_comparison is not None:
+        # A change claim also depends on how completely the baseline saw the category.
+        base_parts = [c for c in ctx.telemetry_base["coverage"] if c["category"] == cat]
+        bad_base = [c for c in base_parts if c["status"] not in ("complete", "not_applicable")]
+        if not base_parts or bad_base:
+            why = bad_base[0]["status"] if bad_base else "not collected"
+            return (
+                False,
+                f"the baseline telemetry for {spec} is {why}, so differences are not conclusive",
+            )
+    return (
+        not bad,
+        "" if not bad else f"telemetry {spec} is {bad[0]['status']}: {bad[0].get('reason', '')}",
+    )
+
+
 def check_coverage(rule: Rule, ctx: Context) -> tuple[list[str], list[str]]:
     """``(hard, soft)`` problems. Hard: the rule cannot be evaluated at all. Soft: it can, but
     absence cannot be concluded."""
     hard: list[str] = []
     soft: list[str] = []
+    if "telemetry_changes" in rule.sources and ctx.telemetry_comparison is None:
+        hard.append(ctx.telemetry_note or "no earlier telemetry snapshot to compare with")
     uses_comparison = bool(rule.sources & set(COMPARISON_SOURCES))
     if uses_comparison and ctx.comparison is None:
         hard.append(ctx.comparison_note or "no earlier snapshot to compare with")
@@ -218,6 +279,8 @@ def check_coverage(rule: Rule, ctx: Context) -> tuple[list[str], list[str]]:
             ok, why = _module_ok(ctx.current, arg)
         elif kind == "inventory":
             ok, why = _inventory_ok(ctx.current, arg)
+        elif kind == "telemetry":
+            ok, why = _telemetry_ok(ctx, arg, hard)
         elif kind == "history":
             if ctx.history.count < int(arg):
                 hard.append(f"needs {arg} earlier snapshot(s), have {ctx.history.count}")
@@ -483,6 +546,8 @@ def detect(  # noqa: PLR0912, PLR0915
     previous: list[Snap] | None = None,
     generated_at: str,
     history_notes: list[dict[str, str]] | None = None,
+    telemetry: dict[str, Any] | None = None,
+    telemetry_baseline: dict[str, Any] | None = None,
 ) -> dict[str, Any]:
     """Run every enabled, applicable rule; returns the ``detection-results`` document."""
     host = current["host"]
@@ -494,7 +559,23 @@ def detect(  # noqa: PLR0912, PLR0915
             comparison = compare_snapshots(prev[-1].doc, current, generated_at=generated_at)
         except ComparisonError as exc:
             comparison_note = f"snapshot comparison failed: {exc}"
-    ctx = Context(current, prev, comparison, comparison_note)
+    tel_cmp = None
+    tel_note = ""
+    if telemetry is not None:
+        if telemetry["host"]["host_id"] != host_id(host["hostname"], host["os"]["family"]):
+            raise ValueError("the telemetry describes a different host than the assessment")
+        if telemetry_baseline is not None:
+            try:
+                tel_cmp = compare_telemetry(
+                    telemetry_baseline, telemetry, generated_at=generated_at
+                )
+            except CompareError as exc:
+                tel_note = f"telemetry comparison failed: {exc}"
+    ctx = Context(
+        current, prev, comparison, comparison_note,
+        telemetry=telemetry, telemetry_base=telemetry_baseline,
+        telemetry_comparison=tel_cmp, telemetry_note=tel_note,
+    )  # fmt: skip
     detections: list[dict[str, Any]] = []
     indeterminate: list[dict[str, Any]] = []
     rule_results: list[dict[str, Any]] = []
@@ -512,6 +593,17 @@ def detect(  # noqa: PLR0912, PLR0915
         if not rule.applies_to(family):
             counts["not_applicable"] += 1
             rule_results.append({"rule": rule.id, "status": "not_applicable", "detections": 0})
+            continue
+        skip = ""
+        if rule.sources & set(TELEMETRY_SOURCES) and telemetry is None:
+            skip = "no telemetry supplied"  # hunting was never asked for
+        elif "telemetry_changes" in rule.sources and telemetry_baseline is None:
+            skip = "no telemetry baseline supplied"
+        if skip:
+            counts["not_applicable"] += 1
+            rule_results.append(
+                {"rule": rule.id, "status": "not_applicable", "detections": 0, "reason": skip}
+            )
             continue
         try:
             status, found, reason = evaluate_rule(rule, ctx, generated_at)
@@ -588,7 +680,24 @@ def detect(  # noqa: PLR0912, PLR0915
         "indeterminate": indeterminate,
         "rule_errors": rule_errors,
         "summary": _summary(uniq, indeterminate, rule_errors),
+        **({"telemetry": _telemetry_block(telemetry, telemetry_baseline, tel_cmp)} if telemetry else {}),
     }  # fmt: skip
+
+
+def _telemetry_block(
+    tel: dict[str, Any], base: dict[str, Any] | None, cmp_: dict[str, Any] | None
+) -> dict[str, Any]:
+    return {
+        "collection_id": tel["collection"]["id"],
+        "started_at": tel["collection"]["started_at"],
+        "records": tel["summary"]["records"],
+        "complete": tel["summary"]["complete"],
+        "coverage": tel["summary"]["coverage"],
+        "unavailable": sorted(
+            {c["category"] for c in tel["coverage"] if c["status"] == "unavailable"}
+        ),
+        "compared_with": base["collection"]["id"] if cmp_ and base else None,
+    }
 
 
 def _summary(
