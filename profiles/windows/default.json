@@ -1,0 +1,9 @@
+{
+  "schema_version": "0.1.0",
+  "kind": "profile",
+  "name": "default",
+  "platform": "windows",
+  "description": "Every Windows audit and persistence module (read-only).",
+  "modules": ["all"],
+  "fail_on": "medium"
+}

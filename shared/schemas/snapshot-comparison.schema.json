@@ -1,0 +1,223 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://blueops.invalid/schemas/snapshot-comparison/0.1.0",
+  "title": "BlueOps snapshot comparison",
+  "description": "Differences between two assessment snapshots of one host: new, resolved and persistent findings, severity changes, configuration changes (from the inventory comparison) and differences in audit coverage. Conclusions the evidence does not support are reported under findings.indeterminate, never as changes.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema_version", "kind", "generated_at", "tool", "baseline", "current", "warnings", "findings", "configuration", "coverage", "summary"],
+  "properties": {
+    "schema_version": { "type": "string", "pattern": "^0\\.\\d+\\.\\d+$" },
+    "kind": { "const": "snapshot-comparison" },
+    "generated_at": { "$ref": "#/$defs/timestamp" },
+    "tool": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["name", "version"],
+      "properties": { "name": { "type": "string" }, "version": { "type": "string" } }
+    },
+    "baseline": { "$ref": "#/$defs/snapshot_meta" },
+    "current": { "$ref": "#/$defs/snapshot_meta" },
+    "warnings": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["code", "message"],
+        "properties": { "code": { "type": "string" }, "message": { "type": "string" } }
+      }
+    },
+    "findings": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["new", "resolved", "persistent", "severity_changed", "indeterminate"],
+      "properties": {
+        "new": { "type": "array", "items": { "$ref": "#/$defs/finding_brief" } },
+        "resolved": { "type": "array", "items": { "$ref": "#/$defs/finding_brief" } },
+        "persistent": { "type": "array", "items": { "$ref": "#/$defs/persistent_finding" } },
+        "severity_changed": { "type": "array", "items": { "$ref": "#/$defs/persistent_finding" } },
+        "indeterminate": { "type": "array", "items": { "$ref": "#/$defs/indeterminate_finding" } }
+      }
+    },
+    "configuration": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["available"],
+      "properties": {
+        "available": { "type": "boolean" },
+        "reason": { "type": "string" },
+        "summary": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["added", "removed", "modified", "indeterminate", "domains_partial", "domains_not_compared"],
+          "properties": {
+            "added": { "type": "integer", "minimum": 0 },
+            "removed": { "type": "integer", "minimum": 0 },
+            "modified": { "type": "integer", "minimum": 0 },
+            "indeterminate": { "type": "integer", "minimum": 0 },
+            "domains_partial": { "type": "integer", "minimum": 0 },
+            "domains_not_compared": { "type": "integer", "minimum": 0 }
+          }
+        },
+        "changes": { "type": "array", "items": { "type": "object" } },
+        "indeterminate": { "type": "array", "items": { "type": "object" } },
+        "domains": { "type": "array", "items": { "type": "object" } },
+        "exit_code": { "type": "integer", "minimum": 0, "maximum": 6 }
+      }
+    },
+    "coverage": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["modules", "inventory_partitions"],
+      "properties": {
+        "modules": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["added", "removed", "changed", "unchanged"],
+          "properties": {
+            "added": { "type": "array", "items": { "type": "string" } },
+            "removed": { "type": "array", "items": { "type": "string" } },
+            "changed": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "additionalProperties": false,
+                "required": ["id", "baseline", "current"],
+                "properties": {
+                  "id": { "type": "string" },
+                  "baseline": { "type": "string" },
+                  "current": { "type": "string" }
+                }
+              }
+            },
+            "unchanged": { "type": "integer", "minimum": 0 }
+          }
+        },
+        "inventory_partitions": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["domain", "scope", "baseline", "current"],
+            "properties": {
+              "domain": { "type": "string" },
+              "scope": { "type": "string" },
+              "baseline": { "type": ["string", "null"] },
+              "current": { "type": ["string", "null"] }
+            }
+          }
+        }
+      }
+    },
+    "summary": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["findings_baseline", "findings_current", "new", "resolved", "persistent", "severity_increased", "severity_decreased", "indeterminate", "configuration_changes", "coverage_changes", "weighted_index", "trend"],
+      "properties": {
+        "findings_baseline": { "type": "integer", "minimum": 0 },
+        "findings_current": { "type": "integer", "minimum": 0 },
+        "new": { "type": "integer", "minimum": 0 },
+        "resolved": { "type": "integer", "minimum": 0 },
+        "persistent": { "type": "integer", "minimum": 0 },
+        "severity_increased": { "type": "integer", "minimum": 0 },
+        "severity_decreased": { "type": "integer", "minimum": 0 },
+        "indeterminate": { "type": "integer", "minimum": 0 },
+        "configuration_changes": { "type": "integer", "minimum": 0 },
+        "coverage_changes": { "type": "integer", "minimum": 0 },
+        "weighted_index": {
+          "description": "Sum of per-severity weights (info 0, low 1, medium 3, high 7, critical 15). A relative trend aid, not a risk score.",
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["baseline", "current", "delta"],
+          "properties": {
+            "baseline": { "type": "integer", "minimum": 0 },
+            "current": { "type": "integer", "minimum": 0 },
+            "delta": { "type": "integer" }
+          }
+        },
+        "trend": { "enum": ["better", "worse", "unchanged", "indeterminate"] }
+      }
+    }
+  },
+  "$defs": {
+    "timestamp": { "type": "string", "pattern": "^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}(\\.\\d+)?Z$" },
+    "severity": { "enum": ["info", "low", "medium", "high", "critical"] },
+    "snapshot_meta": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["assessment_id", "profile", "started_at", "finished_at", "hostname", "os_family", "status", "exit_code", "modules"],
+      "properties": {
+        "assessment_id": { "type": "string" },
+        "profile": { "type": "string" },
+        "started_at": { "$ref": "#/$defs/timestamp" },
+        "finished_at": { "$ref": "#/$defs/timestamp" },
+        "hostname": { "type": "string" },
+        "os_family": { "type": "string" },
+        "status": { "type": "string" },
+        "exit_code": { "type": "integer" },
+        "modules": { "type": "integer", "minimum": 0 }
+      }
+    },
+    "finding_brief": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "check_id", "title", "severity", "confidence", "category", "component", "priority"],
+      "properties": {
+        "id": { "type": "string", "pattern": "^BOF-[a-f0-9]{16}$" },
+        "check_id": { "type": "string" },
+        "title": { "type": "string" },
+        "severity": { "$ref": "#/$defs/severity" },
+        "confidence": { "enum": ["low", "medium", "high"] },
+        "category": { "type": "string" },
+        "component": { "type": "string" },
+        "priority": { "enum": ["P1", "P2", "P3", "P4"] }
+      }
+    },
+    "persistent_finding": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "check_id", "title", "severity", "confidence", "category", "component", "priority", "evidence", "baseline_severity", "baseline_confidence"],
+      "properties": {
+        "id": { "type": "string", "pattern": "^BOF-[a-f0-9]{16}$" },
+        "check_id": { "type": "string" },
+        "title": { "type": "string" },
+        "severity": { "$ref": "#/$defs/severity" },
+        "confidence": { "enum": ["low", "medium", "high"] },
+        "category": { "type": "string" },
+        "component": { "type": "string" },
+        "priority": { "enum": ["P1", "P2", "P3", "P4"] },
+        "baseline_severity": { "$ref": "#/$defs/severity" },
+        "baseline_confidence": { "enum": ["low", "medium", "high"] },
+        "direction": { "enum": ["increased", "decreased"] },
+        "evidence": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["added", "removed", "unchanged", "truncated"],
+          "properties": {
+            "added": { "type": "array", "items": { "type": "string" } },
+            "removed": { "type": "array", "items": { "type": "string" } },
+            "unchanged": { "type": "integer", "minimum": 0 },
+            "truncated": { "type": "boolean" }
+          }
+        }
+      }
+    },
+    "indeterminate_finding": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "check_id", "title", "severity", "confidence", "category", "component", "priority", "side", "reason"],
+      "properties": {
+        "id": { "type": "string", "pattern": "^BOF-[a-f0-9]{16}$" },
+        "check_id": { "type": "string" },
+        "title": { "type": "string" },
+        "severity": { "$ref": "#/$defs/severity" },
+        "confidence": { "enum": ["low", "medium", "high"] },
+        "category": { "type": "string" },
+        "component": { "type": "string" },
+        "priority": { "enum": ["P1", "P2", "P3", "P4"] },
+        "side": { "enum": ["baseline", "current"] },
+        "reason": { "type": "string" }
+      }
+    }
+  }
+}

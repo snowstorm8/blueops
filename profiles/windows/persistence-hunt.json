@@ -1,0 +1,9 @@
+{
+  "schema_version": "0.1.0",
+  "kind": "profile",
+  "name": "persistence-hunt",
+  "platform": "windows",
+  "description": "Focus on footholds: persistence, autoruns, scheduled tasks, services and accounts.",
+  "modules": ["windows.persistence", "windows.autoruns", "windows.tasks", "windows.services", "windows.users"],
+  "fail_on": "medium"
+}
