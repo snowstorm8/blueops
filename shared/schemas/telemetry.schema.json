@@ -1,0 +1,204 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://blueops.invalid/schemas/telemetry/1.0.0",
+  "title": "BlueOps endpoint telemetry",
+  "description": "Normalized endpoint telemetry for one host: provenance-carrying records, per-category collection coverage, and every error or rejected input. A category with status 'complete' and no records is an observed absence; 'unavailable' means the data could not be collected, which says nothing about the host.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema_version", "kind", "generated_at", "collection", "host", "coverage", "records", "errors", "rejected", "conflicts", "summary"],
+  "properties": {
+    "schema_version": {"type": "string", "pattern": "^1\\.\\d+\\.\\d+$"},
+    "kind": {"const": "telemetry"},
+    "generated_at": {"$ref": "#/$defs/timestamp"},
+    "collection": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "started_at", "ended_at", "collectors", "mode", "elevated"],
+      "properties": {
+        "id": {"type": "string", "minLength": 1, "maxLength": 128},
+        "started_at": {"$ref": "#/$defs/timestamp"},
+        "ended_at": {"$ref": "#/$defs/timestamp"},
+        "collectors": {"type": "array", "items": {"$ref": "#/$defs/collector"}},
+        "mode": {"enum": ["live", "import", "assessment"]},
+        "elevated": {"type": ["boolean", "null"]},
+        "window": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "since": {"type": ["string", "null"]},
+            "until": {"type": ["string", "null"]}
+          }
+        },
+        "imported_from": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["name", "sha256", "format"],
+            "properties": {
+              "name": {"type": "string", "maxLength": 255},
+              "sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+              "format": {"enum": ["jsonl", "json", "assessment", "audit-report"]},
+              "bytes": {"type": "integer", "minimum": 0}
+            }
+          }
+        }
+      }
+    },
+    "host": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["host_id", "hostname", "os"],
+      "properties": {
+        "host_id": {"type": "string", "minLength": 1, "maxLength": 128},
+        "hostname": {"type": "string", "minLength": 1, "maxLength": 255},
+        "os": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["family"],
+          "properties": {
+            "family": {"enum": ["linux", "windows"]},
+            "name": {"type": "string", "maxLength": 120},
+            "version": {"type": "string", "maxLength": 120}
+          }
+        },
+        "arch": {"type": "string", "maxLength": 40}
+      }
+    },
+    "coverage": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["category", "status", "records"],
+        "properties": {
+          "category": {"$ref": "#/$defs/category"},
+          "scope": {"type": "string", "maxLength": 120},
+          "status": {"enum": ["complete", "partial", "unavailable", "not_applicable"]},
+          "reason": {"type": "string", "maxLength": 600},
+          "records": {"type": "integer", "minimum": 0}
+        }
+      }
+    },
+    "records": {"type": "array", "items": {"$ref": "#/$defs/record"}},
+    "errors": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["code", "message"],
+        "properties": {
+          "code": {"type": "string", "maxLength": 80},
+          "message": {"type": "string", "maxLength": 600},
+          "category": {"type": "string", "maxLength": 60},
+          "source": {"type": "string", "maxLength": 300}
+        }
+      }
+    },
+    "rejected": {
+      "type": "array",
+      "description": "Input records that failed validation, kept so that nothing is silently discarded.",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["origin", "reasons"],
+        "properties": {
+          "origin": {"type": "string", "maxLength": 200},
+          "reasons": {"type": "array", "items": {"type": "string", "maxLength": 300}, "maxItems": 10},
+          "category": {"type": "string", "maxLength": 60}
+        }
+      }
+    },
+    "conflicts": {
+      "type": "array",
+      "description": "Observations with the same record_id but different attributes. The newest observation was kept.",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["record_id", "category", "differing_attributes", "kept"],
+        "properties": {
+          "record_id": {"type": "string"},
+          "category": {"type": "string"},
+          "differing_attributes": {"type": "array", "items": {"type": "string"}, "maxItems": 50},
+          "kept": {"enum": ["newest", "first"]}
+        }
+      }
+    },
+    "summary": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["records", "by_category", "by_status", "rejected", "duplicates_merged", "conflicts", "coverage", "complete"],
+      "properties": {
+        "records": {"type": "integer", "minimum": 0},
+        "by_category": {"type": "object", "additionalProperties": {"type": "integer", "minimum": 0}},
+        "by_status": {"type": "object", "additionalProperties": {"type": "integer", "minimum": 0}},
+        "rejected": {"type": "integer", "minimum": 0},
+        "duplicates_merged": {"type": "integer", "minimum": 0},
+        "conflicts": {"type": "integer", "minimum": 0},
+        "coverage": {"type": "object", "additionalProperties": {"type": "integer", "minimum": 0}},
+        "complete": {"type": "boolean"}
+      }
+    }
+  },
+  "$defs": {
+    "timestamp": {"type": "string", "pattern": "^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}(\\.\\d+)?Z$"},
+    "category": {
+      "enum": ["process", "user", "group", "session", "service", "scheduled_task", "network_connection", "listener", "auth_event", "security_event", "config_change", "system_config", "integrity", "persistence", "auth_summary"]
+    },
+    "collector": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["name", "version"],
+      "properties": {
+        "name": {"type": "string", "minLength": 1, "maxLength": 80},
+        "version": {"type": "string", "minLength": 1, "maxLength": 40}
+      }
+    },
+    "scalar": {"type": ["string", "number", "boolean", "null"]},
+    "record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["record_id", "host_id", "category", "key", "identity", "observed_at", "os_family", "collector", "source", "method", "attributes", "unknown_attributes", "status", "limitations", "occurrences", "first_seen", "last_seen"],
+      "properties": {
+        "record_id": {"type": "string", "pattern": "^TEL-[0-9a-f]{16}$"},
+        "host_id": {"type": "string", "minLength": 1, "maxLength": 128},
+        "category": {"$ref": "#/$defs/category"},
+        "key": {"type": "string", "minLength": 1, "maxLength": 512},
+        "scope": {"type": "string", "maxLength": 120},
+        "identity": {"type": "string", "minLength": 1, "maxLength": 512},
+        "observed_at": {"$ref": "#/$defs/timestamp"},
+        "event_time": {"$ref": "#/$defs/timestamp"},
+        "os_family": {"enum": ["linux", "windows"]},
+        "collector": {"$ref": "#/$defs/collector"},
+        "source": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["type", "ref"],
+          "properties": {
+            "type": {"enum": ["proc", "file", "command", "api", "eventlog", "registry", "assessment", "derived", "unknown"]},
+            "ref": {"type": "string", "maxLength": 512}
+          }
+        },
+        "method": {"type": "string", "minLength": 1, "maxLength": 120},
+        "attributes": {
+          "type": "object",
+          "additionalProperties": {
+            "anyOf": [
+              {"$ref": "#/$defs/scalar"},
+              {"type": "array", "maxItems": 200, "items": {"$ref": "#/$defs/scalar"}}
+            ]
+          }
+        },
+        "unknown_attributes": {"type": "array", "items": {"type": "string", "maxLength": 64}, "maxItems": 64},
+        "status": {"enum": ["ok", "partial"]},
+        "limitations": {"type": "array", "items": {"type": "string", "maxLength": 300}, "maxItems": 10},
+        "occurrences": {"type": "integer", "minimum": 1},
+        "first_seen": {"$ref": "#/$defs/timestamp"},
+        "last_seen": {"$ref": "#/$defs/timestamp"},
+        "derived_from": {"type": "array", "items": {"type": "string"}, "maxItems": 200},
+        "origin": {"type": "string", "maxLength": 200},
+        "source_record_id": {"type": "string", "maxLength": 80}
+      }
+    }
+  }
+}
