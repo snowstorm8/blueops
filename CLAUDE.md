@@ -14,11 +14,12 @@ Status: the repository is scaffolding. Do not claim a capability exists until it
 
 | Path | Responsibility |
 |---|---|
-| `linux/{audit,persistence,incident,hardening,lib}` | Bash tooling. `lib/` holds sourced helpers only (no top-level side effects). |
-| `windows/{audit,persistence,incident,hardening,lib}` | PowerShell tooling. `lib/` holds dot-sourced/imported helpers only. |
+| `linux/{audit,persistence,telemetry,incident,hardening,lib}` | Bash tooling. `lib/` holds sourced helpers only (no top-level side effects). |
+| `windows/{audit,persistence,telemetry,incident,hardening,lib}` | PowerShell tooling. `lib/` holds dot-sourced/imported helpers only. |
 | `shared/schemas/` | Versioned JSON Schemas (the contract between platforms and tooling). |
 | `shared/engine/` | Python 3 assessment engine: module registry, plugin manifests, runner, profiles, assessment assembly (`python -m shared.engine`). Starts collectors as argv lists only; never inspects a host. |
 | `shared/findings/` | Central findings and evidence: stable ids, deduplication, provenance, standards references. |
+| `shared/telemetry/` | Python 3 endpoint telemetry: model and validation, ingestion (untrusted streams → normalized store), assessment adapter, derived authentication summaries, coverage-aware comparison, constrained queries, hunt preparation, CLI (`telemetry` in `python -m shared.engine`). Hunting rules live in `shared/rules/library/telemetry-hunting.json` and run through the detection engine. Never inspects a host. |
 | `shared/rules/` | Detection and correlation engine: JSON rule packs (`library/`), condition language, evaluator, history, case store, CLI (`rules`, `detect`, `case` in `python -m shared.engine`). Rules are data; the engine never reads a host. |
 | `shared/reporting/` | Python 3 (stdlib-first) code: contracts, report validation, baseline diff, detection, snapshot comparison, Markdown/HTML rendering, the dependency-free schema validator. |
 | `shared/config/` | Platform-neutral default configuration. |
@@ -28,7 +29,7 @@ Status: the repository is scaffolding. Do not claim a capability exists until it
 | `examples/` | Example reports and configs (synthetic). |
 | `scripts/development/` | Maintainer/dev helpers (never deployed to targets). |
 
-Category semantics: **audit** = read-only inspection. **persistence** = read-only detection of persistence mechanisms. **incident** = evidence collection and (opt-in) containment. **hardening** = state-changing configuration. Never mix these in one script: a script lives in exactly one category and its behavior must match that category.
+Category semantics: **audit** = read-only inspection (`telemetry` collectors are read-only too: they only emit a JSON Lines stream). **persistence** = read-only detection of persistence mechanisms. **incident** = evidence collection and (opt-in) containment. **hardening** = state-changing configuration. Never mix these in one script: a script lives in exactly one category and its behavior must match that category.
 
 ## 3. Safety model (non-negotiable)
 

@@ -128,6 +128,19 @@
         "properties": { "rule": { "type": "string" }, "code": { "type": "string" }, "message": { "type": "string" } }
       }
     },
+    "telemetry": {
+      "type": "object",
+      "description": "Present when telemetry was supplied: which collection the telemetry rules read and how complete it was.",
+      "properties": {
+        "collection_id": { "type": "string" },
+        "started_at": { "type": "string" },
+        "records": { "type": "integer" },
+        "complete": { "type": "boolean" },
+        "coverage": { "type": "object" },
+        "unavailable": { "type": "array", "items": { "type": "string" } },
+        "compared_with": { "type": ["string", "null"] }
+      }
+    },
     "summary": {
       "type": "object",
       "additionalProperties": false,
@@ -187,7 +200,8 @@
             "type": "object",
             "properties": {
               "clause": { "type": "string" },
-              "type": { "enum": ["finding", "inventory", "change", "snapshot"] },
+              "type": { "enum": ["finding", "inventory", "change", "snapshot", "telemetry"] },
+              "category": { "type": "string" },
               "label": { "type": "string" },
               "severity": { "$ref": "#/$defs/severity" },
               "id": { "type": "string" },

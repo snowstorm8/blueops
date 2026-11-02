@@ -1228,6 +1228,13 @@
       "version": "1.0.0"
     },
     {
+      "name": "telemetry-hunting",
+      "rules": 24,
+      "sha256": "b3cbc2b27f6db62855794ef9b80c80c2295ef2de7707a6c4e60a97cc626cbb2a",
+      "source": "telemetry-hunting.json",
+      "version": "1.0.0"
+    },
+    {
       "name": "windows-core",
       "rules": 6,
       "sha256": "116bf8a03b9eb54fe49f0804ed3117bfcdafb5d3c71f59da1e2ac146a23bd948",
@@ -1295,6 +1302,120 @@
     },
     {
       "detections": 0,
+      "reason": "no telemetry supplied",
+      "rule": "DR-ANY-HAUTH-001",
+      "status": "not_applicable"
+    },
+    {
+      "detections": 0,
+      "reason": "no telemetry supplied",
+      "rule": "DR-ANY-HAUTH-002",
+      "status": "not_applicable"
+    },
+    {
+      "detections": 0,
+      "reason": "no telemetry supplied",
+      "rule": "DR-ANY-HAUTH-003",
+      "status": "not_applicable"
+    },
+    {
+      "detections": 0,
+      "reason": "no telemetry supplied",
+      "rule": "DR-ANY-HAUTH-004",
+      "status": "not_applicable"
+    },
+    {
+      "detections": 0,
+      "reason": "no telemetry supplied",
+      "rule": "DR-ANY-HCHG-001",
+      "status": "not_applicable"
+    },
+    {
+      "detections": 0,
+      "reason": "no telemetry supplied",
+      "rule": "DR-ANY-HCHG-002",
+      "status": "not_applicable"
+    },
+    {
+      "detections": 0,
+      "reason": "no telemetry supplied",
+      "rule": "DR-ANY-HCHG-003",
+      "status": "not_applicable"
+    },
+    {
+      "detections": 0,
+      "reason": "no telemetry supplied",
+      "rule": "DR-ANY-HCHG-004",
+      "status": "not_applicable"
+    },
+    {
+      "detections": 0,
+      "reason": "no telemetry supplied",
+      "rule": "DR-ANY-HCHG-005",
+      "status": "not_applicable"
+    },
+    {
+      "detections": 0,
+      "reason": "no telemetry supplied",
+      "rule": "DR-ANY-HNET-001",
+      "status": "not_applicable"
+    },
+    {
+      "detections": 0,
+      "reason": "no telemetry supplied",
+      "rule": "DR-ANY-HNET-002",
+      "status": "not_applicable"
+    },
+    {
+      "detections": 0,
+      "reason": "no telemetry supplied",
+      "rule": "DR-ANY-HPER-002",
+      "status": "not_applicable"
+    },
+    {
+      "detections": 0,
+      "reason": "no telemetry supplied",
+      "rule": "DR-ANY-HPRC-001",
+      "status": "not_applicable"
+    },
+    {
+      "detections": 0,
+      "reason": "no telemetry supplied",
+      "rule": "DR-ANY-HPRC-002",
+      "status": "not_applicable"
+    },
+    {
+      "detections": 0,
+      "reason": "no telemetry supplied",
+      "rule": "DR-ANY-HPRC-004",
+      "status": "not_applicable"
+    },
+    {
+      "detections": 0,
+      "reason": "no telemetry supplied",
+      "rule": "DR-ANY-HSVC-001",
+      "status": "not_applicable"
+    },
+    {
+      "detections": 0,
+      "reason": "no telemetry supplied",
+      "rule": "DR-ANY-HSVC-002",
+      "status": "not_applicable"
+    },
+    {
+      "detections": 0,
+      "reason": "no telemetry supplied",
+      "rule": "DR-ANY-HTSK-001",
+      "status": "not_applicable"
+    },
+    {
+      "detections": 0,
+      "reason": "no telemetry supplied",
+      "rule": "DR-ANY-HTSK-002",
+      "status": "not_applicable"
+    },
+    {
+      "detections": 0,
       "rule": "DR-ANY-NET-001",
       "status": "evaluated"
     },
@@ -1327,6 +1448,16 @@
     {
       "detections": 0,
       "rule": "DR-LNX-FS-001",
+      "status": "not_applicable"
+    },
+    {
+      "detections": 0,
+      "rule": "DR-LNX-HPER-001",
+      "status": "not_applicable"
+    },
+    {
+      "detections": 0,
+      "rule": "DR-LNX-HPRC-003",
       "status": "not_applicable"
     },
     {
@@ -1370,6 +1501,24 @@
       "status": "evaluated"
     },
     {
+      "detections": 0,
+      "reason": "no telemetry supplied",
+      "rule": "DR-WIN-HAUTH-005",
+      "status": "not_applicable"
+    },
+    {
+      "detections": 0,
+      "reason": "no telemetry supplied",
+      "rule": "DR-WIN-HPRC-005",
+      "status": "not_applicable"
+    },
+    {
+      "detections": 0,
+      "reason": "no telemetry supplied",
+      "rule": "DR-WIN-HPRC-006",
+      "status": "not_applicable"
+    },
+    {
       "detections": 1,
       "rule": "DR-WIN-LOG-001",
       "status": "evaluated"
@@ -1395,8 +1544,8 @@
     "error": 0,
     "evaluated": 12,
     "indeterminate": 8,
-    "not_applicable": 9,
-    "total": 29
+    "not_applicable": 33,
+    "total": 53
   },
   "schema_version": "0.1.0",
   "summary": {

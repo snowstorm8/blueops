@@ -15,6 +15,25 @@ A test fails if this file is out of date. Each rule below also ships executable 
 | [DR-ANY-COR-003](#dr-any-cor-003---scheduled-job-change-together-with-an-account-or-group-change) | Scheduled-job change together with an account or group change | any | medium | low | correlated |
 | [DR-ANY-COR-004](#dr-any-cor-004---multiple-authentication-configuration-weaknesses) | Multiple authentication-configuration weaknesses | any | medium | medium | correlated |
 | [DR-ANY-COR-005](#dr-any-cor-005---logging-or-protection-impaired-alongside-a-persistence-indicator) | Logging or protection impaired alongside a persistence indicator | any | high | medium | correlated |
+| [DR-ANY-HAUTH-001](#dr-any-hauth-001---many-failed-logins-from-one-source-across-several-accounts) | Many failed logins from one source across several accounts | any | medium | medium | indicator |
+| [DR-ANY-HAUTH-002](#dr-any-hauth-002---successful-login-after-repeated-failures-from-the-same-source) | Successful login after repeated failures from the same source | any | high | medium | indicator |
+| [DR-ANY-HAUTH-003](#dr-any-hauth-003---remote-login-to-a-built-in-administrative-account) | Remote login to a built-in administrative account | any | medium | low | observation |
+| [DR-ANY-HAUTH-004](#dr-any-hauth-004---account-created-and-added-to-a-privileged-group-in-the-same-period) | Account created and added to a privileged group in the same period | any | high | medium | correlated |
+| [DR-ANY-HCHG-001](#dr-any-hchg-001---new-listening-port-since-the-previous-telemetry-snapshot) | New listening port since the previous telemetry snapshot | any | medium | medium | observation |
+| [DR-ANY-HCHG-002](#dr-any-hchg-002---new-service-since-the-previous-telemetry-snapshot) | New service since the previous telemetry snapshot | any | low | medium | observation |
+| [DR-ANY-HCHG-003](#dr-any-hchg-003---monitored-sensitive-file-changed-since-the-previous-telemetry-snapshot) | Monitored sensitive file changed since the previous telemetry snapshot | any | medium | medium | indicator |
+| [DR-ANY-HCHG-004](#dr-any-hchg-004---privileged-group-membership-changed-since-the-previous-telemetry-snapshot) | Privileged group membership changed since the previous telemetry snapshot | any | high | medium | indicator |
+| [DR-ANY-HCHG-005](#dr-any-hchg-005---new-scheduled-task-since-the-previous-telemetry-snapshot) | New scheduled task since the previous telemetry snapshot | any | low | medium | observation |
+| [DR-ANY-HNET-001](#dr-any-hnet-001---network-listener-owned-by-a-process-in-a-temporary-location) | Network listener owned by a process in a temporary location | any | high | medium | correlated |
+| [DR-ANY-HNET-002](#dr-any-hnet-002---outbound-connection-from-an-interpreter-or-download-utility) | Outbound connection from an interpreter or download utility | any | medium | low | indicator |
+| [DR-ANY-HPER-002](#dr-any-hper-002---autostart-entry-pointing-into-a-user-writable-location) | Autostart entry pointing into a user-writable location | any | medium | medium | indicator |
+| [DR-ANY-HPRC-001](#dr-any-hprc-001---shell-or-script-host-started-by-a-network-facing-service) | Shell or script host started by a network-facing service | any | high | medium | indicator |
+| [DR-ANY-HPRC-002](#dr-any-hprc-002---process-executing-from-a-temporary-or-world-writable-location) | Process executing from a temporary or world-writable location | any | medium | medium | indicator |
+| [DR-ANY-HPRC-004](#dr-any-hprc-004---command-shell-with-an-established-network-connection) | Command shell with an established network connection | any | high | medium | correlated |
+| [DR-ANY-HSVC-001](#dr-any-hsvc-001---service-whose-program-is-in-a-user-writable-or-temporary-location) | Service whose program is in a user-writable or temporary location | any | medium | medium | indicator |
+| [DR-ANY-HSVC-002](#dr-any-hsvc-002---service-installed-during-the-collection-window-and-running-from-a-user-writable-path) | Service installed during the collection window and running from a user-writable path | any | high | medium | correlated |
+| [DR-ANY-HTSK-001](#dr-any-htsk-001---scheduled-task-or-cron-entry-with-a-download-and-execute-or-remote-shell-pattern) | Scheduled task or cron entry with a download-and-execute or remote-shell pattern | any | high | medium | indicator |
+| [DR-ANY-HTSK-002](#dr-any-htsk-002---privileged-scheduled-job-running-a-program-from-a-user-writable-location) | Privileged scheduled job running a program from a user-writable location | any | medium | medium | indicator |
 | [DR-ANY-NET-001](#dr-any-net-001---cleartext-remote-access-service-listening-on-a-non-loopback-address) | Cleartext remote-access service listening on a non-loopback address | any | high | medium | indicator |
 | [DR-ANY-NET-002](#dr-any-net-002---host-firewall-absent-or-permissive-while-management-or-data-services-listen) | Host firewall absent or permissive while management or data services listen | any | high | medium | correlated |
 | [DR-ANY-PRIV-001](#dr-any-priv-001---membership-of-a-privileged-group-changed) | Membership of a privileged group changed | any | high | medium | indicator |
@@ -22,6 +41,8 @@ A test fails if this file is out of date. Each rule below also ships executable 
 | [DR-LNX-ACC-001](#dr-lnx-acc-001---non-root-account-with-uid-0) | Non-root account with UID 0 | linux | high | high | indicator |
 | [DR-LNX-ACC-002](#dr-lnx-acc-002---login-capable-account-with-an-empty-password) | Login-capable account with an empty password | linux | high | high | observation |
 | [DR-LNX-FS-001](#dr-lnx-fs-001---suidsgid-binary-in-a-user-writable-location) | SUID/SGID binary in a user-writable location | linux | high | medium | indicator |
+| [DR-LNX-HPER-001](#dr-lnx-hper-001---dynamic-linker-preload-configured) | Dynamic-linker preload configured | linux | high | medium | indicator |
+| [DR-LNX-HPRC-003](#dr-lnx-hprc-003---running-program-whose-executable-file-has-been-deleted) | Running program whose executable file has been deleted | linux | medium | medium | indicator |
 | [DR-LNX-LOG-001](#dr-lnx-log-001---system-log-redirected-to-a-device) | System log redirected to a device | linux | high | high | indicator |
 | [DR-LNX-PER-001](#dr-lnx-per-001---persistence-entry-with-attacker-style-behaviour) | Persistence entry with attacker-style behaviour | linux | high | medium | indicator |
 | [DR-LNX-PKG-001](#dr-lnx-pkg-001---installed-programs-differ-from-their-package-checksums) | Installed programs differ from their package checksums | linux | high | medium | indicator |
@@ -30,6 +51,9 @@ A test fails if this file is out of date. Each rule below also ships executable 
 | [DR-LNX-SYS-001](#dr-lnx-sys-001---crash-dump-handler-runs-an-unrecognised-program) | Crash-dump handler runs an unrecognised program | linux | high | medium | indicator |
 | [DR-WIN-ACC-001](#dr-win-acc-001---enabled-local-account-that-is-hidden-or-needs-no-password) | Enabled local account that is hidden or needs no password | windows | high | medium | indicator |
 | [DR-WIN-CRED-001](#dr-win-cred-001---credential-protections-weakened-alongside-weakened-endpoint-defences) | Credential protections weakened alongside weakened endpoint defences | windows | medium | medium | correlated |
+| [DR-WIN-HAUTH-005](#dr-win-hauth-005---security-log-cleared) | Security log cleared | windows | high | high | indicator |
+| [DR-WIN-HPRC-005](#dr-win-hprc-005---script-host-started-by-an-office-application) | Script host started by an Office application | windows | high | medium | indicator |
+| [DR-WIN-HPRC-006](#dr-win-hprc-006---powershell-started-with-an-encoded-command) | PowerShell started with an encoded command | windows | medium | medium | indicator |
 | [DR-WIN-LOG-001](#dr-win-log-001---several-event-logging-and-audit-weaknesses-together) | Several event-logging and audit weaknesses together | windows | medium | medium | correlated |
 | [DR-WIN-PER-001](#dr-win-per-001---registry-or-wmi-persistence-mechanism-commonly-used-for-stealthy-execution) | Registry or WMI persistence mechanism commonly used for stealthy execution | windows | high | medium | indicator |
 | [DR-WIN-SVC-001](#dr-win-svc-001---privileged-service-runs-a-binary-from-a-user-writable-path) | Privileged service runs a binary from a user-writable path | windows | high | medium | indicator |
@@ -558,6 +582,1043 @@ Requires: `(impair all persist)`.
 - `no_match`: impairment only
 - `match`: windows event log service off plus WMI consumer
 
+### DR-ANY-HAUTH-001 - Many failed logins from one source across several accounts
+
+One source address had at least 10 failed logins against at least 3 different accounts in the collected events.
+
+| | |
+|---|---|
+| Version | 1.0.0 (pack `telemetry-hunting`) |
+| Platforms | any |
+| Category | hunt-auth |
+| Nature | indicator |
+| Severity | medium: Guessing many passwords across accounts is how password spraying and brute force appear in logs. |
+| Confidence | medium: Counts come from collected events; the window is whatever the collector read, and failures also come from misconfigured clients. |
+| Enabled by default | yes |
+| Needs coverage | `telemetry:auth_event` |
+
+**Why it matters.** Several accounts failing from a single address in one window is a spraying pattern. The rule does not know whether the address belongs to you; a scanner, a misconfigured monitor, or a user mistyping can look the same.
+
+**Conditions.**
+
+- `src` on `telemetry`: A source with many failures against several accounts  
+  `(category eq 'auth_summary') all (attrs.grouping eq 'source') all (attrs.failures gte 10) all (attrs.users_targeted gte 3)`
+
+Requires: `src`. Items are grouped by `record_id`.
+
+**Possible benign causes.**
+
+- A vulnerability scanner or monitoring probe with stale credentials.
+- A misconfigured automation using an old password for several accounts.
+
+**Would raise confidence.**
+
+- A successful login from the same source afterwards.
+- Targeted accounts include administrative or default names.
+
+**Investigate.**
+
+1. Check whether the address is yours \(asset inventory, VPN, NAT\).
+2. Look for a success from the same address \(DR-ANY-HAUTH-002\).
+3. Block or rate-limit the address at the edge if hostile.
+4. Check which accounts were targeted and whether they exist.
+
+**Remediation.** Rate-limit or block the source at the network edge and enforce MFA/lockout per policy. This tool does not change the host.
+
+**References.**
+
+- ATT&CK [T1110.003](https://attack.mitre.org/techniques/T1110/003/) (possible): The pattern matches password spraying; the data does not prove the intent.
+- ATT&CK [T1110](https://attack.mitre.org/techniques/T1110/) (possible): Repeated failures are consistent with guessing; benign causes are common.
+- NIST SP 800-53 Rev. 5: AC-7, AU-6, SI-4
+
+**Examples (executed by `rules test`).**
+
+- `match`: spray from one address
+- `no_match`: many failures against one account
+- `no_match`: few failures
+- `indeterminate`: auth events unavailable
+
+### DR-ANY-HAUTH-002 - Successful login after repeated failures from the same source
+
+A source had at least 5 failed logins and later a successful one in the collected events.
+
+| | |
+|---|---|
+| Version | 1.0.0 (pack `telemetry-hunting`) |
+| Platforms | any |
+| Category | hunt-auth |
+| Nature | indicator |
+| Severity | high: A success following a run of failures is the pattern of a guessed credential. |
+| Confidence | medium: Event order comes from the collected timestamps; users legitimately mistype passwords before succeeding. |
+| Enabled by default | yes |
+| Needs coverage | `telemetry:auth_event` |
+
+**Why it matters.** A burst of failures followed by a success is how a successful guess looks in logs. Because users also fail repeatedly before getting it right, the rule needs the number of failures and the source to be unusual.
+
+**Conditions.**
+
+- `src` on `telemetry`: A source whose success followed repeated failures  
+  `(category eq 'auth_summary') all (attrs.grouping eq 'source') all (attrs.failures gte 5) all (attrs.successes gte 1) all (attrs.success_after_failure is_true)`
+
+Requires: `src`. Items are grouped by `record_id`.
+
+**Possible benign causes.**
+
+- A user who forgot their password and then recalled it.
+- Automation retrying with a rotating credential.
+
+**Would raise confidence.**
+
+- Followed by privileged actions \(sudo, new accounts\).
+- Source has no earlier successful history.
+
+**Investigate.**
+
+1. List the accounts that succeeded and what they did next \(sessions, sudo, new processes\).
+2. Confirm with the account owner whether it was them.
+3. Check the source address against known user locations.
+
+**Remediation.** If the login was not the account owner, reset the credential, end its sessions and review what it did per your incident process. This tool does not change the host.
+
+**References.**
+
+- ATT&CK [T1110](https://attack.mitre.org/techniques/T1110/) (possible): A success after many failures is consistent with a guessed credential; it does not prove one.
+- ATT&CK [T1078](https://attack.mitre.org/techniques/T1078/) (possible): A valid account was used; whether by its owner is not established.
+- NIST SP 800-53 Rev. 5: AC-7, AU-6, IA-5
+
+**Examples (executed by `rules test`).**
+
+- `match`: success after failures
+- `no_match`: success before the failures
+- `no_match`: failures only
+- `no_match`: no event times so order is unknown
+
+### DR-ANY-HAUTH-003 - Remote login to a built-in administrative account
+
+A successful login as root or Administrator came from a non-local address.
+
+| | |
+|---|---|
+| Version | 1.0.0 (pack `telemetry-hunting`) |
+| Platforms | any |
+| Category | hunt-auth |
+| Nature | observation |
+| Severity | medium: Direct logins to the most privileged account bypass per-user accountability and are a prime target. |
+| Confidence | low: It may be sanctioned practice in small environments; policy decides. |
+| Enabled by default | yes |
+| Needs coverage | `telemetry:auth_event` |
+
+**Why it matters.** A direct remote login to root or Administrator is unusual in hardened environments, where administrators use named accounts and elevate. It is an observation about practice, not a sign of compromise.
+
+**Conditions.**
+
+- `login` on `telemetry`: A successful remote login to an administrative account  
+  `(category eq 'auth_event') all (attrs.action eq 'login_success') all ((attrs.user ieq 'root') any (attrs.user ieq 'administrator')) all (attrs.source_address present) all (not (attrs.source_address in ['127.0.0.1', '::1', '-', 'localhost']))`
+
+Requires: `login`. Items are grouped by `record_id`.
+
+**Possible benign causes.**
+
+- Break-glass access during maintenance.
+- Small systems where root login is the practice.
+
+**Would raise confidence.**
+
+- Outside business hours.
+- Followed by configuration changes.
+
+**Investigate.**
+
+1. Confirm whether direct administrative logins are allowed here.
+2. Verify the source address and time with the administrator.
+3. Prefer named accounts with privilege elevation.
+
+**Remediation.** Disable direct administrative remote login if policy forbids it. This tool does not change the host.
+
+**References.**
+
+- ATT&CK [T1078.003](https://attack.mitre.org/techniques/T1078/003/) (possible): A local privileged account was used; whether by its owner is not established.
+- NIST SP 800-53 Rev. 5: AC-6, AC-2, AU-6
+
+**Examples (executed by `rules test`).**
+
+- `match`: remote root login
+- `no_match`: local console root
+- `no_match`: remote ordinary user
+
+### DR-ANY-HAUTH-004 - Account created and added to a privileged group in the same period
+
+Events show a new account and a privileged-group addition for the same account.
+
+| | |
+|---|---|
+| Version | 1.0.0 (pack `telemetry-hunting`) |
+| Platforms | any |
+| Category | hunt-auth |
+| Nature | correlated |
+| Severity | high: Creating an account and immediately granting administrative rights is how persistent access is often established. |
+| Confidence | medium: Both events are observed and joined by account name; onboarding does the same. |
+| Enabled by default | yes |
+| Needs coverage | `telemetry:auth_event` |
+
+**Why it matters.** A new account that is promptly privileged is a standard persistence step, and it is also what a legitimate administrator does when onboarding someone. The actor and change records decide which.
+
+**Conditions.**
+
+- `new` on `telemetry`: An account creation event  
+  `(category eq 'auth_event') all (attrs.action eq 'account_change') all (attrs.change eq 'created')`
+- `grp` on `telemetry`: An addition to a privileged group  
+  `(category eq 'auth_event') all (attrs.action eq 'group_change') all (attrs.change eq 'member_added') all (attrs.group in ['sudo', 'wheel', 'admin', 'root', 'adm', 'administrators', ...])`
+
+Requires: `(new all grp)`. Items are grouped by `attrs.user`.
+
+**Possible benign causes.**
+
+- Planned onboarding of an administrator.
+
+**Would raise confidence.**
+
+- The actor is an unexpected account or a service.
+- The account has logged in from a new source.
+
+**Investigate.**
+
+1. Find who performed the change \(actor, session, source address\).
+2. Check for a ticket or request for the account.
+3. Review what the new account did since.
+4. Compare the account list with the last snapshot.
+
+**Remediation.** If unauthorised, disable the account \(do not delete it, it is evidence\), remove the membership and review the actor's session per your incident process. This tool does not change the host.
+
+**References.**
+
+- ATT&CK [T1136.001](https://attack.mitre.org/techniques/T1136/001/) (possible): A local account was created; whether it is unauthorised is not established.
+- ATT&CK [T1098](https://attack.mitre.org/techniques/T1098/) (possible): Group membership was changed; the intent is not established.
+- NIST SP 800-53 Rev. 5: AC-2, AC-6, AU-6
+
+**Examples (executed by `rules test`).**
+
+- `match`: create then add to sudo
+- `no_match`: create without privilege
+- `no_match`: different accounts
+
+### DR-ANY-HCHG-001 - New listening port since the previous telemetry snapshot
+
+A listener on a non-loopback address appears that was not present in the earlier telemetry.
+
+| | |
+|---|---|
+| Version | 1.0.0 (pack `telemetry-hunting`) |
+| Platforms | any |
+| Category | hunt-change |
+| Nature | observation |
+| Severity | medium: A new inbound-reachable service is a change in attack surface and possibly a backdoor. |
+| Confidence | medium: Both snapshots completely covered listeners, so the new listener is a real difference; its purpose is unknown. |
+| Enabled by default | yes |
+| Needs coverage | `telemetry:listener` |
+
+**Why it matters.** A listening port that was not there before is a difference in how the host can be reached. It is reported as an observation because planned deployments do exactly this.
+
+**Conditions.**
+
+- `new` on `telemetry_changes`: A listener added since the baseline  
+  `(category eq 'listener') all (change eq 'added') all (determinate is_true) all (not ((attrs.local_address regex '^127\\.') any (attrs.local_address in ['::1', '[::1]', 'localhost'])))`
+
+Requires: `new`. Items are grouped by `record_id`.
+
+**Possible benign causes.**
+
+- A planned service deployment or upgrade.
+
+**Would raise confidence.**
+
+- The owning process is in a temporary location \(DR-ANY-HNET-001\).
+
+**Investigate.**
+
+1. Find the owning process and how it started.
+2. Check change records for a deployment.
+3. Check whether the port is reachable from untrusted networks.
+
+**Remediation.** If unplanned, investigate the process and restrict access per your incident process. This tool does not change the host.
+
+**References.**
+
+- ATT&CK [T1571](https://attack.mitre.org/techniques/T1571/) (possible): A new port can be a non-standard communication channel; this shows only that it appeared.
+- NIST SP 800-53 Rev. 5: CM-3, CM-8, SC-7
+
+**Examples (executed by `rules test`).**
+
+- `match`: new listener
+- `no_match`: unchanged
+- `indeterminate`: baseline listeners were not collected
+
+### DR-ANY-HCHG-002 - New service since the previous telemetry snapshot
+
+A service exists that was not in the earlier telemetry.
+
+| | |
+|---|---|
+| Version | 1.0.0 (pack `telemetry-hunting`) |
+| Platforms | any |
+| Category | hunt-change |
+| Nature | observation |
+| Severity | low: New automatic execution is a change worth confirming; most are planned. |
+| Confidence | medium: Both snapshots completely covered the category, so the addition is real; its purpose is unknown. |
+| Enabled by default | yes |
+| Needs coverage | `telemetry:service` |
+
+**Why it matters.** Persistence frequently takes the form of a new service or task. Because installations and updates add them routinely, this is reported as an observation to reconcile with change records.
+
+**Conditions.**
+
+- `new` on `telemetry_changes`: A service added since the baseline  
+  `(category eq 'service') all (change eq 'added') all (determinate is_true)`
+
+Requires: `new`. Items are grouped by `record_id`.
+
+**Possible benign causes.**
+
+- Software installation or update.
+
+**Would raise confidence.**
+
+- It runs from a user-writable path \(DR-ANY-HSVC-001, DR-ANY-HTSK-002\).
+
+**Investigate.**
+
+1. Reconcile with change records or deployments.
+2. Examine the command or binary it runs.
+3. Check who created it.
+
+**Remediation.** If unplanned, investigate before any change per your incident process. This tool does not change the host.
+
+**References.**
+
+- ATT&CK [T1053](https://attack.mitre.org/techniques/T1053/) (possible): New scheduled execution can indicate persistence; this shows only that it appeared.
+- ATT&CK [T1543](https://attack.mitre.org/techniques/T1543/) (possible): New services can indicate persistence; this shows only that it appeared.
+- NIST SP 800-53 Rev. 5: CM-3, CM-8, AU-6
+
+**Examples (executed by `rules test`).**
+
+- `match`: new service
+- `no_match`: same services
+- `indeterminate`: services unavailable in current
+
+### DR-ANY-HCHG-003 - Monitored sensitive file changed since the previous telemetry snapshot
+
+The hash of an account, privilege, SSH, preload or hosts file differs from the earlier snapshot.
+
+| | |
+|---|---|
+| Version | 1.0.0 (pack `telemetry-hunting`) |
+| Platforms | any |
+| Category | hunt-change |
+| Nature | indicator |
+| Severity | medium: These files control who can log in and with what privileges; unexpected edits are a high-value signal. |
+| Confidence | medium: The content hash changed between two complete snapshots; the cause is not known. |
+| Enabled by default | yes |
+| Needs coverage | `telemetry:integrity` |
+
+**Why it matters.** A change to passwd, sudoers, sshd\_config, authorized\_keys, ld.so.preload or hosts changes who can access the host or what runs. Legitimate administration changes them too, so the question is whether this change was planned.
+
+**Conditions.**
+
+- `chg` on `telemetry_changes`: A monitored file whose hash changed  
+  `(category eq 'integrity') all (change eq 'changed') all (determinate is_true) all (attributes.names contains 'sha256') all (attrs.path regex '(?i)(/etc/(passwd|group|shadow|sudoers|ssh/sshd_config|ld\\.so\\.preload|hosts|crontab|rc\\.local)$|/authorized_keys2?$|\\\\drivers\\\\etc\\\\hosts$)')`
+
+Requires: `chg`. Items are grouped by `record_id`.
+
+**Possible benign causes.**
+
+- Planned account or access administration.
+
+**Would raise confidence.**
+
+- Change coincides with a login from a new source.
+- A new account, key or sudo rule appears.
+
+**Investigate.**
+
+1. Diff the file against the previous copy or a package default.
+2. Find who changed it \(audit logs, shell history, auth events\).
+3. Reconcile with change records.
+
+**Remediation.** If unauthorised, preserve both versions as evidence, then restore from a trusted source per your incident process. This tool does not change the host.
+
+**References.**
+
+- ATT&CK [T1098](https://attack.mitre.org/techniques/T1098/) (possible): Changes to account or access configuration can be persistence; intent is not established.
+- ATT&CK [T1565.001](https://attack.mitre.org/techniques/T1565/001/) (possible): Stored data was modified; whether maliciously is not established.
+- NIST SP 800-53 Rev. 5: CM-3, SI-7, AU-6
+
+**Examples (executed by `rules test`).**
+
+- `match`: sudoers changed
+- `no_match`: sudoers unchanged
+- `no_match`: unmonitored file changed
+
+### DR-ANY-HCHG-004 - Privileged group membership changed since the previous telemetry snapshot
+
+The member list of an administrative group differs from the earlier snapshot.
+
+| | |
+|---|---|
+| Version | 1.0.0 (pack `telemetry-hunting`) |
+| Platforms | any |
+| Category | hunt-change |
+| Nature | indicator |
+| Severity | high: Changes to administrative groups change who holds the most powerful rights. |
+| Confidence | medium: Both snapshots completely covered groups; which member changed is shown in the contributing item. |
+| Enabled by default | yes |
+| Needs coverage | `telemetry:group` |
+
+**Why it matters.** Membership of sudo, wheel, admin, root or Administrators grants administrative rights. The rule reports that the list changed and shows before/after; it does not judge who was added.
+
+**Conditions.**
+
+- `grp` on `telemetry_changes`: A privileged group whose members changed  
+  `(category eq 'group') all (change eq 'changed') all (determinate is_true) all (attributes.names contains 'members') all (attrs.name in ['sudo', 'wheel', 'admin', 'root', 'adm', 'administrators', ...])`
+
+Requires: `grp`. Items are grouped by `record_id`.
+
+**Possible benign causes.**
+
+- Planned privilege grants or removals.
+
+**Would raise confidence.**
+
+- The added account was created recently \(DR-ANY-HAUTH-004\).
+
+**Investigate.**
+
+1. Compare the before/after member lists in the contributing item.
+2. Reconcile with change records.
+3. Review the added accounts' recent activity.
+
+**Remediation.** If unauthorised, remove the membership through your normal process after preserving evidence. This tool does not change the host.
+
+**References.**
+
+- ATT&CK [T1098](https://attack.mitre.org/techniques/T1098/) (possible): Group membership changes can be privilege persistence; intent is not established.
+- NIST SP 800-53 Rev. 5: AC-2, AC-6, AU-6
+
+**Examples (executed by `rules test`).**
+
+- `match`: sudo gained a member
+- `no_match`: sudo unchanged
+- `no_match`: non-privileged group changed
+
+### DR-ANY-HCHG-005 - New scheduled task since the previous telemetry snapshot
+
+A scheduled task or cron entry exists that was not in the earlier telemetry.
+
+| | |
+|---|---|
+| Version | 1.0.0 (pack `telemetry-hunting`) |
+| Platforms | any |
+| Category | hunt-change |
+| Nature | observation |
+| Severity | low: New automatic execution is a change worth confirming; most are planned. |
+| Confidence | medium: Both snapshots completely covered the category, so the addition is real; its purpose is unknown. |
+| Enabled by default | yes |
+| Needs coverage | `telemetry:scheduled_task` |
+
+**Why it matters.** Persistence frequently takes the form of a new service or task. Because installations and updates add them routinely, this is reported as an observation to reconcile with change records.
+
+**Conditions.**
+
+- `new` on `telemetry_changes`: A scheduled task added since the baseline  
+  `(category eq 'scheduled_task') all (change eq 'added') all (determinate is_true)`
+
+Requires: `new`. Items are grouped by `record_id`.
+
+**Possible benign causes.**
+
+- Software installation or update.
+
+**Would raise confidence.**
+
+- It runs from a user-writable path \(DR-ANY-HTSK-001, DR-ANY-HTSK-002\).
+
+**Investigate.**
+
+1. Reconcile with change records or deployments.
+2. Examine the command or binary it runs.
+3. Check who created it.
+
+**Remediation.** If unplanned, investigate before any change per your incident process. This tool does not change the host.
+
+**References.**
+
+- ATT&CK [T1053](https://attack.mitre.org/techniques/T1053/) (possible): New scheduled execution can indicate persistence; this shows only that it appeared.
+- ATT&CK [T1543](https://attack.mitre.org/techniques/T1543/) (possible): New services can indicate persistence; this shows only that it appeared.
+- NIST SP 800-53 Rev. 5: CM-3, CM-8, AU-6
+
+**Examples (executed by `rules test`).**
+
+- `match`: new task
+- `no_match`: same tasks
+- `indeterminate`: tasks unavailable in current
+
+### DR-ANY-HNET-001 - Network listener owned by a process in a temporary location
+
+A process listening on a non-loopback address runs from a temporary or world-writable directory.
+
+| | |
+|---|---|
+| Version | 1.0.0 (pack `telemetry-hunting`) |
+| Platforms | any |
+| Category | hunt-network |
+| Nature | correlated |
+| Severity | high: A staged program that accepts connections can be a backdoor or proxy. |
+| Confidence | medium: Both facts are observed and tied together by process id; test servers run from temp directories too. |
+| Enabled by default | yes |
+| Needs coverage | `telemetry:process`, `telemetry:listener` |
+
+**Why it matters.** A listening socket and a staged executable that share a process id suggest a program that was dropped and then opened for inbound access. Each observation alone is weak; together they are worth prompt triage.
+
+**Conditions.**
+
+- `lst` on `telemetry`: A listener on a non-loopback address  
+  `(category eq 'listener') all (not ((attrs.local_address regex '^127\\.') any (attrs.local_address in ['::1', '[::1]', 'localhost'])))`
+- `p` on `telemetry`: A process executing from a temporary location  
+  `(category eq 'process') all (attrs.exe regex '(?i)^(/tmp/|/var/tmp/|/dev/shm/|/run/shm/)|\\\\(appdata\\\\local\\\\temp|windows\\\\temp|users\\\\public)\\\\')`
+
+Requires: `(lst all p)`. Items are grouped by `attrs.pid`.
+
+**Possible benign causes.**
+
+- A developer running a test server from a scratch directory.
+- Pid reuse between the listener and process collection moments.
+
+**Would raise confidence.**
+
+- Connections from external addresses to the port.
+- The executable is deleted or unsigned.
+
+**Investigate.**
+
+1. Identify the port's expected purpose.
+2. Check firewall rules that expose the port.
+3. Hash and examine the executable; review how it arrived.
+4. Review connections to the port.
+
+**Remediation.** If unauthorised, preserve evidence, then block the port and stop the process per your incident process. This tool does not change the host.
+
+**References.**
+
+- ATT&CK [T1090](https://attack.mitre.org/techniques/T1090/) (possible): A listener can be used as a proxy or relay; the data does not show traffic.
+- ATT&CK [T1571](https://attack.mitre.org/techniques/T1571/) (possible): A non-standard port may be in use; whether it is an adversary channel is not established.
+- NIST SP 800-53 Rev. 5: SC-7, SI-4, CM-7
+
+**Examples (executed by `rules test`).**
+
+- `match`: listener from /tmp
+- `no_match`: listener from /usr/sbin
+- `no_match`: loopback listener from /tmp
+
+### DR-ANY-HNET-002 - Outbound connection from an interpreter or download utility
+
+A scripting interpreter, shell, or download utility owns an established connection to a non-private address.
+
+| | |
+|---|---|
+| Version | 1.0.0 (pack `telemetry-hunting`) |
+| Platforms | any |
+| Category | hunt-network |
+| Nature | indicator |
+| Severity | medium: Interpreters and download tools are used to fetch payloads and to tunnel traffic, but they are also everyday tools. |
+| Confidence | low: Only the process name and remote address are known; the traffic content and purpose are not. |
+| Enabled by default | yes |
+| Needs coverage | `telemetry:network_connection` |
+
+**Why it matters.** Living-off-the-land tooling is chosen because it is already trusted. A connection by such a tool to an external address is a lead to follow up with the process tree, user and timing, not a conclusion.
+
+**Conditions.**
+
+- `net` on `telemetry`: An established external connection owned by an interpreter or downloader  
+  `(category eq 'network_connection') all (attrs.state ieq 'established') all (attrs.process in ['python', 'python3', 'perl', 'ruby', 'php', 'nc', ...]) all (attrs.remote_address present) all (not (attrs.remote_address regex '^(10\\.|192\\.168\\.|172\\.(1[6-9]|2[0-9]|3[01])\\.|127\\.|169\\.254\\.|::1$|fe80:|f[cd][0-9a-f]{2}:|0\\.0\\.0\\.0$|::$)'))`
+
+Requires: `net`. Items are grouped by `record_id`.
+
+**Possible benign causes.**
+
+- Package updates \(curl/wget/pip\) and configuration management.
+- Administrators downloading files.
+
+**Would raise confidence.**
+
+- Parent is a server or Office process.
+- Repeated connections at regular intervals \(beaconing\).
+
+**Investigate.**
+
+1. Find the process and its parent chain.
+2. Check the remote address and port against expectations.
+3. Review proxy and DNS logs for the same period.
+
+**Remediation.** If unexplained, capture evidence and restrict egress per your incident process. This tool does not change the host.
+
+**References.**
+
+- ATT&CK [T1105](https://attack.mitre.org/techniques/T1105/) (possible): Download utilities can transfer tools; this shows a connection, not a transfer.
+- ATT&CK [T1071](https://attack.mitre.org/techniques/T1071/) (possible): An outbound application-layer connection exists; its content is unknown.
+- NIST SP 800-53 Rev. 5: SC-7, SI-4
+
+**Examples (executed by `rules test`).**
+
+- `match`: curl to external host
+- `no_match`: curl to internal host
+- `no_match`: browser to external host
+
+### DR-ANY-HPER-002 - Autostart entry pointing into a user-writable location
+
+A Run key, startup item or autostart entry launches a program from a temporary or user-writable directory.
+
+| | |
+|---|---|
+| Version | 1.0.0 (pack `telemetry-hunting`) |
+| Platforms | any |
+| Category | hunt-persistence |
+| Nature | indicator |
+| Severity | medium: Autostart locations are a common persistence mechanism, and temporary paths are a common place to stage programs. |
+| Confidence | medium: The target path is directly observed; per-user installers also create such entries. |
+| Enabled by default | yes |
+| Needs coverage | `telemetry:persistence` |
+
+**Why it matters.** Autostart entries make a program run at boot or logon. When the target sits in a temporary location, anyone who can write there can change what runs, and an attacker can use the same place for their own tooling.
+
+**Conditions.**
+
+- `run` on `telemetry`: An autostart entry with a user-writable target  
+  `(category eq 'persistence') all (attrs.mechanism in ['run_key', 'startup_folder', 'autostart', 'profile_script', 'rc_local']) all (attrs.value regex '(?i)(^|\\s|\\")(/tmp/|/var/tmp/|/dev/shm/)|[a-z]:\\\\(users\\\\public|windows\\\\temp|programdata)\\\\|\\\\appdata\\\\local\\\\temp\\\\')`
+
+Requires: `run`. Items are grouped by `record_id`.
+
+**Possible benign causes.**
+
+- Per-user applications that autostart from AppData.
+
+**Would raise confidence.**
+
+- The entry was added recently.
+- The target is unsigned.
+
+**Investigate.**
+
+1. Look up the entry's creator and creation time.
+2. Hash and verify the target.
+3. Check whether the user normally installs such software.
+
+**Remediation.** If unauthorised, preserve the entry and target as evidence, then disable the entry per your incident process. This tool does not change the host.
+
+**References.**
+
+- ATT&CK [T1547.001](https://attack.mitre.org/techniques/T1547/001/) (possible): Run keys and startup items provide persistence; whether this entry is malicious is not established.
+- NIST SP 800-53 Rev. 5: CM-7, SI-7, AU-6
+
+**Examples (executed by `rules test`).**
+
+- `match`: run key in temp
+- `match`: rc.local with /tmp script
+- `no_match`: run key to program files
+
+### DR-ANY-HPRC-001 - Shell or script host started by a network-facing service
+
+A command shell or script host has a database, web or application server as its direct parent.
+
+| | |
+|---|---|
+| Version | 1.0.0 (pack `telemetry-hunting`) |
+| Platforms | any |
+| Category | hunt-process |
+| Nature | indicator |
+| Severity | high: A server process that spawns a shell is a common outcome of command injection or a web shell; the shell can run with the server's privileges. |
+| Confidence | medium: The parent/child relationship is observed directly, but administrators and some applications legitimately run helper shells from these services. |
+| Enabled by default | yes |
+| Needs coverage | `telemetry:process` |
+
+**Why it matters.** Server processes normally do not need an interactive shell. A shell as a direct child is a recognised pattern of remote command execution through a vulnerable or abused service, so it deserves a look, but scheduled jobs, deployment hooks and some CGI setups do the same.
+
+**Conditions.**
+
+- `sh` on `telemetry`: A shell or script host whose parent is a server process  
+  `(category eq 'process') all (attrs.name in ['sh', 'bash', 'dash', 'zsh', 'ksh', 'csh', ...]) all (process.parent_name in ['nginx', 'apache2', 'httpd', 'php-fpm', 'php-fpm7', 'php-fpm8', ...])`
+
+Requires: `sh`. Items are grouped by `record_id`.
+
+**Possible benign causes.**
+
+- A deployment or maintenance hook that deliberately runs a shell from the service.
+- CGI/PHP setups that call system\(\)-style helpers with sh -c.
+- Database client tools launched by an administrator from within the service account.
+
+**Would raise confidence.**
+
+- The shell's command line containing network tools or encoded payloads.
+- An established outbound connection owned by the shell \(see DR-ANY-HPRC-004\).
+
+**Investigate.**
+
+1. Read the command line of the shell and of its parent.
+2. Review the server's access and error logs around the process start time.
+3. Check the files the server can write for scripts that were not deployed by you.
+4. Inspect what the shell has started or connected to \(descendants and sockets\).
+
+**Remediation.** Contain per your incident process \(isolate the host if the activity is unexplained\), then remove any unauthorised scripts and rotate credentials the service could read. This tool does not change the host.
+
+**References.**
+
+- ATT&CK [T1505.003](https://attack.mitre.org/techniques/T1505/003/) (possible): A shell spawned by a web service can be the result of a web shell; the data does not show how the process was started.
+- ATT&CK [T1059](https://attack.mitre.org/techniques/T1059/) (possible): A command interpreter is running; whether an adversary used it is not established.
+- NIST SP 800-53 Rev. 5: SI-4, AU-6, CM-7
+
+**Examples (executed by `rules test`).**
+
+- `match`: bash under nginx
+- `match`: cmd under w3wp on windows
+- `no_match`: bash under sshd is a normal login
+- `no_match`: nginx with no children
+- `indeterminate`: process coverage unavailable
+
+### DR-ANY-HPRC-002 - Process executing from a temporary or world-writable location
+
+A running process's executable path is under a temporary or commonly world-writable directory.
+
+| | |
+|---|---|
+| Version | 1.0.0 (pack `telemetry-hunting`) |
+| Platforms | any |
+| Category | hunt-process |
+| Nature | indicator |
+| Severity | medium: Attackers favour directories any user can write to; legitimate software normally runs from package or program directories. |
+| Confidence | medium: The path is directly observed, but installers, build tools and some portable software legitimately run from these locations. |
+| Enabled by default | yes |
+| Needs coverage | `telemetry:process` |
+
+**Why it matters.** Executables in /tmp, /dev/shm or user temp directories are a staple of dropped tooling, and /dev/shm is not backed by disk, which also hampers later recovery. The location raises a question; it does not identify the program as malicious.
+
+**Conditions.**
+
+- `p` on `telemetry`: A process whose executable is in a temporary location  
+  `(category eq 'process') all (attrs.exe regex '(?i)^(/tmp/|/var/tmp/|/dev/shm/|/run/shm/)|\\\\(appdata\\\\local\\\\temp|windows\\\\temp|users\\\\public)\\\\')`
+
+Requires: `p`. Items are grouped by `record_id`.
+
+**Possible benign causes.**
+
+- Package managers, installers and CI jobs running from temporary directories.
+- Portable applications run by users from a download or temp folder.
+- Self-extracting updaters.
+
+**Would raise confidence.**
+
+- The file is deleted or has no matching package.
+- An established network connection owned by the process.
+
+**Investigate.**
+
+1. Hash the executable and check it against your approved software list.
+2. Find who created it and when \(file times, package database, shell history\).
+3. Look at the process's parent, children and network connections.
+4. If it is unexplained, preserve it \(copy, then hash\) before any containment.
+
+**Remediation.** If unauthorised, preserve the file and memory as evidence first, then stop the process and remove persistence that references it. This tool does not change the host.
+
+**References.**
+
+- ATT&CK [T1036.005](https://attack.mitre.org/techniques/T1036/005/) (possible): Running from a temporary directory can accompany masquerading; the data does not show intent.
+- ATT&CK [T1059](https://attack.mitre.org/techniques/T1059/) (possible): A staged program is running; its purpose is unknown.
+- NIST SP 800-53 Rev. 5: SI-4, CM-7, SI-7
+
+**Examples (executed by `rules test`).**
+
+- `match`: process from /dev/shm
+- `match`: windows temp executable
+- `no_match`: normal system binary
+- `no_match`: executable unknown
+
+### DR-ANY-HPRC-004 - Command shell with an established network connection
+
+A shell process owns an established TCP connection to a non-private address.
+
+| | |
+|---|---|
+| Version | 1.0.0 (pack `telemetry-hunting`) |
+| Platforms | any |
+| Category | hunt-process |
+| Nature | correlated |
+| Severity | high: Interactive shells wired to a socket are the signature of reverse and bind shells. |
+| Confidence | medium: Both facts are observed and linked by process id; shells run over SSH have a connection too, so the remote address and the process tree matter. |
+| Enabled by default | yes |
+| Needs coverage | `telemetry:process`, `telemetry:network_connection` |
+
+**Why it matters.** A shell that owns an external connection is how remote operators drive a host after a code-execution foothold. Two independent observations \(process and socket\) agree on the process id, which is stronger than either alone, but a shell started by an SSH daemon also owns a socket.
+
+**Conditions.**
+
+- `sh` on `telemetry`: A shell process  
+  `(category eq 'process') all (attrs.name in ['sh', 'bash', 'dash', 'zsh', 'ksh', 'csh', ...])`
+- `net` on `telemetry`: An established connection to a non-private address owned by the same process  
+  `(category eq 'network_connection') all (attrs.state ieq 'established') all (attrs.remote_address present) all (not (attrs.remote_address regex '^(10\\.|192\\.168\\.|172\\.(1[6-9]|2[0-9]|3[01])\\.|127\\.|169\\.254\\.|::1$|fe80:|f[cd][0-9a-f]{2}:|0\\.0\\.0\\.0$|::$)'))`
+
+Requires: `(sh all net)`. Items are grouped by `attrs.pid`.
+
+**Possible benign causes.**
+
+- An administrator's shell on a jump host reaching an external address.
+- Remote-management agents that use a shell channel.
+- Pid reuse between the process and connection collection moments.
+
+**Would raise confidence.**
+
+- The shell's parent is a service, interpreter or has no known parent.
+- The shell's command line contains /dev/tcp, nc, or socat.
+
+**Investigate.**
+
+1. Establish the shell's parent chain: sshd means an interactive login, a service or interpreter means something else.
+2. Identify the remote address \(asset inventory, threat intelligence\).
+3. Compare with authentication events for the same period.
+4. Capture the process's command line and open files before any change.
+
+**Remediation.** If unauthorised, capture evidence, then isolate the host or block the remote address per your incident process. This tool does not change the host.
+
+**References.**
+
+- ATT&CK [T1059.004](https://attack.mitre.org/techniques/T1059/004/) (possible): A Unix shell with a remote channel can be command-and-control; this data shows a connection, not its content.
+- ATT&CK [T1071](https://attack.mitre.org/techniques/T1071/) (possible): An outbound connection exists; its purpose is unknown.
+- NIST SP 800-53 Rev. 5: SI-4, SC-7, AU-6
+
+**Examples (executed by `rules test`).**
+
+- `match`: shell with external socket
+- `no_match`: shell with internal socket only
+- `no_match`: external socket owned by another pid
+- `no_match`: listening state is not a connection
+- `indeterminate`: network coverage unavailable
+
+### DR-ANY-HSVC-001 - Service whose program is in a user-writable or temporary location
+
+A service's executable or command line points into a temporary directory, a home directory or a user profile.
+
+| | |
+|---|---|
+| Version | 1.0.0 (pack `telemetry-hunting`) |
+| Platforms | any |
+| Category | hunt-persistence |
+| Nature | indicator |
+| Severity | medium: Services run with high privileges and start automatically; a binary any user can replace is both an attack surface and a persistence location. |
+| Confidence | medium: The path is directly observed; some software installs per-user services or runs from a user data directory. |
+| Enabled by default | yes |
+| Needs coverage | `telemetry:service` |
+
+**Why it matters.** Persistent privileged programs normally live in protected directories. A service pointing at a temp or user directory can be replaced by an unprivileged user, or may be the attacker's own installed program.
+
+**Conditions.**
+
+- `svc` on `telemetry`: A service whose command is in a user-writable location  
+  `(category eq 'service') all (attrs.path regex '(?i)^(/tmp/|/var/tmp/|/dev/shm/|/home/|/run/shm/)|^[a-z]:\\\\(users|temp|windows\\\\temp|programdata)\\\\')`
+
+Requires: `svc`. Items are grouped by `record_id`.
+
+**Possible benign causes.**
+
+- Developer or per-user services.
+- Applications installed under a user profile.
+
+**Would raise confidence.**
+
+- Service created recently.
+- Runs as root or SYSTEM.
+
+**Investigate.**
+
+1. Compare the service with the installed software list.
+2. Check when the unit or service registration was created.
+3. Hash the target and verify its signature or package.
+4. Check the account the service runs as.
+
+**Remediation.** If unauthorised, preserve the unit/registration and binary, then disable the service \(not delete\) per your incident process. This tool does not change the host.
+
+**References.**
+
+- ATT&CK [T1543](https://attack.mitre.org/techniques/T1543/) (possible): A service can provide persistence; whether this one is unauthorised is not established.
+- ATT&CK [T1574.010](https://attack.mitre.org/techniques/T1574/010/) (possible): A weak-permission service binary can be hijacked; the data does not test file permissions.
+- NIST SP 800-53 Rev. 5: CM-7, CM-5, SI-7
+
+**Examples (executed by `rules test`).**
+
+- `match`: linux service in /tmp
+- `match`: windows service in user profile
+- `no_match`: system service
+
+### DR-ANY-HSVC-002 - Service installed during the collection window and running from a user-writable path
+
+An install event for a service matches a service that points into a user-writable or temporary location.
+
+| | |
+|---|---|
+| Version | 1.0.0 (pack `telemetry-hunting`) |
+| Platforms | any |
+| Category | hunt-persistence |
+| Nature | correlated |
+| Severity | high: A service created recently and placed where users can write is a strong persistence pattern. |
+| Confidence | medium: The install event and the service record are separate observations joined by name. |
+| Enabled by default | yes |
+| Needs coverage | `telemetry:config_change`, `telemetry:service` |
+
+**Why it matters.** An installation event that coincides with a program in a writable location is what service-based persistence looks like. Two independent sources \(the event log and the service inventory\) agree on the service.
+
+**Conditions.**
+
+- `inst` on `telemetry`: A service-install event  
+  `(category eq 'config_change') all (attrs.object eq 'service') all (attrs.change eq 'added')`
+- `svc` on `telemetry`: The service, pointing at a user-writable path  
+  `(category eq 'service') all (attrs.path regex '(?i)^(/tmp/|/var/tmp/|/dev/shm/|/home/|/run/shm/)|^[a-z]:\\\\(users|temp|windows\\\\temp|programdata)\\\\')`
+
+Requires: `(inst all svc)`. Items are grouped by `attrs.name`.
+
+**Possible benign causes.**
+
+- A legitimate installer that unpacks to a temp directory.
+
+**Would raise confidence.**
+
+- Service runs as SYSTEM.
+- The binary is unsigned.
+
+**Investigate.**
+
+1. Find the actor and logon session that installed the service.
+2. Capture and hash the target binary.
+3. Check what the service started and connected to.
+
+**Remediation.** If unauthorised, preserve evidence then disable the service per your incident process. This tool does not change the host.
+
+**References.**
+
+- ATT&CK [T1543.003](https://attack.mitre.org/techniques/T1543/003/) (possible): A new Windows service can provide persistence; this one's purpose is not established.
+- ATT&CK [T1543.002](https://attack.mitre.org/techniques/T1543/002/) (possible): A new systemd service can provide persistence; this one's purpose is not established.
+- NIST SP 800-53 Rev. 5: CM-5, CM-7, AU-6
+
+**Examples (executed by `rules test`).**
+
+- `match`: installed and in temp
+- `no_match`: installed in program files
+- `no_match`: different service names
+
+### DR-ANY-HTSK-001 - Scheduled task or cron entry with a download-and-execute or remote-shell pattern
+
+A scheduled job's command downloads and runs code, opens a network shell, or decodes an encoded payload.
+
+| | |
+|---|---|
+| Version | 1.0.0 (pack `telemetry-hunting`) |
+| Platforms | any |
+| Category | hunt-persistence |
+| Nature | indicator |
+| Severity | high: Scheduled execution is a favoured persistence mechanism, and these command shapes are rarely part of routine jobs. |
+| Confidence | medium: The pattern is matched on the command text; some maintenance scripts legitimately download and run files. |
+| Enabled by default | yes |
+| Needs coverage | `telemetry:scheduled_task` |
+
+**Why it matters.** Jobs that pipe a download into a shell, open a /dev/tcp socket or run encoded PowerShell are the typical shapes of persistence and remote access. Real maintenance jobs can download and run scripts, so the source of the content matters.
+
+**Conditions.**
+
+- `job` on `telemetry`: A scheduled job with a suspicious command pattern  
+  `(category eq 'scheduled_task') all (attrs.command regex '(?i)(curl|wget)[^|;]*\\|\\s*(ba)?sh|/dev/tcp/|\\bnc(at)?\\b[^|;]*\\s-e\\s|mkfifo|base64\\s+(-d|--decode)[^|;]*\\|\\s*(ba)?sh|powershell[^|;]*\\s-(e|enc|encodedcommand)\\s|bitsadmin[^|;]*/transfer|certutil[^|;]*-urlcache|mshta\\s+http|regsvr32[^|;]*/i:http')`
+
+Requires: `job`. Items are grouped by `record_id`.
+
+**Possible benign causes.**
+
+- Provisioning or update scripts that fetch and run a vendor installer.
+- Monitoring agents.
+
+**Would raise confidence.**
+
+- The job's owner is root/SYSTEM.
+- The job was created recently.
+
+**Investigate.**
+
+1. Read the full command and the file/registration it came from.
+2. Establish who created the job and when.
+3. Retrieve and examine any script it runs, without executing it.
+4. Check what the job has started recently.
+
+**Remediation.** If unauthorised, copy the job definition as evidence, then disable it \(not delete\) per your incident process. This tool does not change the host.
+
+**References.**
+
+- ATT&CK [T1053](https://attack.mitre.org/techniques/T1053/) (possible): Scheduled tasks provide persistence and execution; whether this one is malicious is not established.
+- ATT&CK [T1059](https://attack.mitre.org/techniques/T1059/) (possible): The command invokes an interpreter or network shell; intent is not established.
+- NIST SP 800-53 Rev. 5: CM-7, SI-4, AU-6
+
+**Examples (executed by `rules test`).**
+
+- `match`: curl piped to sh
+- `match`: bash tcp redirect
+- `no_match`: ordinary backup
+- `indeterminate`: task coverage unavailable
+
+### DR-ANY-HTSK-002 - Privileged scheduled job running a program from a user-writable location
+
+A job that runs as root or SYSTEM executes a program under a temporary, home or user-profile directory.
+
+| | |
+|---|---|
+| Version | 1.0.0 (pack `telemetry-hunting`) |
+| Platforms | any |
+| Category | hunt-persistence |
+| Nature | indicator |
+| Severity | medium: A privileged job that runs a file an ordinary user can modify allows privilege escalation, and an unexpected one may be planted persistence. |
+| Confidence | medium: The user and path are directly observed; a job's real target may be hidden behind wrapper scripts. |
+| Enabled by default | yes |
+| Needs coverage | `telemetry:scheduled_task` |
+
+**Why it matters.** Privileged execution of a user-controlled file lets whoever can modify the file run code as root or SYSTEM. Whether the job is malicious or merely misconfigured, it needs review.
+
+**Conditions.**
+
+- `job` on `telemetry`: A privileged job with a user-writable target  
+  `(category eq 'scheduled_task') all (attrs.user in ['root', 'SYSTEM', 'NT AUTHORITY\\SYSTEM']) all (attrs.command regex '(?i)(^|\\s)(/tmp/|/var/tmp/|/dev/shm/|/home/)|[a-z]:\\\\(users|temp|windows\\\\temp|programdata)\\\\')`
+
+Requires: `job`. Items are grouped by `record_id`.
+
+**Possible benign causes.**
+
+- Admin scripts kept in a home directory by convention.
+
+**Would raise confidence.**
+
+- The target was modified recently.
+- The target is world-writable.
+
+**Investigate.**
+
+1. Check who owns and can write the target file.
+2. Find when the job was created or modified.
+3. Review the target's content and recent changes.
+
+**Remediation.** Restrict permissions on the target or move it to a protected path; if unauthorised, disable the job per your incident process. This tool does not change the host.
+
+**References.**
+
+- ATT&CK [T1053.003](https://attack.mitre.org/techniques/T1053/003/) (possible): Cron can provide persistence and privilege escalation; this job's intent is not established.
+- ATT&CK [T1053.005](https://attack.mitre.org/techniques/T1053/005/) (possible): Scheduled tasks can provide persistence and privilege escalation; intent is not established.
+- NIST SP 800-53 Rev. 5: AC-6, CM-5, SI-7
+
+**Examples (executed by `rules test`).**
+
+- `match`: root cron running from /tmp
+- `match`: system task in user profile
+- `no_match`: unprivileged job in home
+- `no_match`: root job in /usr/local
+
 ### DR-ANY-NET-001 - Cleartext remote-access service listening on a non-loopback address
 
 A telnet, FTP, TFTP or r-service port is listening on an address other than loopback.
@@ -931,6 +1992,111 @@ Requires: `suid`. Items are grouped by `key`.
 - `no_match`: suid su in /usr/bin
 - `match`: suid under /home
 - `no_match`: path that only contains /tmp
+
+### DR-LNX-HPER-001 - Dynamic-linker preload configured
+
+/etc/ld.so.preload or a preload mechanism lists a library.
+
+| | |
+|---|---|
+| Version | 1.0.0 (pack `telemetry-hunting`) |
+| Platforms | linux |
+| Category | hunt-persistence |
+| Nature | indicator |
+| Severity | high: Preloaded libraries are loaded into every process and are used to hook or hide activity \(userland rootkits\). |
+| Confidence | medium: The configuration is directly observed; some security and diagnostic products use preloading. |
+| Enabled by default | yes |
+| Needs coverage | `telemetry:persistence` |
+
+**Why it matters.** A library listed in ld.so.preload runs inside every dynamically linked process. That is rarely needed on a clean server, and it is a known way to conceal processes, files and connections from tools running on the host.
+
+**Conditions.**
+
+- `pre` on `telemetry`: A populated preload configuration  
+  `(category eq 'persistence') all (attrs.mechanism eq 'ld_preload') all (attrs.value present)`
+
+Requires: `pre`. Items are grouped by `record_id`.
+
+**Possible benign causes.**
+
+- Endpoint protection or APM products that preload a library.
+
+**Would raise confidence.**
+
+- The library is outside standard library directories.
+- Process or connection counts differ between tools.
+
+**Investigate.**
+
+1. Identify the library, its package and its hash.
+2. Compare with the host's baseline.
+3. Use a static binary or an offline image to look for what the library hides.
+
+**Remediation.** If unauthorised, preserve the file and library as evidence, then restore the configuration from a known good source per your incident process. This tool does not change the host.
+
+**References.**
+
+- ATT&CK [T1574.006](https://attack.mitre.org/techniques/T1574/006/) (possible): Dynamic-linker hijacking can provide persistence and concealment; this configuration's purpose is not established.
+- NIST SP 800-53 Rev. 5: CM-7, SI-7, SI-4
+
+**Examples (executed by `rules test`).**
+
+- `match`: preload configured
+- `no_match`: empty preload
+- `no_match`: other mechanism
+
+### DR-LNX-HPRC-003 - Running program whose executable file has been deleted
+
+A process is running from an executable that no longer exists on disk.
+
+| | |
+|---|---|
+| Version | 1.0.0 (pack `telemetry-hunting`) |
+| Platforms | linux |
+| Category | hunt-process |
+| Nature | indicator |
+| Severity | medium: Deleting the binary of a running program is a way to hide it from file-based inspection; the process keeps running from memory. |
+| Confidence | medium: The kernel reports the deletion directly, but package upgrades also leave long-running processes on replaced binaries. |
+| Enabled by default | yes |
+| Needs coverage | `telemetry:process` |
+
+**Why it matters.** A process whose backing file was removed cannot be examined by hashing the file. Package upgrades produce the same state until the service restarts, which is why the rule is an indicator and not a conclusion.
+
+**Conditions.**
+
+- `p` on `telemetry`: A process whose executable file is deleted  
+  `(category eq 'process') all (attrs.exe_deleted is_true)`
+
+Requires: `p`. Items are grouped by `record_id`.
+
+**Possible benign causes.**
+
+- Services not restarted after a package upgrade.
+- Programs run from a build directory that was cleaned up.
+
+**Would raise confidence.**
+
+- Owner is not a system account.
+- The executable was in a temporary directory before deletion.
+
+**Investigate.**
+
+1. Check whether the package manager replaced the program recently \(needs-restart tooling, package logs\).
+2. Recover the image from /proc/\<pid\>/exe as evidence if it is not a known upgrade.
+3. Look at the parent, user and network connections of the process.
+
+**Remediation.** If unexplained, recover the image for analysis \(copy, then hash\), then contain per your incident process. This tool does not change the host.
+
+**References.**
+
+- ATT&CK [T1070.004](https://attack.mitre.org/techniques/T1070/004/) (possible): File deletion can hide a running program; the data does not show who deleted it or why.
+- NIST SP 800-53 Rev. 5: SI-4, SI-7
+
+**Examples (executed by `rules test`).**
+
+- `match`: deleted binary
+- `no_match`: normal process
+- `no_match`: windows is not applicable
 
 ### DR-LNX-LOG-001 - System log redirected to a device
 
@@ -1354,6 +2520,168 @@ Severity becomes **high** when `defender`: Microsoft Defender protection is disa
 - `no_match`: LSA weak only
 - `no_match`: UAC weak only
 - `match`: defender disabled raises severity
+
+### DR-WIN-HAUTH-005 - Security log cleared
+
+An event shows that the Windows Security or System log was cleared.
+
+| | |
+|---|---|
+| Version | 1.0.0 (pack `telemetry-hunting`) |
+| Platforms | windows |
+| Category | hunt-auth |
+| Nature | indicator |
+| Severity | high: Clearing the audit log removes history and is a classic defence-evasion step. |
+| Confidence | high: The event is recorded by the log itself; routine maintenance also clears logs. |
+| Enabled by default | yes |
+| Needs coverage | `telemetry:security_event` |
+
+**Why it matters.** Event 1102 \(Security\) and 104 \(System\) are written when a log is cleared. Because the log itself records the act, the event is reliable, but who cleared it and why must come from the event's actor and surrounding activity.
+
+**Conditions.**
+
+- `clr` on `telemetry`: A log-cleared event  
+  `(category eq 'security_event') all (attrs.event_id in ['1102', '104'])`
+
+Requires: `clr`. Items are grouped by `record_id`.
+
+**Possible benign causes.**
+
+- Scheduled maintenance or disk-space housekeeping.
+
+**Would raise confidence.**
+
+- The actor is not an administrator you expect.
+- Activity of interest immediately before the clear.
+
+**Investigate.**
+
+1. Identify the account and process that cleared the log.
+2. Look at what happened just before the clear.
+3. Check whether forwarded copies of the log exist.
+4. Verify whether maintenance was planned.
+
+**Remediation.** Preserve what remains of the logs and any forwarded copies, then investigate the actor per your incident process. This tool does not change the host.
+
+**References.**
+
+- ATT&CK [T1070.001](https://attack.mitre.org/techniques/T1070/001/) (possible): Clearing Windows event logs matches this technique; intent is not established by the event alone.
+- NIST SP 800-53 Rev. 5: AU-9, AU-6, SI-4
+
+**Examples (executed by `rules test`).**
+
+- `match`: security log cleared
+- `no_match`: ordinary logon event
+- `indeterminate`: event log unavailable
+
+### DR-WIN-HPRC-005 - Script host started by an Office application
+
+A command interpreter or script host has an Office application as its parent.
+
+| | |
+|---|---|
+| Version | 1.0.0 (pack `telemetry-hunting`) |
+| Platforms | windows |
+| Category | hunt-process |
+| Nature | indicator |
+| Severity | high: Office documents with macros or exploits commonly launch interpreters to fetch and run further code. |
+| Confidence | medium: The relationship is directly observed; some documents legitimately automate with scripts. |
+| Enabled by default | yes |
+| Needs coverage | `telemetry:process` |
+
+**Why it matters.** Office applications rarely need to start a shell or script host; when they do it is usually document-borne code. Legitimate automation exists, so the document and user context decide.
+
+**Conditions.**
+
+- `sh` on `telemetry`: A script host started by an Office application  
+  `(category eq 'process') all (attrs.name in ['cmd.exe', 'powershell.exe', 'pwsh.exe', 'wscript.exe', 'cscript.exe', 'mshta.exe', ...]) all (process.parent_name in ['winword.exe', 'excel.exe', 'powerpnt.exe', 'outlook.exe', 'onenote.exe', 'msaccess.exe'])`
+
+Requires: `sh`. Items are grouped by `record_id`.
+
+**Possible benign causes.**
+
+- Finance/reporting macros that call cmd or PowerShell.
+- Add-ins that launch helper scripts.
+
+**Would raise confidence.**
+
+- Encoded or download-style command lines.
+- A connection from the child to an external address.
+
+**Investigate.**
+
+1. Identify the document that was open and where it came from.
+2. Read the child's command line.
+3. Check the child's own network connections and descendants.
+4. Review mail or download records for the document.
+
+**Remediation.** If malicious, isolate the host and remove the document and any dropped payloads per your incident process. This tool does not change the host.
+
+**References.**
+
+- ATT&CK [T1204.002](https://attack.mitre.org/techniques/T1204/002/) (possible): A user-opened document may have launched the interpreter; the data does not show the document's content.
+- ATT&CK [T1059](https://attack.mitre.org/techniques/T1059/) (possible): An interpreter is running; intent is not established.
+- NIST SP 800-53 Rev. 5: SI-3, SI-4
+
+**Examples (executed by `rules test`).**
+
+- `match`: powershell under winword
+- `no_match`: powershell under explorer
+- `no_match`: not applicable on linux
+
+### DR-WIN-HPRC-006 - PowerShell started with an encoded command
+
+A PowerShell process was started with -EncodedCommand \(or an abbreviation\) and a long Base64 argument.
+
+| | |
+|---|---|
+| Version | 1.0.0 (pack `telemetry-hunting`) |
+| Platforms | windows |
+| Category | hunt-process |
+| Nature | indicator |
+| Severity | medium: Encoded commands hide the script text from casual inspection and are common in malicious use, although management tools also use them. |
+| Confidence | medium: The command line is directly observed; the content is not decoded here. |
+| Enabled by default | yes |
+| Needs coverage | `telemetry:process` |
+
+**Why it matters.** Base64-encoded PowerShell is a standard way to pass a script on a command line. The same mechanism is used by configuration management and installers, so the parent process and the decoded content decide the verdict. The command line is truncated by the collector and may be redacted.
+
+**Conditions.**
+
+- `ps` on `telemetry`: A PowerShell process with an encoded command argument  
+  `(category eq 'process') all (attrs.name in ['powershell.exe', 'pwsh.exe']) all (attrs.cmdline regex '(?i)\\s-(e|ec|en|enc|enco|encod|encode|encoded|encodedc|encodedcom|encodedcomm|encodedcomma|encodedcomman|encodedcommand)\\s+[A-Za-z0-9+/=]{20,}')`
+
+Requires: `ps`. Items are grouped by `record_id`.
+
+**Possible benign causes.**
+
+- Software deployment and monitoring agents.
+- Administrators using -EncodedCommand to avoid quoting problems.
+
+**Would raise confidence.**
+
+- Parent is an Office application, a script host or a service.
+- The decoded text downloads or executes further content.
+
+**Investigate.**
+
+1. Decode the argument offline \(it is Base64 of UTF-16LE text\).
+2. Check the parent process and the account that ran it.
+3. Look for PowerShell script-block logging records for the same time.
+
+**Remediation.** If malicious, contain per your incident process. This tool does not change the host.
+
+**References.**
+
+- ATT&CK [T1059.001](https://attack.mitre.org/techniques/T1059/001/) (possible): PowerShell is running; whether it is adversary activity is not established.
+- ATT&CK [T1027](https://attack.mitre.org/techniques/T1027/) (possible): Encoding can hide content; here it may simply be a quoting convenience.
+- NIST SP 800-53 Rev. 5: SI-4, AU-6
+
+**Examples (executed by `rules test`).**
+
+- `match`: encoded command
+- `no_match`: plain script file
+- `no_match`: short value is not an encoded payload
 
 ### DR-WIN-LOG-001 - Several event-logging and audit weaknesses together
 

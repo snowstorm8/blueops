@@ -10,6 +10,7 @@ from shared.rules.fixtures import build_assessment
 from shared.rules.history import Snap
 from shared.rules.loader import RuleSet
 from shared.rules.model import Rule
+from shared.telemetry.fixtures import build_telemetry
 
 STAMP = "2026-03-02T00:00:00Z"
 
@@ -26,7 +27,7 @@ def run_example(  # noqa: PLR0911 - one early return per failure kind
     rule: Rule, ex: dict[str, Any]
 ) -> ExampleResult:
     platform = ex.get("platform") or ("windows" if rule.platforms == ("windows",) else "linux")
-    cur = build_assessment(ex["current"], platform=platform, aid="example-current")
+    cur = build_assessment(ex.get("current", {}), platform=platform, aid="example-current")
     prev = [
         Snap(
             build_assessment(
@@ -39,7 +40,18 @@ def run_example(  # noqa: PLR0911 - one early return per failure kind
         for i, spec in enumerate(ex.get("previous", []))
     ]
     rs = RuleSet(rules={rule.id: rule})
-    res = detect(cur, rs, previous=prev, generated_at=STAMP)
+    tel = base = None
+    if "telemetry" in ex:
+        host = cur["host"]["hostname"]
+        tel = build_telemetry(
+            ex["telemetry"], platform=platform, hostname=host, cid="example-telemetry"
+        )
+        if "previous_telemetry" in ex:
+            base = build_telemetry(
+                {"started_at": "2026-02-28T10:00:00Z", "ended_at": "2026-02-28T10:05:00Z", **ex["previous_telemetry"]},
+                platform=platform, hostname=host, cid="example-telemetry-prev",
+            )  # fmt: skip
+    res = detect(cur, rs, previous=prev, generated_at=STAMP, telemetry=tel, telemetry_baseline=base)
     mine = [d for d in res["detections"] if d["rule"]["id"] == rule.id]
     ind = [i for i in res["indeterminate"] if i["rule"]["id"] == rule.id]
     if res["rule_errors"]:

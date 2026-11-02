@@ -45,6 +45,8 @@ from shared.rules.engine import exit_code_for as detection_exit_code
 from shared.rules.history import HistoryStore
 from shared.rules.investigation import CaseStore, case_summaries
 from shared.rules.loader import load_rule_set
+from shared.telemetry.cli import dispatch as telemetry_dispatch
+from shared.telemetry.cli import register as telemetry_register
 
 REPO_ROOT = Path(__file__).resolve().parent.parent.parent
 DOC_SCHEMAS = {
@@ -183,6 +185,7 @@ def _parser() -> argparse.ArgumentParser:
     run.add_argument("--actor", metavar="NAME")
 
     rules_register(sub)
+    telemetry_register(sub)
     cmp_ = sub.add_parser("compare", help="compare two assessments or audit reports")
     cmp_.add_argument("baseline")
     cmp_.add_argument("current")
@@ -464,6 +467,8 @@ def main(argv: list[str] | None = None) -> int:
     args = _parser().parse_args(argv)
     try:
         handled = rules_dispatch(args)
+        if handled is None:
+            handled = telemetry_dispatch(args)
         if handled is not None:
             return handled
         return _COMMANDS[args.cmd](args)

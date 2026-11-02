@@ -76,6 +76,17 @@ Everything beyond Phase 0 is **planned** and subject to change.
 - [ ] Multi-host correlation (needs the fleet merge); rule-pack signing; allowlists/accepted changes for the new engine
 - [ ] A rule-authoring linter for false-positive review (e.g. warn on broad regexes)
 
+## Phase 2g — Endpoint telemetry and threat hunting (v0.6)
+
+- [x] Versioned telemetry schema with provenance and coverage semantics ([telemetry.md](telemetry.md))
+- [x] Linux and Windows collectors (JSON Lines), offline import, deduplication, conflict reporting, derived authentication summaries
+- [x] Query layer (constrained JSON/flags), process trees, coverage-aware snapshot comparison
+- [x] 24 hunting rules through the detection engine; cases, reports (JSON/Markdown/HTML)
+- [ ] Verify the Windows collector on more Windows versions/SKUs and under constrained language mode
+- [ ] Process-image integrity (signature/hash of running executables), Linux runtime service state, Sysmon/ETW and auditd rule packs as optional sources
+- [ ] Streaming/continuous collection and multi-host correlation
+- [ ] Allowlists / accepted changes for hunting rules
+
 ## Phase 3 — Incident response
 
 - [ ] Evidence collection with hashing/manifests (both platforms)
