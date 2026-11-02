@@ -43,13 +43,18 @@ param(
 Set-StrictMode -Version Latest
 $ErrorActionPreference = 'Stop'
 
+# Script-scope copies: the collection functions below read these (parameters are not visible to
+# the analyzer through function bodies).
+$script:SinceHours = $SinceHours
+$script:MaxEvents = $MaxEvents
+
 . (Join-Path -Path (Split-Path -Parent $PSScriptRoot) -ChildPath 'lib/Telemetry.ps1')
 
 $script:AllCategories = @('process', 'user', 'group', 'session', 'service', 'scheduled_task',
     'network_connection', 'listener', 'auth_event', 'security_event', 'config_change',
     'system_config', 'integrity', 'persistence')
 
-function Test-TelWants {
+function Test-TelWanted {
     param([string[]]$Category)
     if ([string]::IsNullOrEmpty($Categories)) { return $true }
     $wanted = $Categories.Split(',')
@@ -105,7 +110,7 @@ function Get-TelProcessData {
             name = $name
             exe = $exe
             user = $user
-            cmdline = $(if ($null -ne $cmd) { Limit-TelText (Hide-TelSecrets ([string]$cmd)) 500 } else { $null })
+            cmdline = $(if ($null -ne $cmd) { Limit-TelText (Hide-TelSecret ([string]$cmd)) 500 } else { $null })
         }
         $key = 'pid:{0}:{1}' -f $procId, $created
         Write-TelRecord -Category 'process' -Key $key -SourceType 'api' -SourceRef 'Win32_Process' -Method 'cim' -Attributes $attrs
@@ -206,7 +211,7 @@ function Get-TelServiceData {
             display_name = [string](Get-TelProp $s 'DisplayName' '')
             state = [string](Get-TelProp $s 'State' '')
             start_mode = [string](Get-TelProp $s 'StartMode' '')
-            path = $(if ($null -ne $path) { Limit-TelText (Hide-TelSecrets ([string]$path)) 400 } else { $null })
+            path = $(if ($null -ne $path) { Limit-TelText (Hide-TelSecret ([string]$path)) 400 } else { $null })
             account = Get-TelProp $s 'StartName' $null
             pid = [int](Get-TelProp $s 'ProcessId' 0)
         }
@@ -225,7 +230,7 @@ function Get-TelScheduledTaskData {
         foreach ($a in @(Get-TelProp $t 'Actions' @())) {
             $exe = [string](Get-TelProp $a 'Execute' '')
             $arg = [string](Get-TelProp $a 'Arguments' '')
-            if ($exe) { $cmds += (Hide-TelSecrets (($exe + ' ' + $arg).Trim())) }
+            if ($exe) { $cmds += (Hide-TelSecret (($exe + ' ' + $arg).Trim())) }
         }
         $trig = @()
         foreach ($g in @(Get-TelProp $t 'Triggers' @())) { $trig += ($g.CimClass.CimClassName -replace '^MSFT_TaskTrigger|^MSFT_Task|Trigger$', '') }
@@ -321,9 +326,9 @@ function Get-TelNetworkData {
 function Read-TelLog {
     # Streams parsed events of one log; returns the number read. Errors are reported by the caller.
     param([string]$LogName, [string[]]$Ids, [scriptblock]$OnEvent)
-    $start = (Get-Date).AddHours(-1 * $SinceHours)
+    $start = (Get-Date).AddHours(-1 * $script:SinceHours)
     $filter = @{ LogName = $LogName; Id = [int[]]$Ids; StartTime = $start }
-    $events = @(Get-WinEvent -FilterHashtable $filter -MaxEvents $MaxEvents -ErrorAction Stop)
+    $events = @(Get-WinEvent -FilterHashtable $filter -MaxEvents $script:MaxEvents -ErrorAction Stop)
     foreach ($e in $events) {
         $parsed = Convert-TelEventXml -Xml $e.ToXml()
         if ($null -eq $parsed) { continue }
@@ -333,13 +338,13 @@ function Read-TelLog {
 }
 
 function Get-TelEventData {
-    $wantAuth = Test-TelWants @('auth_event')
-    $wantSec = Test-TelWants @('security_event', 'config_change')
+    $wantAuth = Test-TelWanted @('auth_event')
+    $wantSec = Test-TelWanted @('security_event', 'config_change')
     $authDone = $false
     $emit = {
         param($parsed)
         foreach ($r in @(ConvertTo-TelRecord -EventInfo $parsed)) {
-            $wanted = Test-TelWants @($r.Category)
+            $wanted = Test-TelWanted @($r.Category)
             if ($wanted) {
                 Write-TelRecord -Category $r.Category -Key $r.Key -SourceType 'eventlog' -SourceRef $r.Source -Method 'winevent' -EventTime $r.Time -Attributes $r.Attributes
             }
@@ -348,9 +353,9 @@ function Get-TelEventData {
     $securityIds = @('4624', '4625', '4648', '4720', '4722', '4724', '4725', '4726', '4738', '4740', '4728', '4732', '4756', '4729', '4733', '4757', '1102', '4719', '4697', '4698', '4699', '4702')
     try {
         $n = Read-TelLog -LogName 'Security' -Ids $securityIds -OnEvent $emit
-        $note = 'Security log, last {0}h, at most {1}; service/batch logons and machine accounts are not recorded' -f $SinceHours, $MaxEvents
-        if ($n -ge $MaxEvents) { Write-TelError -Code 'EVENT_LIMIT' -Message ('the Security log reached the {0}-event cap; older events were not read' -f $MaxEvents) -Category 'auth_event' }
-        if ($wantAuth) { Write-TelCoverage -Category 'auth_event' -Status $(if ($n -ge $MaxEvents) { 'partial' } else { 'complete' }) -Reason $note }
+        $note = 'Security log, last {0}h, at most {1}; service/batch logons and machine accounts are not recorded' -f $script:SinceHours, $script:MaxEvents
+        if ($n -ge $script:MaxEvents) { Write-TelError -Code 'EVENT_LIMIT' -Message ('the Security log reached the {0}-event cap; older events were not read' -f $script:MaxEvents) -Category 'auth_event' }
+        if ($wantAuth) { Write-TelCoverage -Category 'auth_event' -Status $(if ($n -ge $script:MaxEvents) { 'partial' } else { 'complete' }) -Reason $note }
         if ($wantSec) {
             Write-TelCoverage -Category 'security_event' -Status 'complete' -Reason 'log clears, audit policy changes and service installs only'
             Write-TelCoverage -Category 'config_change' -Status 'complete' -Reason 'derived from service-install, scheduled-task and audit-policy events only'
@@ -471,7 +476,7 @@ function Write-TelRunKeyRecord {
         $item = Get-ItemProperty -LiteralPath $path -ErrorAction Stop
         foreach ($prop in $item.PSObject.Properties) {
             if ($prop.Name -like 'PS*') { continue }
-            $val = Limit-TelText (Hide-TelSecrets ([string]$prop.Value)) 400
+            $val = Limit-TelText (Hide-TelSecret ([string]$prop.Value)) 400
             Write-TelRecord -Category 'persistence' -Key ('runkey:{0}:{1}:{2}' -f $Label, $sub, $prop.Name) -SourceType 'registry' -SourceRef ('{0}\{1}' -f $path, $prop.Name) -Method 'registry' -Attributes @{ mechanism = 'run_key'; location = ('{0}\{1}\{2}' -f $Label, $sub, $prop.Name); value = $val }
         }
     }
@@ -484,11 +489,11 @@ function Get-TelPersistenceData {
     }
     $wl = Get-TelRegValue -Path 'Registry::HKEY_LOCAL_MACHINE\SOFTWARE\Microsoft\Windows NT\CurrentVersion\Winlogon' -Name 'Userinit'
     if ($wl.Found) {
-        Write-TelRecord -Category 'persistence' -Key 'winlogon:userinit' -SourceType 'registry' -SourceRef 'HKLM\...\Winlogon\Userinit' -Method 'registry' -Attributes @{ mechanism = 'winlogon'; location = 'HKLM\SOFTWARE\Microsoft\Windows NT\CurrentVersion\Winlogon\Userinit'; value = (Limit-TelText (Hide-TelSecrets ([string]$wl.Value)) 300) }
+        Write-TelRecord -Category 'persistence' -Key 'winlogon:userinit' -SourceType 'registry' -SourceRef 'HKLM\...\Winlogon\Userinit' -Method 'registry' -Attributes @{ mechanism = 'winlogon'; location = 'HKLM\SOFTWARE\Microsoft\Windows NT\CurrentVersion\Winlogon\Userinit'; value = (Limit-TelText (Hide-TelSecret ([string]$wl.Value)) 300) }
     }
     $sh = Get-TelRegValue -Path 'Registry::HKEY_LOCAL_MACHINE\SOFTWARE\Microsoft\Windows NT\CurrentVersion\Winlogon' -Name 'Shell'
     if ($sh.Found) {
-        Write-TelRecord -Category 'persistence' -Key 'winlogon:shell' -SourceType 'registry' -SourceRef 'HKLM\...\Winlogon\Shell' -Method 'registry' -Attributes @{ mechanism = 'winlogon'; location = 'HKLM\SOFTWARE\Microsoft\Windows NT\CurrentVersion\Winlogon\Shell'; value = (Limit-TelText (Hide-TelSecrets ([string]$sh.Value)) 300) }
+        Write-TelRecord -Category 'persistence' -Key 'winlogon:shell' -SourceType 'registry' -SourceRef 'HKLM\...\Winlogon\Shell' -Method 'registry' -Attributes @{ mechanism = 'winlogon'; location = 'HKLM\SOFTWARE\Microsoft\Windows NT\CurrentVersion\Winlogon\Shell'; value = (Limit-TelText (Hide-TelSecret ([string]$sh.Value)) 300) }
     }
     $ai = Get-TelRegValue -Path 'Registry::HKEY_LOCAL_MACHINE\SOFTWARE\Microsoft\Windows NT\CurrentVersion\Windows' -Name 'AppInit_DLLs'
     if ($ai.Found -and [string]$ai.Value) {
@@ -499,7 +504,7 @@ function Get-TelPersistenceData {
         foreach ($k in @(Get-ChildItem -LiteralPath $ifeo -ErrorAction SilentlyContinue)) {
             $dbg = Get-TelRegValue -Path $k.PSPath -Name 'Debugger'
             if ($dbg.Found) {
-                Write-TelRecord -Category 'persistence' -Key ('ifeo:{0}' -f $k.PSChildName) -SourceType 'registry' -SourceRef ('IFEO\{0}\Debugger' -f $k.PSChildName) -Method 'registry' -Attributes @{ mechanism = 'ifeo'; location = ('IFEO\{0}' -f $k.PSChildName); value = (Limit-TelText (Hide-TelSecrets ([string]$dbg.Value)) 300) }
+                Write-TelRecord -Category 'persistence' -Key ('ifeo:{0}' -f $k.PSChildName) -SourceType 'registry' -SourceRef ('IFEO\{0}\Debugger' -f $k.PSChildName) -Method 'registry' -Attributes @{ mechanism = 'ifeo'; location = ('IFEO\{0}' -f $k.PSChildName); value = (Limit-TelText (Hide-TelSecret ([string]$dbg.Value)) 300) }
             }
         }
     }
@@ -514,7 +519,7 @@ function Get-TelPersistenceData {
         foreach ($cls in @('CommandLineEventConsumer', 'ActiveScriptEventConsumer')) {
             foreach ($c in @(Get-CimInstance -Namespace 'root/subscription' -ClassName $cls -ErrorAction Stop)) {
                 $v = $(if ($cls -eq 'CommandLineEventConsumer') { [string](Get-TelProp $c 'CommandLineTemplate' '') } else { 'script consumer' })
-                Write-TelRecord -Category 'persistence' -Key ('wmi:{0}:{1}' -f $cls, $c.Name) -SourceType 'api' -SourceRef ('root/subscription:{0}' -f $cls) -Method 'cim' -Attributes @{ mechanism = 'wmi_subscription'; location = ('root/subscription/{0}/{1}' -f $cls, $c.Name); value = (Limit-TelText (Hide-TelSecrets $v) 300) }
+                Write-TelRecord -Category 'persistence' -Key ('wmi:{0}:{1}' -f $cls, $c.Name) -SourceType 'api' -SourceRef ('root/subscription:{0}' -f $cls) -Method 'cim' -Attributes @{ mechanism = 'wmi_subscription'; location = ('root/subscription/{0}/{1}' -f $cls, $c.Name); value = (Limit-TelText (Hide-TelSecret $v) 300) }
             }
         }
     }
@@ -527,7 +532,7 @@ function Get-TelPersistenceData {
 
 function Invoke-TelSection {
     param([string]$Name, [scriptblock]$Body, [string[]]$Category)
-    if (-not (Test-TelWants $Category)) { return }
+    if (-not (Test-TelWanted $Category)) { return }
     try { & $Body }
     catch {
         Write-TelError -Code 'SECTION_FAILED' -Message ('{0} failed: {1}' -f $Name, $_.Exception.Message) -Category $Category[0]

@@ -91,7 +91,7 @@ function Limit-TelText {
     return $s
 }
 
-function Hide-TelSecrets {
+function Hide-TelSecret {
     # Redacts obvious secrets from command lines and registry values. Documented residual risk:
     # secrets in positional arguments of arbitrary programs and in files are not detectable.
     param([AllowNull()][string]$Text)
@@ -313,7 +313,7 @@ function ConvertTo-TelRecord {
         elseif ($id -eq '4719') { $summary = 'system audit policy changed' }
         elseif ($id -eq '4697') { $summary = 'service installed: ' + (Get-TelDataValue $d 'ServiceName') }
         elseif ($id -eq '7045') { $summary = 'service installed: ' + (Get-TelDataValue $d 'ServiceName') }
-        $sa = @{ event_id = $id; source = $EventInfo.Channel; outcome = $outcome; summary = (Hide-TelSecrets $summary) }
+        $sa = @{ event_id = $id; source = $EventInfo.Channel; outcome = $outcome; summary = (Hide-TelSecret $summary) }
         if ($actor2) { $sa['actor'] = $actor2 }
         $out += @{ Category = 'security_event'; Key = ('win:{0}:{1}:{2}' -f $EventInfo.Channel, $EventInfo.RecordId, $id); Time = $EventInfo.Time; Attributes = $sa; Source = $ref }
         $cc = $null
@@ -321,7 +321,7 @@ function ConvertTo-TelRecord {
             $name = Get-TelDataValue $d 'ServiceName'
             $path = Get-TelDataValue $d 'ImagePath'
             if (-not $path) { $path = Get-TelDataValue $d 'ImagePathName' }
-            $cc = @{ object = 'service'; change = 'added'; name = $name; path = (Hide-TelSecrets $path); actor = $actor2 }
+            $cc = @{ object = 'service'; change = 'added'; name = $name; path = (Hide-TelSecret $path); actor = $actor2 }
         }
         elseif ($id -eq '4719') {
             $cc = @{ object = 'audit_policy'; change = 'modified'; name = (Get-TelDataValue $d 'SubcategoryGuid'); actor = $actor2 }

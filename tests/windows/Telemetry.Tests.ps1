@@ -9,7 +9,7 @@ BeforeAll {
     . (Join-Path $script:RepoRoot 'windows\lib\Telemetry.ps1')
     $script:Collector = Join-Path $script:RepoRoot 'windows\telemetry\Invoke-TelemetryCollection.ps1'
 
-    function New-TestEventXml {
+    function Get-TestEventXml {
         param([string]$Channel, [string]$Id, [hashtable]$Data, [string]$RecordId = '42')
         $items = ''
         foreach ($k in $Data.Keys) { $items += ('<Data Name="{0}">{1}</Data>' -f $k, [System.Security.SecurityElement]::Escape($Data[$k])) }
@@ -17,17 +17,17 @@ BeforeAll {
     }
 }
 
-Describe 'Hide-TelSecrets' {
+Describe 'Hide-TelSecret' {
     It 'redacts password-like assignments, switches and URL credentials' {
-        (Hide-TelSecrets 'tool.exe password=hunter2 --mode x') | Should -Not -Match 'hunter2'
-        (Hide-TelSecrets 'tool.exe -p hunter2') | Should -Not -Match 'hunter2'
-        (Hide-TelSecrets 'curl https://bob:hunter2@host/x') | Should -Not -Match 'hunter2'
-        (Hide-TelSecrets 'net user alice hunter2 /add') | Should -Not -Match 'hunter2'
+        (Hide-TelSecret 'tool.exe password=hunter2 --mode x') | Should -Not -Match 'hunter2'
+        (Hide-TelSecret 'tool.exe -p hunter2') | Should -Not -Match 'hunter2'
+        (Hide-TelSecret 'curl https://bob:hunter2@host/x') | Should -Not -Match 'hunter2'
+        (Hide-TelSecret 'net user alice hunter2 /add') | Should -Not -Match 'hunter2'
     }
     It 'keeps harmless text and survives empty input' {
-        (Hide-TelSecrets 'notepad.exe C:\notes.txt') | Should -Be 'notepad.exe C:\notes.txt'
-        (Hide-TelSecrets '') | Should -Be ''
-        (Hide-TelSecrets $null) | Should -Be ''
+        (Hide-TelSecret 'notepad.exe C:\notes.txt') | Should -Be 'notepad.exe C:\notes.txt'
+        (Hide-TelSecret '') | Should -Be ''
+        (Hide-TelSecret $null) | Should -Be ''
     }
 }
 
@@ -41,7 +41,7 @@ Describe 'ConvertTo-TelAsciiJson' {
 
 Describe 'Convert-TelEventXml' {
     It 'parses id, time, channel and named data' {
-        $e = Convert-TelEventXml -Xml (New-TestEventXml -Channel 'Security' -Id '4625' -Data @{ TargetUserName = 'bob'; IpAddress = '203.0.113.5'; LogonType = '3' })
+        $e = Convert-TelEventXml -Xml (Get-TestEventXml -Channel 'Security' -Id '4625' -Data @{ TargetUserName = 'bob'; IpAddress = '203.0.113.5'; LogonType = '3' })
         $e.Id | Should -Be '4625'
         $e.Channel | Should -Be 'Security'
         $e.Time | Should -Be '2026-03-01T09:00:00.123Z'
@@ -59,7 +59,7 @@ Describe 'Convert-TelEventXml' {
 
 Describe 'ConvertTo-TelRecord' {
     It 'maps a failed network logon to an auth_event' {
-        $e = Convert-TelEventXml -Xml (New-TestEventXml -Channel 'Security' -Id '4625' -Data @{ TargetUserName = 'bob'; IpAddress = '203.0.113.5'; LogonType = '3'; SubStatus = '0xc000006a' })
+        $e = Convert-TelEventXml -Xml (Get-TestEventXml -Channel 'Security' -Id '4625' -Data @{ TargetUserName = 'bob'; IpAddress = '203.0.113.5'; LogonType = '3'; SubStatus = '0xc000006a' })
         $r = @(ConvertTo-TelRecord -EventInfo $e)
         $r.Count | Should -Be 1
         $r[0].Category | Should -Be 'auth_event'
@@ -69,17 +69,17 @@ Describe 'ConvertTo-TelRecord' {
         $r[0].Attributes['source_address'] | Should -Be '203.0.113.5'
     }
     It 'ignores service logons, machine accounts and loopback sources' {
-        $svc = Convert-TelEventXml -Xml (New-TestEventXml -Channel 'Security' -Id '4624' -Data @{ TargetUserName = 'svc'; LogonType = '5' })
+        $svc = Convert-TelEventXml -Xml (Get-TestEventXml -Channel 'Security' -Id '4624' -Data @{ TargetUserName = 'svc'; LogonType = '5' })
         @(ConvertTo-TelRecord -EventInfo $svc).Count | Should -Be 0
-        $mach = Convert-TelEventXml -Xml (New-TestEventXml -Channel 'Security' -Id '4624' -Data @{ TargetUserName = 'HOST$'; LogonType = '3' })
+        $mach = Convert-TelEventXml -Xml (Get-TestEventXml -Channel 'Security' -Id '4624' -Data @{ TargetUserName = 'HOST$'; LogonType = '3' })
         @(ConvertTo-TelRecord -EventInfo $mach).Count | Should -Be 0
-        $lo = Convert-TelEventXml -Xml (New-TestEventXml -Channel 'Security' -Id '4624' -Data @{ TargetUserName = 'bob'; LogonType = '2'; IpAddress = '::1' })
+        $lo = Convert-TelEventXml -Xml (Get-TestEventXml -Channel 'Security' -Id '4624' -Data @{ TargetUserName = 'bob'; LogonType = '2'; IpAddress = '::1' })
         $r = @(ConvertTo-TelRecord -EventInfo $lo)
         $r[0].Attributes.ContainsKey('source_address') | Should -BeFalse
     }
     It 'resolves the member SID of a local group addition to an account name' {
-        $resolver = { param([string]$Sid) 'HOST\backdoor' }
-        $e = Convert-TelEventXml -Xml (New-TestEventXml -Channel 'Security' -Id '4732' -Data @{ TargetUserName = 'Administrators'; MemberName = '-'; MemberSid = 'S-1-5-21-1-2-3-1001'; SubjectUserName = 'eve' })
+        $resolver = { 'HOST\backdoor' }
+        $e = Convert-TelEventXml -Xml (Get-TestEventXml -Channel 'Security' -Id '4732' -Data @{ TargetUserName = 'Administrators'; MemberName = '-'; MemberSid = 'S-1-5-21-1-2-3-1001'; SubjectUserName = 'eve' })
         $r = @(ConvertTo-TelRecord -EventInfo $e -SidResolver $resolver)
         $r[0].Attributes['action'] | Should -Be 'group_change'
         $r[0].Attributes['user'] | Should -Be 'backdoor'
@@ -87,18 +87,18 @@ Describe 'ConvertTo-TelRecord' {
         $r[0].Attributes['change'] | Should -Be 'member_added'
     }
     It 'marks the user unknown when it cannot be determined' {
-        $resolver = { param([string]$Sid) $null }
-        $e = Convert-TelEventXml -Xml (New-TestEventXml -Channel 'Security' -Id '4732' -Data @{ TargetUserName = 'Administrators'; MemberName = '-'; MemberSid = 'S-1-5-21-9' })
+        $resolver = { $null }
+        $e = Convert-TelEventXml -Xml (Get-TestEventXml -Channel 'Security' -Id '4732' -Data @{ TargetUserName = 'Administrators'; MemberName = '-'; MemberSid = 'S-1-5-21-9' })
         $r = @(ConvertTo-TelRecord -EventInfo $e -SidResolver $resolver)
         $r[0].Attributes['user'] | Should -BeNullOrEmpty
     }
     It 'records a cleared log as a security_event' {
-        $e = Convert-TelEventXml -Xml (New-TestEventXml -Channel 'Security' -Id '1102' -Data @{ SubjectUserName = 'eve' })
+        $e = Convert-TelEventXml -Xml (Get-TestEventXml -Channel 'Security' -Id '1102' -Data @{ SubjectUserName = 'eve' })
         $r = @(ConvertTo-TelRecord -EventInfo $e)
         ($r | Where-Object { $_.Category -eq 'security_event' }).Attributes['event_id'] | Should -Be '1102'
     }
     It 'records a service install as security_event and config_change with the redacted path' {
-        $e = Convert-TelEventXml -Xml (New-TestEventXml -Channel 'System' -Id '7045' -Data @{ ServiceName = 'evil'; ImagePath = 'C:\Users\Public\evil.exe -password=hunter2' })
+        $e = Convert-TelEventXml -Xml (Get-TestEventXml -Channel 'System' -Id '7045' -Data @{ ServiceName = 'evil'; ImagePath = 'C:\Users\Public\evil.exe -password=hunter2' })
         $r = @(ConvertTo-TelRecord -EventInfo $e)
         $cc = $r | Where-Object { $_.Category -eq 'config_change' }
         $cc.Attributes['object'] | Should -Be 'service'
@@ -106,7 +106,7 @@ Describe 'ConvertTo-TelRecord' {
         $cc.Attributes['path'] | Should -Not -Match 'hunter2'
     }
     It 'ignores events outside the Security channel that share an auth event id' {
-        $e = Convert-TelEventXml -Xml (New-TestEventXml -Channel 'Application' -Id '4625' -Data @{ TargetUserName = 'bob'; LogonType = '3' })
+        $e = Convert-TelEventXml -Xml (Get-TestEventXml -Channel 'Application' -Id '4625' -Data @{ TargetUserName = 'bob'; LogonType = '3' })
         @(ConvertTo-TelRecord -EventInfo $e).Count | Should -Be 0
     }
 }
