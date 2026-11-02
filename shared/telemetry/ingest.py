@@ -15,6 +15,7 @@ from __future__ import annotations
 import hashlib
 import json
 import os
+import re
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any
@@ -526,6 +527,11 @@ def ingest_paths(
 # ------------------------------------------------------------------------------ storage
 
 
+def _whole_seconds(ts: str) -> str:
+    """``2026-03-01T10:00:00.93Z`` -> ``2026-03-01T10:00:00Z`` (the manifest schema is seconds-only)."""
+    return re.sub(r"\.\d+Z$", "Z", ts)
+
+
 def write_store(
     doc: dict[str, Any], parent: str | Path, sources: list[tuple[str, bytes]] | None = None
 ) -> Path:
@@ -533,7 +539,7 @@ def write_store(
     original inputs byte for byte under ``sources/`` and a hash manifest."""
     parent = Path(parent)
     parent.mkdir(parents=True, exist_ok=True, mode=0o700)
-    stamp = doc["collection"]["started_at"].replace("-", "").replace(":", "")
+    stamp = _whole_seconds(doc["collection"]["started_at"]).replace("-", "").replace(":", "")
     host = (
         "".join(ch if ch.isalnum() or ch in "-_" else "_" for ch in doc["host"]["hostname"])[:60]
         or "host"
@@ -570,8 +576,8 @@ def write_store(
         {
             "assessment": {
                 "id": doc["collection"]["id"],
-                "started_at": doc["collection"]["started_at"],
-                "finished_at": doc["collection"]["ended_at"],
+                "started_at": _whole_seconds(doc["collection"]["started_at"]),
+                "finished_at": _whole_seconds(doc["collection"]["ended_at"]),
                 "exit_code": 0,
             }
         },

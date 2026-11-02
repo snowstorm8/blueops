@@ -418,3 +418,18 @@ def test_every_category_is_covered_by_schema_and_vocabulary():
     )
     assert set(schema["$defs"]["category"]["enum"]) == set(CATEGORIES)
     assert set(ALL_CATEGORIES) <= set(CATEGORIES)
+
+
+def test_store_accepts_fractional_second_timestamps_from_the_windows_collector(tmp_path):
+    # Regression: the PowerShell collector writes millisecond timestamps; the manifest schema is
+    # whole-seconds, so the store must still be writable, verifiable and loadable.
+    data = stream(
+        [proc(1, 0, "init")], started="2026-03-01T10:00:00.93Z", ended="2026-03-01T10:00:07.297Z"
+    )
+    p = tmp_path / "w.jsonl"
+    p.write_bytes(data)
+    d = ingest.ingest_paths([p])
+    assert d["collection"]["started_at"] == "2026-03-01T10:00:00.93Z"
+    root = ingest.write_store(d, tmp_path / "out", [("w.jsonl", data)])
+    assert ".93" not in root.name
+    assert ingest.load_telemetry(root)["summary"]["records"] == 1
