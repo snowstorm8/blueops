@@ -14,6 +14,7 @@ ignore = ["PLR2004"]
 # The HTML renderer is mostly inline markup/CSS in string literals; wrapping them mid-tag would hurt
 # readability and change nothing about the output.
 "shared/reporting/render_html.py" = ["E501"]
+"tests/shared/test_engine_examples.py" = ["E501"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests/shared"]

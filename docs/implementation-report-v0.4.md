@@ -47,7 +47,7 @@ All numbers are from runs in this session on Linux (Python 3.13; the new Python 
 | Bats (`bats --recursive tests/linux`, as root, via `scripts/development/check.sh`) | **221 ok, 0 not ok** (6 of them skipped by the tests themselves, see 3.1); baseline 187 |
 | ruff check / ruff format --check | clean |
 | ShellCheck / shfmt (all tracked `.sh`, `.bash`, `.bats` and the new files) | clean |
-| Pester (`tests/windows`) | **NOT RUN** |
+| Pester (`tests/windows`) | **NOT RUN locally.** The first CI run of this PR executed it on Windows: 253 passed, 2 failed, 1 skipped; both failures were my new `EventLog.Tests.ps1` retention test, caused by a real bug (retention was only read when `MaxSize` was also set), fixed afterwards. The other 7 `eventlog` tests passed there, so the module is partly verified on real PowerShell; the fix itself is unverified until CI re-runs. |
 | PSScriptAnalyzer | **NOT RUN** |
 
 ### 3.1 Bats
@@ -64,7 +64,8 @@ HTML report opened in headless Chromium (Playwright): no console or CSP errors, 
 
 ## 4. Platform-specific limitations
 
-- **PowerShell was not available.** I downloaded the official PowerShell release archive, but running it was blocked by the environment's permission policy; I did not work around that and deleted the archive. Consequences:
+- **CI findings after the first push:** the `ubuntu-latest` Python 3.9 job cannot run at all (the runner image is now Ubuntu 26.04, which has no Python 3.9 build for `actions/setup-python`; unrelated to this PR, the matrix needs a pinned image), and my engine smoke test failed on the unprivileged runner because the example plugin crashed listing `/etc/sudoers.d` (fixed, regression test added, verified here by running as an unprivileged user).
+- **PowerShell was not available locally.** I downloaded the official PowerShell release archive, but running it was blocked by the environment's permission policy; I did not work around that and deleted the archive. Consequences:
   - `windows/audit/Get-EventLogAudit.ps1` and its Pester file `tests/windows/EventLog.Tests.ps1` were written without ever being executed or linted. Static Python tests that scan the Windows sources (`test_windows_sources.py`, `test_rule_collector_contract.py`, `test_repo_layout.py`) pass, but they do not parse PowerShell. The first real execution will be the Windows CI runner; expect that it may need fixes.
   - The engine's Windows path is tested with a fake PowerShell resolver and fake executor (argument construction, platform handling, skip behaviour, report ingestion of a Windows-shaped report), **not** against a real `pwsh`/`powershell.exe`.
   - The Windows module-count assertions in Pester were edited by hand (11 -> 12, EVT prefix) and are likewise unrun.

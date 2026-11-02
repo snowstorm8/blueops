@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import importlib.util
 import json
 import os
 import shutil
@@ -81,3 +82,29 @@ def test_plugin_example_manifest_validates() -> None:
 def test_all_shipped_profiles_validate() -> None:
     for p in sorted((ROOT / "profiles").glob("*/*.json")):
         assert validate(json.loads(p.read_text("utf-8")), "assessment-profile.schema.json") == [], p
+
+
+def test_example_plugin_reports_an_unreadable_directory_instead_of_crashing(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Regression: an unprivileged run cannot list /etc/sudoers.d; that is a gap (exit 6)."""
+    spec = importlib.util.spec_from_file_location(
+        "sudoers_nopasswd", EXAMPLES / "plugins" / "sudoers_nopasswd.py"
+    )
+    assert spec and spec.loader
+    mod = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(mod)
+    root = tmp_path / "root"
+    (root / "etc" / "sudoers.d").mkdir(parents=True)
+    (root / "etc" / "sudoers").write_text("root ALL=(ALL) ALL\n", encoding="utf-8")
+    monkeypatch.setenv("BO_TEST_MODE", "1")
+    monkeypatch.setenv("BO_ROOT", str(root))
+
+    def denied(self: Path) -> None:
+        raise PermissionError(13, "Permission denied")
+
+    monkeypatch.setattr(Path, "iterdir", denied)
+    out = tmp_path / "out"
+    assert mod.main(["x", str(out)]) == 6
+    report = json.loads((out / "report.json").read_text("utf-8"))
+    assert report["errors"][0]["code"] == "UNREADABLE" and report["findings"] == []

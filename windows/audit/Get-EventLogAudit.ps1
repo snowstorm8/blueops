@@ -31,9 +31,12 @@ function Get-BoEventLogSetting {
     $pk = Get-BoRegKeyChecked -Path $pol -CheckId 'EVT-SIZE-001'
     $known = ($script:Bo.Errors.Count -eq $errBefore)
     $maxKb = $null; $source = 'unset'; $retention = $null; $ref = $svc
-    if ($null -ne $sk -and $sk.Values.ContainsKey('MaxSize')) {
-        $bytes = 0L
-        if ([long]::TryParse([string]$sk.Values['MaxSize'], [ref]$bytes)) { $maxKb = [long][math]::Floor($bytes / 1024); $source = 'service' }
+    if ($null -ne $sk) {
+        if ($sk.Values.ContainsKey('MaxSize')) {
+            $bytes = 0L
+            if ([long]::TryParse([string]$sk.Values['MaxSize'], [ref]$bytes)) { $maxKb = [long][math]::Floor($bytes / 1024); $source = 'service' }
+        }
+        # Retention is independent of MaxSize: a log can set one without the other.
         $retention = ConvertTo-BoRetentionValue (Get-BoProp $sk.Values 'Retention' $null)
     }
     if ($null -ne $pk -and $pk.Values.ContainsKey('MaxSize')) {

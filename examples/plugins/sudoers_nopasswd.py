@@ -44,9 +44,14 @@ def main(argv: list[str]) -> int:
     root = _root()
     files = [root / "etc" / "sudoers"]
     drop = root / "etc" / "sudoers.d"
-    if drop.is_dir():
-        files += sorted(p for p in drop.iterdir() if "." not in p.name and not p.name.endswith("~"))
     evidence, errors = [], []
+    try:
+        if drop.is_dir():
+            files += sorted(
+                p for p in drop.iterdir() if "." not in p.name and not p.name.endswith("~")
+            )
+    except OSError as exc:  # unprivileged runs cannot list /etc/sudoers.d: a gap, not a crash
+        errors.append({"code": "UNREADABLE", "message": f"sudoers.d: {exc.strerror}"})
     for path in files:
         try:
             text = path.read_text(encoding="utf-8", errors="replace")
