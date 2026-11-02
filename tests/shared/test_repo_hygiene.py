@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+import os
 import re
 import shutil
 import subprocess
@@ -101,7 +102,9 @@ def test_fixture_names_can_be_checked_out_on_windows() -> None:
 def test_the_fixture_tree_builds_on_every_platform(tmp_path: Path) -> None:
     root = linux_fixture_root(tmp_path / "root")
     assert (root / "etc" / "passwd").is_file()
-    assert (root / "tmp" / DECEPTIVE_NAME).exists() == DECEPTIVE_NAME_SUPPORTED
+    # Compare directory entries, not Path.exists(): Windows strips trailing dots, so
+    # (tmp / "...").exists() is True there even though no such entry exists.
+    assert (DECEPTIVE_NAME in os.listdir(root / "tmp")) == DECEPTIVE_NAME_SUPPORTED
 
 
 def test_building_the_fixture_does_not_need_the_deceptive_name(
@@ -110,7 +113,7 @@ def test_building_the_fixture_does_not_need_the_deceptive_name(
     """Simulate a platform that cannot create ``...``: the tree must still build, without it."""
     monkeypatch.setattr(engine_support, "DECEPTIVE_NAME_SUPPORTED", False)
     root = linux_fixture_root(tmp_path / "root")
-    assert (root / "etc" / "passwd").is_file() and not (root / "tmp" / DECEPTIVE_NAME).exists()
+    assert (root / "etc" / "passwd").is_file() and DECEPTIVE_NAME not in os.listdir(root / "tmp")
 
 
 @pytest.mark.skipif(
