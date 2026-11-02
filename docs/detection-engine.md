@@ -4,6 +4,10 @@
 
 > **Not to be confused with** `python -m shared.reporting.detect` (the v0.3 rules over *baseline diffs*, [detection-rules.md](detection-rules.md)). That tool is unchanged and still works on two audit reports. The engine described here works on **assessments** ([assessment-engine.md](assessment-engine.md)): central findings, evidence, inventory, snapshot comparison and history. Rule ids are `DR-...` (this engine) versus `BO-...` (the legacy tool); detection ids are `DT-...` versus `DET-...`.
 
+## Telemetry sources
+
+Rules can also read endpoint telemetry ([telemetry.md](telemetry.md)): clause `source` may be `telemetry` (current records; fields in the [telemetry docs](telemetry.md#querying)) or `telemetry_changes` (added/removed/changed records against `--telemetry-baseline`), `requires_coverage` accepts `telemetry:<category>[/<scope>]`, and rule examples accept `telemetry` / `previous_telemetry` specs. Without telemetry such rules are `not_applicable`; with unavailable coverage they are `indeterminate`.
+
 ## Architecture
 
 ```mermaid

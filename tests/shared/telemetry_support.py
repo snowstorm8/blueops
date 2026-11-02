@@ -3,8 +3,10 @@
 from __future__ import annotations
 
 import json
+from pathlib import Path
 from typing import Any
 
+ROOT_FOR_REPO = Path(__file__).resolve().parents[2]
 STARTED = "2026-03-01T10:00:00Z"
 ENDED = "2026-03-01T10:05:00Z"
 

@@ -448,8 +448,11 @@ collect_scheduled_task() {
       tel_rec scheduled_task "cron.${d}" "cronscript:${shown}" file "${shown}" "directory-listing" "" "name=${shown}" "command=${shown}" "schedule=${d}" "user=root" "kind=cron.${d}"
     done
   done
+  local seen_timers=""
   for f in "$(bo_path /etc/systemd/system)"/*.timer "$(bo_path /usr/lib/systemd/system)"/*.timer "$(bo_path /lib/systemd/system)"/*.timer; do
     [[ -f "${f}" ]] || continue
+    case "${seen_timers}" in *"|${f##*/}|"*) continue ;; esac # /lib is /usr/lib on merged-usr hosts
+    seen_timers+="|${f##*/}|"
     local base="${f##*/}" cal unit
     cal="$(sed -n 's/^OnCalendar=//p' "${f}" 2>/dev/null | head -n 1)"
     unit="$(sed -n 's/^Unit=//p' "${f}" 2>/dev/null | head -n 1)"
@@ -516,7 +519,7 @@ collect_network() { # fills both network_connection and listener
     # shellcheck disable=SC2012 # symlink targets are the data; names are not used
     ls -l "${proc}"/[0-9]*/fd 2>/dev/null | awk '/^\/.*\/fd:$/ { split($0, p, "/"); pid = p[length(p) - 1]; next } /socket:\[/ { s = $0; sub(/.*socket:\[/, "", s); sub(/\].*/, "", s); print s "\t" pid }' >"${owners}" || true
   fi
-  local p la lp ra rp inode st pid pname state key
+  local p la lp ra rp inode st pid pname state key unowned=0
   while IFS=$'\t' read -r p st la lp ra rp inode _x; do
     pid="" pname=""
     if [[ -s "${owners}" && "${inode}" != 0 ]]; then
@@ -535,7 +538,12 @@ collect_network() { # fills both network_connection and listener
       *) state=other ;;
     esac
     local ptoks=()
-    if [[ -n "${pid}" ]]; then ptoks=("+pid=${pid}" "process=${pname}"); else ptoks=("?pid" "?process"); fi
+    if [[ -n "${pid}" ]]; then
+      ptoks=("+pid=${pid}" "process=${pname}")
+    else
+      ptoks=("?pid" "?process")
+      [[ "${inode}" != 0 ]] && unowned=$((unowned + 1))
+    fi
     if [[ "${state}" == listen || ("${state}" == udp && "${ra}" =~ ^(0\.0\.0\.0|0+:0+:0+:0+:0+:0+:0+:0+)$) ]]; then
       key="listener:${p}:${la}:${lp}"
       tel_rec listener "" "${key}" proc "/proc/net/${p}" "procfs" "" "protocol=${p%6}" "local_address=${la}" "+local_port=${lp}" "+inode=${inode}" "${ptoks[@]}"
@@ -547,6 +555,9 @@ collect_network() { # fills both network_connection and listener
   done <"${tsv}"
   local why=""
   ${fd_ok} || why="socket owners (pid/process) were not resolved: /proc/<pid>/fd is not readable (run as root)"
+  if [[ -z "${why}" ]] && ((unowned > 0)); then
+    why="the owning process of ${unowned} socket(s) could not be resolved (sockets of other users need root)"
+  fi
   if [[ -n "${why}" ]]; then
     tel_cov network_connection partial "${why}"
     tel_cov listener partial "${why}"
@@ -645,8 +656,10 @@ collect_auth_event() {
   elif [[ -z "${BO_ROOT:-}" ]] && bo_have journalctl; then # never the real journal in fixture mode
     origin="journalctl"
     local jerr="${TEL_TMP}/journal.err"
-    if journalctl --no-pager -q -o short-iso --since "${TEL_SINCE_HOURS} hours ago" _COMM=sshd _COMM=sudo _COMM=su _COMM=useradd _COMM=usermod _COMM=userdel _COMM=passwd _COMM=gpasswd _COMM=groupadd -n "$((TEL_MAX_EVENTS * 4))" >"${TEL_TMP}/journal.txt" 2>"${jerr}"; then
-      if [[ -s "${TEL_TMP}/journal.txt" ]]; then
+    if journalctl --no-pager -o short-iso --since "${TEL_SINCE_HOURS} hours ago" _COMM=sshd _COMM=sudo _COMM=su _COMM=useradd _COMM=usermod _COMM=userdel _COMM=passwd _COMM=gpasswd _COMM=groupadd -n "$((TEL_MAX_EVENTS * 4))" >"${TEL_TMP}/journal.txt" 2>"${jerr}"; then
+      if grep -qi 'insufficient permissions\|permission denied\|not seeing messages' "${jerr}" 2>/dev/null; then
+        reason="the system journal is not readable by this user (needs root or membership of the adm/systemd-journal group)"
+      elif [[ -s "${TEL_TMP}/journal.txt" ]]; then
         awk '{ t = $1; $1 = ""; $2 = ""; sub(/^ +/, ""); prog = $1; sub(/\[.*/, "", prog); sub(/:$/, "", prog); msg = $0; sub(/^[^:]*: ?/, "", msg); print t "\t" prog "\t" msg }' "${TEL_TMP}/journal.txt" >"${tsv}" || true
       fi
     else
@@ -682,7 +695,9 @@ collect_auth_event() {
   done <"${ev}"
   local note=""
   [[ -z "${TEL_CUTOFF}" ]] && note="the time window could not be applied (no GNU date); "
-  if ((skipped_time > 0)); then
+  if [[ "${origin}" == journalctl ]] && ((n == 0)) && ! bo_is_root; then
+    tel_cov auth_event partial "${note}no events were returned; the journal shows an unprivileged user only part of the system log, so this does not prove there were none" auth
+  elif ((skipped_time > 0)); then
     tel_cov auth_event partial "${note}${skipped_time} event(s) have no usable time (syslog lines without year/zone); they are kept without a time" auth
   else
     tel_cov auth_event complete "${note}events from ${origin}, last ${TEL_SINCE_HOURS}h, at most ${TEL_MAX_EVENTS}"
