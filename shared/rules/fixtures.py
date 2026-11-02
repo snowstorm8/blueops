@@ -73,6 +73,9 @@ def build_assessment(  # noqa: PLR0912, PLR0915
     for f in findings:
         report["summary"]["by_severity"][f["severity"]] += 1
     doc = assessment_from_report(report)
+    rejected = [e for e in doc["errors"] if e["code"] == "FINDING_REJECTED"]
+    if rejected:  # an example with a malformed finding would silently test nothing
+        raise ValueError(f"example finding rejected: {rejected[0]['message']}")
 
     # Per-module breakdown: findings are attributed to the module named after their category.
     def module_of(category: str) -> str:

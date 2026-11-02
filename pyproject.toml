@@ -19,6 +19,9 @@ ignore = ["PLR2004"]
 # Rule validation/compilation passes diagnostics through recursive visitors (many parameters) and
 # builds messages inline; wrapping them would not make them clearer.
 "shared/rules/**" = ["PLR0913", "PLR0917", "E501"]
+# Detection tests are dense data tables (rules, hosts, expectations); wrapping them hides the shape.
+"tests/shared/test_rules_*.py" = ["E501", "PLC0415", "S311"]
+"tests/shared/rules_support.py" = ["E501"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests/shared"]

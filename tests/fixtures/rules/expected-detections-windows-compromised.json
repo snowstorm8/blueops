@@ -1,0 +1,1435 @@
+{
+  "assessment": {
+    "finished_at": "2026-03-01T10:00:00Z",
+    "id": "windows-compromised",
+    "profile": "example",
+    "started_at": "2026-03-01T10:00:00Z"
+  },
+  "detections": [
+    {
+      "category": "persistence",
+      "components": [
+        "filesystem",
+        "persistence",
+        "services"
+      ],
+      "confidence": "medium",
+      "contributing": [
+        {
+          "check_id": "SVC-PATH-001",
+          "clause": "start",
+          "id": "BOF-9aa73482f13bf68a",
+          "label": "SVC-PATH-001: Synthetic finding SVC-PATH-001",
+          "severity": "medium",
+          "type": "finding"
+        },
+        {
+          "check_id": "FS-EXE-001",
+          "clause": "file",
+          "id": "BOF-0c32f5099e0c9840",
+          "label": "FS-EXE-001: Synthetic finding FS-EXE-001",
+          "severity": "medium",
+          "type": "finding"
+        }
+      ],
+      "description": "A service, task, autorun, cron job or unit refers to a path that a filesystem finding (world-writable, temporary, unsigned, hidden or recently modified executable) also lists.",
+      "detected_at": "2026-03-05T00:00:00Z",
+      "evidence": [
+        "EV-8ba6f82b136df1ac",
+        "EV-60689d49e465fcf1"
+      ],
+      "explanation": {
+        "caveats": [],
+        "confidence_rationale": "Confidence medium: Linking is by a shared path string in two independent findings; the path is exact but the file's purpose is still unknown.",
+        "disclaimer": "These independent indicators were correlated by a rule. Correlation raises a question; it does not prove malicious activity.",
+        "missing_corroboration": [
+          "Hash and signature of the file; creation time relative to the startup entry.",
+          "Network connections made by the process started from this path."
+        ],
+        "possible_benign_causes": [
+          "Software legitimately installed under ProgramData or /opt that is also unsigned or recently updated."
+        ],
+        "severity_rationale": "Severity high is the rule's base severity: A startup mechanism that points at a file sitting in an unsafe place or flagged as unusual is the shape of a planted foothold. The number of matching items did not change it.",
+        "why_correlated": "Rule DR-ANY-COR-001 requires: (start all file). Satisfied clauses: start (1 item(s)), file (1 item(s)). The contributing items were grouped because they share evidence.paths = 'c:\\\\users\\\\public\\\\payload.exe'.",
+        "why_flagged": "Two independent collectors (startup configuration and file inspection) describe the same path. That agreement is stronger than either finding alone and shows where to look first."
+      },
+      "host": {
+        "host_id": "H-73b40abf58d1",
+        "hostname": "host01"
+      },
+      "id": "DT-0feb2a4d31bbd895",
+      "investigation_steps": [
+        "Open the shared path: owner, hash, signature, timestamps.",
+        "Read the startup entry that references it.",
+        "Check whether other entries reference the same path."
+      ],
+      "matched_conditions": [
+        {
+          "clause": "start",
+          "conditions": [
+            "check_id in ['PER-CRON-002', 'PER-SYSTEMD-001', 'PER-STARTUP-001', 'PER-SHELL-001', 'SVC-PATH-001', 'SVC-UNQUOTED-001', ...]"
+          ],
+          "description": "A suspicious service, task, autorun or cron/unit finding",
+          "matched_items": 1,
+          "optional": false
+        },
+        {
+          "clause": "file",
+          "conditions": [
+            "check_id in ['FS-PERM-003', 'FS-PERM-001', 'FS-PERM-002', 'FS-SUID-002', 'FS-HIDDEN-001', 'FS-EXE-001', ...]"
+          ],
+          "description": "A filesystem finding about an unusual executable or writable file",
+          "matched_items": 1,
+          "optional": false
+        }
+      ],
+      "nature": "correlated",
+      "references": {
+        "attack": [
+          {
+            "explanation": "Service/unit persistence can launch attacker-placed files; here the link is only a shared path.",
+            "id": "T1543",
+            "relationship": "possible",
+            "url": "https://attack.mitre.org/techniques/T1543/"
+          },
+          {
+            "explanation": "Scheduled execution can launch attacker-placed files; here the link is only a shared path.",
+            "id": "T1053",
+            "relationship": "possible",
+            "url": "https://attack.mitre.org/techniques/T1053/"
+          }
+        ],
+        "nist": [
+          {
+            "id": "SI-7",
+            "title": "Software, Firmware, and Information Integrity"
+          },
+          {
+            "id": "CM-7",
+            "title": "Least Functionality"
+          }
+        ],
+        "other": []
+      },
+      "remediation": "Preserve the file and the entry as evidence, disable the startup entry, then remove or restore the file from a trusted source.",
+      "rule": {
+        "id": "DR-ANY-COR-001",
+        "name": "Persistence entry executes a file that the filesystem checks also flagged",
+        "pack": "correlation",
+        "version": "1.0.0"
+      },
+      "severity": "high",
+      "title": "Persistence entry runs a file flagged by the filesystem checks: C:\\Users\\Public\\payload.exe"
+    },
+    {
+      "category": "defense-evasion",
+      "components": [
+        "defense-evasion",
+        "eventlog",
+        "persistence",
+        "security-config"
+      ],
+      "confidence": "medium",
+      "contributing": [
+        {
+          "check_id": "EVT-SVC-001",
+          "clause": "impair",
+          "id": "BOF-8d7a013236def80e",
+          "label": "EVT-SVC-001: Synthetic finding EVT-SVC-001",
+          "severity": "high",
+          "type": "finding"
+        },
+        {
+          "check_id": "SEC-DEF-001",
+          "clause": "impair",
+          "id": "BOF-17673aff44de1f12",
+          "label": "SEC-DEF-001: Synthetic finding SEC-DEF-001",
+          "severity": "high",
+          "type": "finding"
+        },
+        {
+          "check_id": "PER-WMI-001",
+          "clause": "persist",
+          "id": "BOF-acf909c8fdaf4d4b",
+          "label": "PER-WMI-001: Synthetic finding PER-WMI-001",
+          "severity": "high",
+          "type": "finding"
+        }
+      ],
+      "description": "A log-impairment or protection-disabling finding appears on the same host as a high-signal persistence finding.",
+      "detected_at": "2026-03-05T00:00:00Z",
+      "evidence": [
+        "EV-71ee20ab29e8b982",
+        "EV-03fce4123b153c75",
+        "EV-6168901442f95231"
+      ],
+      "explanation": {
+        "caveats": [],
+        "confidence_rationale": "Confidence medium: Both are accurate findings; their link is that they co-occur, not that one caused the other.",
+        "disclaimer": "These independent indicators were correlated by a rule. Correlation raises a question; it does not prove malicious activity.",
+        "missing_corroboration": [
+          "Timestamps showing the persistence artefact was created after logging was reduced.",
+          "Network activity from the artefact."
+        ],
+        "possible_benign_causes": [
+          "Hosts with custom logging pipelines that look impaired to the collector, plus an unrelated admin script flagged as persistence."
+        ],
+        "severity_rationale": "Severity high is the rule's base severity: Persistence indicators are concerning on their own; paired with reduced logging or protection they suggest the host was prepared to avoid detection. The number of matching items did not change it.",
+        "why_correlated": "Rule DR-ANY-COR-005 requires: (impair all persist). Satisfied clauses: impair (2 item(s)), persist (1 item(s)).",
+        "why_flagged": "Attackers who establish persistence commonly also reduce what is recorded. Co-occurrence prioritises this host for investigation over hosts with only one of the signals."
+      },
+      "host": {
+        "host_id": "H-73b40abf58d1",
+        "hostname": "host01"
+      },
+      "id": "DT-56151c86e9bc27b5",
+      "investigation_steps": [
+        "Establish the timeline from file and configuration timestamps.",
+        "Check whether other hosts show the same pair.",
+        "Collect volatile evidence (processes, connections) before changing anything."
+      ],
+      "matched_conditions": [
+        {
+          "clause": "impair",
+          "conditions": [
+            "check_id in ['CFG-LOG-001', 'CFG-LOG-003', 'EVT-SVC-001', 'EVT-CHAN-001', 'SEC-DEF-001']"
+          ],
+          "description": "Logging or protection impaired",
+          "matched_items": 2,
+          "optional": false
+        },
+        {
+          "clause": "persist",
+          "conditions": [
+            "check_id in ['PER-CRON-002', 'PER-SYSTEMD-001', 'PER-LDPRE-001', 'PER-WMI-001', 'PER-IFEO-001', 'AUT-CMD-001', ...]"
+          ],
+          "description": "A high-signal persistence indicator",
+          "matched_items": 1,
+          "optional": false
+        }
+      ],
+      "nature": "correlated",
+      "references": {
+        "attack": [
+          {
+            "explanation": "Impairing defences is a tactic used alongside persistence; co-occurrence here does not prove it.",
+            "id": "T1562",
+            "relationship": "possible",
+            "url": "https://attack.mitre.org/techniques/T1562/"
+          }
+        ],
+        "nist": [
+          {
+            "id": "AU-9",
+            "title": "Protection of Audit Information"
+          },
+          {
+            "id": "SI-4",
+            "title": "System Monitoring"
+          },
+          {
+            "id": "SI-7",
+            "title": "Software, Firmware, and Information Integrity"
+          }
+        ],
+        "other": []
+      },
+      "remediation": "Restore logging and protection, preserve and then remove the persistence artefact, and review the host for further changes.",
+      "rule": {
+        "id": "DR-ANY-COR-005",
+        "name": "Logging or protection impaired alongside a persistence indicator",
+        "pack": "correlation",
+        "version": "1.0.0"
+      },
+      "severity": "high",
+      "title": "Reduced logging/protection together with a persistence indicator"
+    },
+    {
+      "category": "network-exposure",
+      "components": [
+        "firewall",
+        "listeners",
+        "network-exposure"
+      ],
+      "confidence": "medium",
+      "contributing": [
+        {
+          "check_id": "FW-PROFILE-001",
+          "clause": "fw",
+          "id": "BOF-ef4d537761b7cac9",
+          "label": "FW-PROFILE-001: Synthetic finding FW-PROFILE-001",
+          "severity": "high",
+          "type": "finding"
+        },
+        {
+          "clause": "svc",
+          "domain": "listeners",
+          "key": "listener:tcp/0.0.0.0/3389",
+          "label": "listeners/listener:tcp/0.0.0.0/3389",
+          "scope": "",
+          "type": "inventory"
+        },
+        {
+          "clause": "svc",
+          "domain": "listeners",
+          "key": "listener:tcp/0.0.0.0/445",
+          "label": "listeners/listener:tcp/0.0.0.0/445",
+          "scope": "",
+          "type": "inventory"
+        }
+      ],
+      "description": "The host firewall is disabled, default-allow, or allows everything inbound, and remote-management or database ports are listening on non-loopback addresses.",
+      "detected_at": "2026-03-05T00:00:00Z",
+      "evidence": [
+        "EV-93b0ea4b17f554e4"
+      ],
+      "explanation": {
+        "caveats": [],
+        "confidence_rationale": "Confidence medium: Both facts are exact; a network firewall in front of the host may still provide protection that is not visible here.",
+        "disclaimer": "These independent indicators were correlated by a rule. Correlation raises a question; it does not prove malicious activity.",
+        "missing_corroboration": [
+          "Confirmation from network scans or upstream ACLs that the ports are reachable.",
+          "Firewall configuration changes since the previous snapshot."
+        ],
+        "possible_benign_causes": [
+          "Hosts protected by a dedicated upstream firewall and reachable only from a management VLAN."
+        ],
+        "severity_rationale": "Severity high is the rule's base severity: With no effective host filtering, every listed service is reachable by anything that can route to the host. The number of matching items did not change it.",
+        "why_correlated": "Rule DR-ANY-NET-002 requires: (fw all svc). Satisfied clauses: fw (1 item(s)), svc (2 item(s)).",
+        "why_flagged": "A host firewall is the last filter for services bound to every interface. Its absence plus a listening management or database port is a concrete exposure, not just a hygiene gap."
+      },
+      "host": {
+        "host_id": "H-73b40abf58d1",
+        "hostname": "host01"
+      },
+      "id": "DT-852b82f2081d6d9d",
+      "investigation_steps": [
+        "Verify reachability of the listed ports from an untrusted segment.",
+        "Check upstream filtering and the firewall change history.",
+        "Identify owners of the listening services."
+      ],
+      "matched_conditions": [
+        {
+          "clause": "fw",
+          "conditions": [
+            "check_id in ['FW-PROFILE-001', 'FW-DEFAULT-001', 'FW-RULE-002', 'NET-FW-002']"
+          ],
+          "description": "Host firewall disabled, default-allow or allow-all",
+          "matched_items": 1,
+          "optional": false
+        },
+        {
+          "clause": "svc",
+          "conditions": [
+            "domain eq 'listeners'",
+            "attrs.port in ['23', '21', '445', '3389', '5900', '5985', ...]",
+            "not ((attrs.bind regex '^127\\\\.') any (attrs.bind in ['127.0.0.1', '::1', 'localhost', '[::1]']))"
+          ],
+          "description": "A management or data port listening on a non-loopback address",
+          "matched_items": 2,
+          "optional": false
+        }
+      ],
+      "nature": "correlated",
+      "references": {
+        "attack": [
+          {
+            "explanation": "Exposed services without filtering enlarge the attack surface for exploitation of public-facing applications; none is exploited here.",
+            "id": "T1190",
+            "relationship": "possible",
+            "url": "https://attack.mitre.org/techniques/T1190/"
+          }
+        ],
+        "nist": [
+          {
+            "id": "SC-7",
+            "title": "Boundary Protection"
+          },
+          {
+            "id": "CM-7",
+            "title": "Least Functionality"
+          }
+        ],
+        "other": []
+      },
+      "remediation": "Enable the host firewall with an allow-list for required ports (reload rather than flush; verify scored ports first), or bind the services to loopback.",
+      "rule": {
+        "id": "DR-ANY-NET-002",
+        "name": "Host firewall absent or permissive while management or data services listen",
+        "pack": "correlation",
+        "version": "1.0.0"
+      },
+      "severity": "high",
+      "title": "Open host firewall with listening management/data services"
+    },
+    {
+      "category": "privilege",
+      "components": [
+        "accounts",
+        "privilege",
+        "security-config"
+      ],
+      "confidence": "medium",
+      "contributing": [
+        {
+          "check_id": "USR-HIDDEN-001",
+          "clause": "priv",
+          "id": "BOF-85be6b21008f7839",
+          "label": "USR-HIDDEN-001: Synthetic finding USR-HIDDEN-001",
+          "severity": "high",
+          "type": "finding"
+        },
+        {
+          "check_id": "SEC-RDP-002",
+          "clause": "auth",
+          "id": "BOF-ace7cd688b5a45a7",
+          "label": "SEC-RDP-002: Synthetic finding SEC-RDP-002",
+          "severity": "high",
+          "type": "finding"
+        },
+        {
+          "check_id": "SEC-RDP-002",
+          "clause": "bypass",
+          "id": "BOF-ace7cd688b5a45a7",
+          "label": "SEC-RDP-002: Synthetic finding SEC-RDP-002",
+          "severity": "high",
+          "type": "finding"
+        }
+      ],
+      "description": "An unexpected or over-privileged account configuration was found on a host that also has weak authentication controls.",
+      "detected_at": "2026-03-05T00:00:00Z",
+      "evidence": [
+        "EV-ed629d13d15ad5d9",
+        "EV-4e09a0019eb03d22"
+      ],
+      "explanation": {
+        "caveats": [],
+        "confidence_rationale": "Confidence medium: Both sides are exact findings; their relationship (same accounts, reachable service) is not established by the data.",
+        "disclaimer": "These independent indicators were correlated by a rule. Correlation raises a question; it does not prove malicious activity.",
+        "missing_corroboration": [
+          "Evidence that the weak control applies to the privileged account (for example sshd allowing that account).",
+          "Logons by the privileged account from unusual sources."
+        ],
+        "possible_benign_causes": [
+          "Competition or lab hosts configured deliberately weak."
+        ],
+        "severity_rationale": "Severity high was set by an explicit rule condition: An authentication-bypass-class weakness (PAM accepts without credential, passwordless accounts, no NLA, auto-logon) is present.",
+        "why_correlated": "Rule DR-ANY-PRIV-002 requires: (priv all auth). Satisfied clauses: priv (1 item(s)), auth (1 item(s)), bypass (1 item(s)).",
+        "why_flagged": "An attacker needs a way to authenticate and a privileged identity to use. Seeing a questionable privileged account and weak authentication on one host is more actionable than either alone."
+      },
+      "host": {
+        "host_id": "H-73b40abf58d1",
+        "hostname": "host01"
+      },
+      "id": "DT-ea2a012f2056730b",
+      "investigation_steps": [
+        "Check whether the privileged account can use the weak authentication path (sshd AllowUsers, PAM stack for the service).",
+        "Review authentication logs for the privileged accounts.",
+        "Fix the bypass-class weakness first."
+      ],
+      "matched_conditions": [
+        {
+          "clause": "priv",
+          "conditions": [
+            "check_id in ['USR-UID0-001', 'USR-SUDO-002', 'USR-SUDO-004', 'USR-SUDO-005', 'USR-GROUP-003', 'USR-HIDDEN-001', ...]"
+          ],
+          "description": "A privileged-account anomaly",
+          "matched_items": 1,
+          "optional": false
+        },
+        {
+          "clause": "auth",
+          "conditions": [
+            "check_id in ['PAM-PERMIT-001', 'PAM-NULLOK-001', 'PAM-HASH-001', 'NET-SSHD-002', 'ATH-LOCKOUT-001', 'SEC-PWD-002', ...]"
+          ],
+          "description": "A weak authentication control",
+          "matched_items": 1,
+          "optional": false
+        },
+        {
+          "clause": "bypass",
+          "conditions": [
+            "check_id in ['PAM-PERMIT-001', 'USR-PWD-001', 'SEC-RDP-002', 'SEC-AUTOLOGON-001']"
+          ],
+          "description": "...of the bypass class",
+          "matched_items": 1,
+          "optional": true
+        }
+      ],
+      "nature": "correlated",
+      "references": {
+        "attack": [
+          {
+            "explanation": "Valid accounts are often used with weak authentication to gain access; nothing here shows use.",
+            "id": "T1078",
+            "relationship": "possible",
+            "url": "https://attack.mitre.org/techniques/T1078/"
+          },
+          {
+            "explanation": "Account manipulation is one way a privileged anomaly arises.",
+            "id": "T1098",
+            "relationship": "possible",
+            "url": "https://attack.mitre.org/techniques/T1098/"
+          }
+        ],
+        "nist": [
+          {
+            "id": "AC-2",
+            "title": "Account Management"
+          },
+          {
+            "id": "IA-5",
+            "title": "Authenticator Management"
+          },
+          {
+            "id": "AC-6",
+            "title": "Least Privilege"
+          }
+        ],
+        "other": []
+      },
+      "remediation": "Remove or justify the anomalous privileged account, then close the authentication weakness (PAM/sshd/NLA/lockout) in the order of the severity rationale.",
+      "rule": {
+        "id": "DR-ANY-PRIV-002",
+        "name": "Privileged-account anomaly together with weak authentication settings",
+        "pack": "correlation",
+        "version": "1.0.0"
+      },
+      "severity": "high",
+      "title": "Privileged-account anomaly with weak authentication on host01"
+    },
+    {
+      "category": "accounts",
+      "components": [
+        "accounts",
+        "users"
+      ],
+      "confidence": "medium",
+      "contributing": [
+        {
+          "clause": "hidden",
+          "domain": "users",
+          "key": "user:S-1-5-21-1-1003",
+          "label": "users/user:S-1-5-21-1-1003",
+          "scope": "",
+          "type": "inventory"
+        }
+      ],
+      "description": "An enabled local account has a name ending in $ (hidden from some tools) or does not require a password.",
+      "detected_at": "2026-03-05T00:00:00Z",
+      "evidence": [],
+      "explanation": {
+        "caveats": [],
+        "confidence_rationale": "Confidence medium: Machine-style names and passwordless service accounts exist legitimately in some environments.",
+        "disclaimer": "This is a suspicious indicator. Benign activity can produce the same observation; it does not prove compromise.",
+        "missing_corroboration": [
+          "Optional corroboration not observed: An enabled account without a required password"
+        ],
+        "possible_benign_causes": [
+          "Legacy service accounts created without passwords for local-only use."
+        ],
+        "severity_rationale": "Severity high is the rule's base severity: Either condition gives access without a normal visible, authenticated account. The number of matching items did not change it.",
+        "why_correlated": "Rule DR-WIN-ACC-001 requires: (nopass any hidden). Satisfied clauses: hidden (1 item(s)). The contributing items were grouped because they share key = 'user:S-1-5-21-1-1003'.",
+        "why_flagged": "A $-suffixed name hides an account from net user and some GUIs; a password-not-required flag lets the account authenticate with a blank password if policy allows."
+      },
+      "host": {
+        "host_id": "H-73b40abf58d1",
+        "hostname": "host01"
+      },
+      "id": "DT-90396e36dd27259c",
+      "investigation_steps": [
+        "Compare the account against the documented account list and its creation time.",
+        "Check group memberships (especially Administrators) and recent logons.",
+        "Review the registry SAM entry creation time if available."
+      ],
+      "matched_conditions": [
+        {
+          "clause": "hidden",
+          "conditions": [
+            "domain eq 'users'",
+            "attrs.enabled is_true",
+            "attrs.name regex '\\\\$$'"
+          ],
+          "description": "An enabled local account whose name ends in $",
+          "matched_items": 1,
+          "optional": true
+        }
+      ],
+      "nature": "indicator",
+      "references": {
+        "attack": [
+          {
+            "explanation": "Hidden or passwordless local accounts are a way to keep access; creation by an adversary is not shown.",
+            "id": "T1136.001",
+            "relationship": "possible",
+            "url": "https://attack.mitre.org/techniques/T1136/001/"
+          },
+          {
+            "explanation": "A $-suffixed account name hides the account from some listings (Hidden Users technique family).",
+            "id": "T1564.002",
+            "relationship": "possible",
+            "url": "https://attack.mitre.org/techniques/T1564/002/"
+          }
+        ],
+        "nist": [
+          {
+            "id": "AC-2",
+            "title": "Account Management"
+          },
+          {
+            "id": "IA-5",
+            "title": "Authenticator Management"
+          }
+        ],
+        "other": []
+      },
+      "remediation": "Disable or remove unauthorised accounts after preserving evidence; require passwords on all enabled accounts.",
+      "rule": {
+        "id": "DR-WIN-ACC-001",
+        "name": "Enabled local account that is hidden or needs no password",
+        "pack": "windows-core",
+        "version": "1.0.0"
+      },
+      "severity": "high",
+      "title": "Suspicious local account configuration: (none)support$"
+    },
+    {
+      "category": "credential-access",
+      "components": [
+        "credential-access",
+        "security-config"
+      ],
+      "confidence": "medium",
+      "contributing": [
+        {
+          "check_id": "SEC-LSA-001",
+          "clause": "lsa",
+          "id": "BOF-22358ee7ccf024ae",
+          "label": "SEC-LSA-001: Synthetic finding SEC-LSA-001",
+          "severity": "high",
+          "type": "finding"
+        },
+        {
+          "check_id": "SEC-DEF-001",
+          "clause": "posture",
+          "id": "BOF-17673aff44de1f12",
+          "label": "SEC-DEF-001: Synthetic finding SEC-DEF-001",
+          "severity": "high",
+          "type": "finding"
+        },
+        {
+          "check_id": "SEC-DEF-001",
+          "clause": "defender",
+          "id": "BOF-17673aff44de1f12",
+          "label": "SEC-DEF-001: Synthetic finding SEC-DEF-001",
+          "severity": "high",
+          "type": "finding"
+        }
+      ],
+      "description": "LSA/credential-protection settings are weak and UAC or Microsoft Defender is also weakened.",
+      "detected_at": "2026-03-05T00:00:00Z",
+      "evidence": [
+        "EV-258a0cb81d41cd4c",
+        "EV-03fce4123b153c75"
+      ],
+      "explanation": {
+        "caveats": [],
+        "confidence_rationale": "Confidence medium: The settings are exact; whether they were weakened deliberately is not known.",
+        "disclaimer": "These independent indicators were correlated by a rule. Correlation raises a question; it does not prove malicious activity.",
+        "missing_corroboration": [
+          "Event log evidence of LSASS access or of Defender tamper events.",
+          "Changes to these settings since the previous snapshot."
+        ],
+        "possible_benign_causes": [
+          "Legacy compatibility settings kept for old applications (for example WDigest for old SSO)."
+        ],
+        "severity_rationale": "Severity high was set by an explicit rule condition: Microsoft Defender protection is disabled, removing the main control against credential-dumping tools.",
+        "why_correlated": "Rule DR-WIN-CRED-001 requires: (lsa all posture). Satisfied clauses: lsa (1 item(s)), posture (1 item(s)), defender (1 item(s)).",
+        "why_flagged": "Credential-dumping tools need weak LSA protection and little interference from endpoint protection. Seeing both together is a preparation pattern, though it also matches poorly hardened hosts."
+      },
+      "host": {
+        "host_id": "H-73b40abf58d1",
+        "hostname": "host01"
+      },
+      "id": "DT-b013813e91260fb1",
+      "investigation_steps": [
+        "Check when each setting was changed (registry key last-write times, GPO history).",
+        "Review Defender operational logs for disabled or excluded paths.",
+        "Look for tools in user-writable folders (see the filesystem findings)."
+      ],
+      "matched_conditions": [
+        {
+          "clause": "lsa",
+          "conditions": [
+            "check_id eq 'SEC-LSA-001'",
+            "evidence.excerpts regex '(?i)(WDigest|RunAsPPL|LM hashes|LmCompatibility|blank-password|anonymous)'"
+          ],
+          "description": "A weak LSA or credential-protection setting",
+          "matched_items": 1,
+          "optional": false
+        },
+        {
+          "clause": "posture",
+          "conditions": [
+            "check_id in ['SEC-UAC-001', 'SEC-DEF-001', 'SEC-DEF-002']"
+          ],
+          "description": "UAC weakened or Defender disabled / broadly excluded",
+          "matched_items": 1,
+          "optional": false
+        },
+        {
+          "clause": "defender",
+          "conditions": [
+            "check_id eq 'SEC-DEF-001'"
+          ],
+          "description": "Defender protection disabled",
+          "matched_items": 1,
+          "optional": true
+        }
+      ],
+      "nature": "correlated",
+      "references": {
+        "attack": [
+          {
+            "explanation": "Weak LSA protection facilitates LSASS credential dumping; no dumping is observed.",
+            "id": "T1003.001",
+            "relationship": "possible",
+            "url": "https://attack.mitre.org/techniques/T1003/001/"
+          },
+          {
+            "explanation": "Disabled or excluded endpoint protection can indicate impairment of defences; it can also be misconfiguration.",
+            "id": "T1562.001",
+            "relationship": "possible",
+            "url": "https://attack.mitre.org/techniques/T1562/001/"
+          }
+        ],
+        "nist": [
+          {
+            "id": "CM-6",
+            "title": "Configuration Settings"
+          },
+          {
+            "id": "SI-3",
+            "title": "Malicious Code Protection"
+          }
+        ],
+        "other": []
+      },
+      "remediation": "Enable RunAsPPL, disable WDigest, restore UAC and Defender defaults, and remove broad exclusions; test for application compatibility first.",
+      "rule": {
+        "id": "DR-WIN-CRED-001",
+        "name": "Credential protections weakened alongside weakened endpoint defences",
+        "pack": "windows-core",
+        "version": "1.0.0"
+      },
+      "severity": "high",
+      "title": "Credential protections and endpoint defences are both weakened"
+    },
+    {
+      "category": "persistence",
+      "components": [
+        "persistence"
+      ],
+      "confidence": "medium",
+      "contributing": [
+        {
+          "check_id": "PER-WMI-001",
+          "clause": "per",
+          "id": "BOF-acf909c8fdaf4d4b",
+          "label": "PER-WMI-001: Synthetic finding PER-WMI-001",
+          "severity": "high",
+          "type": "finding"
+        }
+      ],
+      "description": "A persistence mechanism that normal software rarely uses (WMI event consumers, IFEO debuggers, AppInit/AppCert DLLs, LSA packages, Winlogon changes, accessibility-binary replacement, ...) is configured.",
+      "detected_at": "2026-03-05T00:00:00Z",
+      "evidence": [
+        "EV-6168901442f95231"
+      ],
+      "explanation": {
+        "caveats": [],
+        "confidence_rationale": "Confidence medium: Security and accessibility products occasionally use these hooks; the collector already filters stock Windows values.",
+        "disclaimer": "This is a suspicious indicator. Benign activity can produce the same observation; it does not prove compromise.",
+        "missing_corroboration": [
+          "Binary signature, hash reputation and creation time of the referenced file or consumer.",
+          "The same artefact appearing in an earlier snapshot (then it is long-standing, not new)."
+        ],
+        "possible_benign_causes": [
+          "Endpoint security and application-compatibility tools that register WMI consumers, IFEO entries or AppInit DLLs."
+        ],
+        "severity_rationale": "Severity high is the rule's base severity: These locations are rarely configured by legitimate software and execute code automatically. The number of matching items did not change it.",
+        "why_correlated": "Rule DR-WIN-PER-001 requires: per. Satisfied clauses: per (1 item(s)). Each matching item is reported separately (grouped by id = 'BOF-acf909c8fdaf4d4b').",
+        "why_flagged": "Run keys are common and noisy; these mechanisms are specifically chosen by adversaries to execute code at logon, boot or process start without appearing in the usual autorun lists."
+      },
+      "host": {
+        "host_id": "H-73b40abf58d1",
+        "hostname": "host01"
+      },
+      "id": "DT-ee00ff4326f3db21",
+      "investigation_steps": [
+        "Open the evidence reference and read the configured command or DLL.",
+        "Verify the signature and compare the hash with a trusted source.",
+        "Establish when it was added (registry last-write, WMI repository, event logs) and by which account."
+      ],
+      "matched_conditions": [
+        {
+          "clause": "per",
+          "conditions": [
+            "check_id in ['PER-WMI-001', 'PER-IFEO-001', 'PER-SILENT-001', 'PER-APPINIT-001', 'PER-APPCERT-001', 'PER-ACCESS-001', ...]"
+          ],
+          "description": "A high-signal Windows persistence finding",
+          "matched_items": 1,
+          "optional": false
+        }
+      ],
+      "nature": "indicator",
+      "references": {
+        "attack": [
+          {
+            "explanation": "WMI event subscription persistence is one of the checks covered (PER-WMI-001).",
+            "id": "T1546.003",
+            "relationship": "possible",
+            "url": "https://attack.mitre.org/techniques/T1546/003/"
+          },
+          {
+            "explanation": "Image File Execution Options injection is covered by PER-IFEO-001.",
+            "id": "T1546.012",
+            "relationship": "possible",
+            "url": "https://attack.mitre.org/techniques/T1546/012/"
+          },
+          {
+            "explanation": "Winlogon helper changes are covered by AUT-WINLOGON-001.",
+            "id": "T1547.004",
+            "relationship": "possible",
+            "url": "https://attack.mitre.org/techniques/T1547/004/"
+          }
+        ],
+        "nist": [
+          {
+            "id": "SI-7",
+            "title": "Software, Firmware, and Information Integrity"
+          },
+          {
+            "id": "CM-7",
+            "title": "Least Functionality"
+          }
+        ],
+        "other": []
+      },
+      "remediation": "Capture the artefact, then remove or disable the mechanism and the binary it points to; reset the registry value to its Windows default.",
+      "rule": {
+        "id": "DR-WIN-PER-001",
+        "name": "Registry or WMI persistence mechanism commonly used for stealthy execution",
+        "pack": "windows-core",
+        "version": "1.0.0"
+      },
+      "severity": "high",
+      "title": "Stealthy persistence mechanism configured: Synthetic finding PER-WMI-001"
+    },
+    {
+      "category": "services",
+      "components": [
+        "services"
+      ],
+      "confidence": "medium",
+      "contributing": [
+        {
+          "clause": "svc",
+          "domain": "services",
+          "key": "service:evilsvc",
+          "label": "services/service:evilsvc",
+          "scope": "",
+          "type": "inventory"
+        }
+      ],
+      "description": "A service that runs as LocalSystem (or another built-in privileged account) has its executable under Users, ProgramData or Temp.",
+      "detected_at": "2026-03-05T00:00:00Z",
+      "evidence": [],
+      "explanation": {
+        "caveats": [],
+        "confidence_rationale": "Confidence medium: Some software legitimately installs services under ProgramData, and the data does not show the folder's permissions.",
+        "disclaimer": "This is a suspicious indicator. Benign activity can produce the same observation; it does not prove compromise.",
+        "missing_corroboration": [
+          "ACLs on the binary and its directory showing write access for non-administrators.",
+          "Missing or invalid Authenticode signature on the binary."
+        ],
+        "possible_benign_causes": [
+          "Per-machine installers that place agent services under ProgramData."
+        ],
+        "severity_rationale": "Severity high is the rule's base severity: Anyone who can write the binary or its folder gains SYSTEM privileges when the service starts. The number of matching items did not change it.",
+        "why_correlated": "Rule DR-WIN-SVC-001 requires: svc. Satisfied clauses: svc (1 item(s)). Each matching item is reported separately (grouped by key = 'service:evilsvc').",
+        "why_flagged": "A SYSTEM service whose binary lives where standard users can write is a ready-made privilege escalation and a common persistence location."
+      },
+      "host": {
+        "host_id": "H-73b40abf58d1",
+        "hostname": "host01"
+      },
+      "id": "DT-4b5f50f56db698c6",
+      "investigation_steps": [
+        "Check the signature and hash of the binary and its folder ACLs.",
+        "Find out when the service was created (event 7045) and by whom.",
+        "Look for sibling services or tasks pointing at the same folder."
+      ],
+      "matched_conditions": [
+        {
+          "clause": "svc",
+          "conditions": [
+            "domain eq 'services'",
+            "attrs.account in ['LocalSystem', 'NT AUTHORITY\\\\SYSTEM', 'SYSTEM', 'NT AUTHORITY\\\\LocalService', 'NT AUTHORITY\\\\NetworkService']",
+            "attrs.image_path regex '(?i)^\\\\\"?[a-z]:\\\\\\\\(users\\\\\\\\|programdata\\\\\\\\|windows\\\\\\\\temp\\\\\\\\|temp\\\\\\\\|perflogs\\\\\\\\|\\\\$recycle\\\\.bin\\\\\\\\)'"
+          ],
+          "description": "A privileged service with an image path in a user-writable folder",
+          "matched_items": 1,
+          "optional": false
+        }
+      ],
+      "nature": "indicator",
+      "references": {
+        "attack": [
+          {
+            "explanation": "Services are a common Windows persistence mechanism; this shows exposure, not creation by an adversary.",
+            "id": "T1543.003",
+            "relationship": "possible",
+            "url": "https://attack.mitre.org/techniques/T1543/003/"
+          }
+        ],
+        "nist": [
+          {
+            "id": "CM-7",
+            "title": "Least Functionality"
+          },
+          {
+            "id": "AC-6",
+            "title": "Least Privilege"
+          }
+        ],
+        "other": []
+      },
+      "remediation": "Move the binary to a protected location or reinstall the product; remove the service if unauthorised (disable first).",
+      "rule": {
+        "id": "DR-WIN-SVC-001",
+        "name": "Privileged service runs a binary from a user-writable path",
+        "pack": "windows-core",
+        "version": "1.0.0"
+      },
+      "severity": "high",
+      "title": "Privileged service runs from a user-writable path: service:evilsvc"
+    },
+    {
+      "category": "scheduled-tasks",
+      "components": [
+        "scheduled-tasks",
+        "scheduled_tasks"
+      ],
+      "confidence": "medium",
+      "contributing": [
+        {
+          "clause": "task",
+          "domain": "scheduled_tasks",
+          "key": "task:\\updater\\sync",
+          "label": "scheduled_tasks/task:\\updater\\sync",
+          "scope": "tasks",
+          "type": "inventory"
+        }
+      ],
+      "description": "A scheduled task running as SYSTEM or with the highest run level executes a file in a user-writable folder.",
+      "detected_at": "2026-03-05T00:00:00Z",
+      "evidence": [],
+      "explanation": {
+        "caveats": [],
+        "confidence_rationale": "Confidence medium: Update agents sometimes keep helpers in ProgramData; folder permissions are not part of the data.",
+        "disclaimer": "This is a suspicious indicator. Benign activity can produce the same observation; it does not prove compromise.",
+        "missing_corroboration": [],
+        "possible_benign_causes": [
+          "Vendor update tasks that stage executables under ProgramData."
+        ],
+        "severity_rationale": "Severity high is the rule's base severity: A task that runs with SYSTEM rights from a folder users can write to is both an escalation path and a persistence mechanism. The number of matching items did not change it.",
+        "why_correlated": "Rule DR-WIN-TSK-001 requires: task. Satisfied clauses: task (1 item(s)). Each matching item is reported separately (grouped by key = 'task:\\\\updater\\\\sync').",
+        "why_flagged": "Scheduled tasks start at boot or logon with the task's privileges; pointing one at a writable folder is a standard Windows persistence pattern."
+      },
+      "host": {
+        "host_id": "H-73b40abf58d1",
+        "hostname": "host01"
+      },
+      "id": "DT-29acd3766d9c34ae",
+      "investigation_steps": [
+        "Export the task XML and check its author, creation date and triggers.",
+        "Verify the executable's signature and hash.",
+        "Check for other tasks created at the same time."
+      ],
+      "matched_conditions": [
+        {
+          "clause": "task",
+          "conditions": [
+            "domain eq 'scheduled_tasks'",
+            "not (key regex '^task:\\\\\\\\microsoft\\\\\\\\windows\\\\\\\\')",
+            "attrs.user in ['SYSTEM', 'NT AUTHORITY\\\\SYSTEM']",
+            "attrs.actions regex '(?i)^\\\\\"?[a-z]:\\\\\\\\(users\\\\\\\\|programdata\\\\\\\\|windows\\\\\\\\temp\\\\\\\\|temp\\\\\\\\|perflogs\\\\\\\\|\\\\$recycle\\\\.bin\\\\\\\\)'"
+          ],
+          "description": "A privileged task with an action in a user-writable folder",
+          "matched_items": 1,
+          "optional": false
+        }
+      ],
+      "nature": "indicator",
+      "references": {
+        "attack": [
+          {
+            "explanation": "Scheduled tasks are a documented persistence and escalation mechanism; the data does not show who created this one.",
+            "id": "T1053.005",
+            "relationship": "possible",
+            "url": "https://attack.mitre.org/techniques/T1053/005/"
+          }
+        ],
+        "nist": [
+          {
+            "id": "CM-7",
+            "title": "Least Functionality"
+          },
+          {
+            "id": "SI-7",
+            "title": "Software, Firmware, and Information Integrity"
+          }
+        ],
+        "other": []
+      },
+      "remediation": "Disable the task if unauthorised (disable, then remove after evidence capture) and restrict write access to the folder.",
+      "rule": {
+        "id": "DR-WIN-TSK-001",
+        "name": "Privileged scheduled task runs from a user-writable path",
+        "pack": "windows-core",
+        "version": "1.0.0"
+      },
+      "severity": "high",
+      "title": "Privileged scheduled task runs from a user-writable path: task:\\updater\\sync"
+    },
+    {
+      "category": "defense-evasion",
+      "components": [
+        "defense-evasion",
+        "eventlog",
+        "security-config"
+      ],
+      "confidence": "medium",
+      "contributing": [
+        {
+          "check_id": "EVT-SVC-001",
+          "clause": "weak",
+          "id": "BOF-8d7a013236def80e",
+          "label": "EVT-SVC-001: Synthetic finding EVT-SVC-001",
+          "severity": "high",
+          "type": "finding"
+        },
+        {
+          "check_id": "SEC-AUDIT-001",
+          "clause": "weak",
+          "id": "BOF-80d7cb3f72643f4a",
+          "label": "SEC-AUDIT-001: Synthetic finding SEC-AUDIT-001",
+          "severity": "medium",
+          "type": "finding"
+        },
+        {
+          "check_id": "SEC-PS-001",
+          "clause": "weak",
+          "id": "BOF-3f87e3e884796893",
+          "label": "SEC-PS-001: Synthetic finding SEC-PS-001",
+          "severity": "low",
+          "type": "finding"
+        }
+      ],
+      "description": "Three or more different logging weaknesses (Event Log service, disabled channels, audit policy, PowerShell logging, log size) are present.",
+      "detected_at": "2026-03-05T00:00:00Z",
+      "evidence": [
+        "EV-71ee20ab29e8b982",
+        "EV-101c2e2cba5a1e89",
+        "EV-548fe149f3a163f7"
+      ],
+      "explanation": {
+        "caveats": [],
+        "confidence_rationale": "Confidence medium: The findings are accurate individually; whether they were set deliberately is unknown.",
+        "disclaimer": "These independent indicators were correlated by a rule. Correlation raises a question; it does not prove malicious activity.",
+        "missing_corroboration": [
+          "Event log service stop/start events (7036) or log-clear events (1102, 104) in the retained logs.",
+          "Evidence that these settings were configured after the baseline."
+        ],
+        "possible_benign_causes": [
+          "Freshly installed or unmanaged hosts that never had logging policy applied."
+        ],
+        "severity_rationale": "Severity medium is the rule's base severity: Each weakness reduces visibility; together they leave little to investigate with, but they also describe an unconfigured host as readily as a tampered one. The number of matching items did not change it.",
+        "why_correlated": "Rule DR-WIN-LOG-001 requires: weak. Satisfied clauses: weak (3 item(s)).",
+        "why_flagged": "Adversaries reduce logging before acting. Several independent gaps in one area are worth checking together, but the severity stays medium because default Windows installs also show several of them."
+      },
+      "host": {
+        "host_id": "H-73b40abf58d1",
+        "hostname": "host01"
+      },
+      "id": "DT-3ee6310fdef684ca",
+      "investigation_steps": [
+        "Compare each setting with the organisation's logging baseline and group policy.",
+        "Look for log clear events and Event Log service state changes.",
+        "Check whether settings changed since the previous assessment."
+      ],
+      "matched_conditions": [
+        {
+          "clause": "weak",
+          "conditions": [
+            "check_id in ['EVT-SVC-001', 'EVT-CHAN-001', 'EVT-SIZE-001', 'EVT-RET-001', 'SEC-AUDIT-001', 'SEC-AUDIT-002', ...]"
+          ],
+          "description": "Logging or audit-configuration findings (at least 3 different checks)",
+          "matched_items": 3,
+          "optional": false
+        }
+      ],
+      "nature": "correlated",
+      "references": {
+        "attack": [
+          {
+            "explanation": "Disabling or reducing Windows event logging is an evasion technique; these findings may equally reflect default settings.",
+            "id": "T1562.002",
+            "relationship": "possible",
+            "url": "https://attack.mitre.org/techniques/T1562/002/"
+          }
+        ],
+        "nist": [
+          {
+            "id": "AU-2",
+            "title": "Event Logging"
+          },
+          {
+            "id": "AU-12",
+            "title": "Audit Record Generation"
+          }
+        ],
+        "other": []
+      },
+      "remediation": "Apply the organisation's audit policy, enable PowerShell script block logging, set adequate log sizes and forward events off the host.",
+      "rule": {
+        "id": "DR-WIN-LOG-001",
+        "name": "Several event-logging and audit weaknesses together",
+        "pack": "windows-core",
+        "version": "1.0.0"
+      },
+      "severity": "medium",
+      "title": "Multiple logging weaknesses on host01"
+    }
+  ],
+  "engine": {
+    "name": "blueops-rules",
+    "version": "0.5.0"
+  },
+  "generated_at": "2026-03-05T00:00:00Z",
+  "history": {
+    "compared_with": null,
+    "comparison_trend": null,
+    "excluded": [],
+    "snapshots": 0
+  },
+  "host": {
+    "host_id": "H-73b40abf58d1",
+    "hostname": "host01",
+    "os_family": "windows"
+  },
+  "indeterminate": [
+    {
+      "category": "change",
+      "nature": "correlated",
+      "reason": "no earlier snapshot to compare with; needs 1 earlier snapshot(s), have 0",
+      "rule": {
+        "id": "DR-ANY-CHG-001",
+        "name": "New findings appeared together after a clean assessment"
+      }
+    },
+    {
+      "category": "change",
+      "nature": "indicator",
+      "reason": "needs 2 earlier snapshot(s), have 0",
+      "rule": {
+        "id": "DR-ANY-CHG-002",
+        "name": "A previously resolved finding has returned"
+      }
+    },
+    {
+      "category": "change",
+      "nature": "indicator",
+      "reason": "no earlier snapshot to compare with",
+      "rule": {
+        "id": "DR-ANY-CHG-003",
+        "name": "A finding's severity increased to high or critical"
+      }
+    },
+    {
+      "category": "change",
+      "nature": "indicator",
+      "reason": "no earlier snapshot to compare with; needs 3 earlier snapshot(s), have 0",
+      "rule": {
+        "id": "DR-ANY-CHG-004",
+        "name": "Security-relevant configuration changed after a long stable period"
+      }
+    },
+    {
+      "category": "change",
+      "nature": "observation",
+      "reason": "no earlier snapshot to compare with",
+      "rule": {
+        "id": "DR-ANY-CHG-005",
+        "name": "Audit coverage decreased since the previous snapshot"
+      }
+    },
+    {
+      "category": "network-exposure",
+      "nature": "correlated",
+      "reason": "no earlier snapshot to compare with",
+      "rule": {
+        "id": "DR-ANY-COR-002",
+        "name": "Firewall configuration changed and a new non-loopback listener appeared"
+      }
+    },
+    {
+      "category": "persistence",
+      "nature": "correlated",
+      "reason": "no earlier snapshot to compare with",
+      "rule": {
+        "id": "DR-ANY-COR-003",
+        "name": "Scheduled-job change together with an account or group change"
+      }
+    },
+    {
+      "category": "privilege",
+      "nature": "indicator",
+      "reason": "no earlier snapshot to compare with",
+      "rule": {
+        "id": "DR-ANY-PRIV-001",
+        "name": "Membership of a privileged group changed"
+      }
+    }
+  ],
+  "kind": "detection-results",
+  "rule_errors": [],
+  "rule_packs": [
+    {
+      "name": "changes",
+      "rules": 5,
+      "sha256": "3c502bfb1d264c0a456d3373718d8af97847213d00527a506e634dd20b5740fd",
+      "source": "changes.json",
+      "version": "1.0.0"
+    },
+    {
+      "name": "correlation",
+      "rules": 9,
+      "sha256": "d993e13956b92dbda9ba2ff4205c715587ddac7743b79a4bcbb3ecd0ec4129aa",
+      "source": "correlation.json",
+      "version": "1.0.0"
+    },
+    {
+      "name": "linux-core",
+      "rules": 9,
+      "sha256": "8b08fa48943d754cf6329525302816fca89dc31f7ce175cc7eafe2d998bc6eba",
+      "source": "linux-core.json",
+      "version": "1.0.0"
+    },
+    {
+      "name": "windows-core",
+      "rules": 6,
+      "sha256": "116bf8a03b9eb54fe49f0804ed3117bfcdafb5d3c71f59da1e2ac146a23bd948",
+      "source": "windows-core.json",
+      "version": "1.0.0"
+    }
+  ],
+  "rule_results": [
+    {
+      "detections": 0,
+      "reason": "no earlier snapshot to compare with; needs 1 earlier snapshot(s), have 0",
+      "rule": "DR-ANY-CHG-001",
+      "status": "indeterminate"
+    },
+    {
+      "detections": 0,
+      "reason": "needs 2 earlier snapshot(s), have 0",
+      "rule": "DR-ANY-CHG-002",
+      "status": "indeterminate"
+    },
+    {
+      "detections": 0,
+      "reason": "no earlier snapshot to compare with",
+      "rule": "DR-ANY-CHG-003",
+      "status": "indeterminate"
+    },
+    {
+      "detections": 0,
+      "reason": "no earlier snapshot to compare with; needs 3 earlier snapshot(s), have 0",
+      "rule": "DR-ANY-CHG-004",
+      "status": "indeterminate"
+    },
+    {
+      "detections": 0,
+      "reason": "no earlier snapshot to compare with",
+      "rule": "DR-ANY-CHG-005",
+      "status": "indeterminate"
+    },
+    {
+      "detections": 1,
+      "rule": "DR-ANY-COR-001",
+      "status": "evaluated"
+    },
+    {
+      "detections": 0,
+      "reason": "no earlier snapshot to compare with",
+      "rule": "DR-ANY-COR-002",
+      "status": "indeterminate"
+    },
+    {
+      "detections": 0,
+      "reason": "no earlier snapshot to compare with",
+      "rule": "DR-ANY-COR-003",
+      "status": "indeterminate"
+    },
+    {
+      "detections": 0,
+      "rule": "DR-ANY-COR-004",
+      "status": "evaluated"
+    },
+    {
+      "detections": 1,
+      "rule": "DR-ANY-COR-005",
+      "status": "evaluated"
+    },
+    {
+      "detections": 0,
+      "rule": "DR-ANY-NET-001",
+      "status": "evaluated"
+    },
+    {
+      "detections": 1,
+      "rule": "DR-ANY-NET-002",
+      "status": "evaluated"
+    },
+    {
+      "detections": 0,
+      "reason": "no earlier snapshot to compare with",
+      "rule": "DR-ANY-PRIV-001",
+      "status": "indeterminate"
+    },
+    {
+      "detections": 1,
+      "rule": "DR-ANY-PRIV-002",
+      "status": "evaluated"
+    },
+    {
+      "detections": 0,
+      "rule": "DR-LNX-ACC-001",
+      "status": "not_applicable"
+    },
+    {
+      "detections": 0,
+      "rule": "DR-LNX-ACC-002",
+      "status": "not_applicable"
+    },
+    {
+      "detections": 0,
+      "rule": "DR-LNX-FS-001",
+      "status": "not_applicable"
+    },
+    {
+      "detections": 0,
+      "rule": "DR-LNX-LOG-001",
+      "status": "not_applicable"
+    },
+    {
+      "detections": 0,
+      "rule": "DR-LNX-PER-001",
+      "status": "not_applicable"
+    },
+    {
+      "detections": 0,
+      "rule": "DR-LNX-PKG-001",
+      "status": "not_applicable"
+    },
+    {
+      "detections": 0,
+      "rule": "DR-LNX-SSH-001",
+      "status": "not_applicable"
+    },
+    {
+      "detections": 0,
+      "rule": "DR-LNX-SVC-001",
+      "status": "not_applicable"
+    },
+    {
+      "detections": 0,
+      "rule": "DR-LNX-SYS-001",
+      "status": "not_applicable"
+    },
+    {
+      "detections": 1,
+      "rule": "DR-WIN-ACC-001",
+      "status": "evaluated"
+    },
+    {
+      "detections": 1,
+      "rule": "DR-WIN-CRED-001",
+      "status": "evaluated"
+    },
+    {
+      "detections": 1,
+      "rule": "DR-WIN-LOG-001",
+      "status": "evaluated"
+    },
+    {
+      "detections": 1,
+      "rule": "DR-WIN-PER-001",
+      "status": "evaluated"
+    },
+    {
+      "detections": 1,
+      "rule": "DR-WIN-SVC-001",
+      "status": "evaluated"
+    },
+    {
+      "detections": 1,
+      "rule": "DR-WIN-TSK-001",
+      "status": "evaluated"
+    }
+  ],
+  "rules": {
+    "disabled": 0,
+    "error": 0,
+    "evaluated": 12,
+    "indeterminate": 8,
+    "not_applicable": 9,
+    "total": 29
+  },
+  "schema_version": "0.1.0",
+  "summary": {
+    "by_category": {
+      "accounts": 1,
+      "credential-access": 1,
+      "defense-evasion": 2,
+      "network-exposure": 1,
+      "persistence": 2,
+      "privilege": 1,
+      "scheduled-tasks": 1,
+      "services": 1
+    },
+    "by_confidence": {
+      "high": 0,
+      "low": 0,
+      "medium": 10
+    },
+    "by_nature": {
+      "correlated": 6,
+      "hypothesis": 0,
+      "indicator": 4,
+      "observation": 0
+    },
+    "by_severity": {
+      "critical": 0,
+      "high": 9,
+      "info": 0,
+      "low": 0,
+      "medium": 1
+    },
+    "indeterminate": 8,
+    "rule_errors": 0,
+    "total": 10
+  }
+}

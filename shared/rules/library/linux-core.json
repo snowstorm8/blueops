@@ -748,10 +748,12 @@
                 "value": [
                   "PER-CRON-002",
                   "PER-SYSTEMD-001",
-                  "PER-RC-002",
-                  "PER-SHELL-002",
-                  "PER-STARTUP-002",
-                  "PER-AT-002"
+                  "PER-STARTUP-001",
+                  "PER-SHELL-001",
+                  "PER-UDEV-001",
+                  "PER-APT-001",
+                  "PER-AUTOSTART-001",
+                  "PER-LDCONF-001"
                 ]
               }
             ]
@@ -769,10 +771,12 @@
                 "value": [
                   "PER-CRON-002",
                   "PER-SYSTEMD-001",
-                  "PER-RC-002",
-                  "PER-SHELL-002",
-                  "PER-STARTUP-002",
-                  "PER-AT-002"
+                  "PER-STARTUP-001",
+                  "PER-SHELL-001",
+                  "PER-UDEV-001",
+                  "PER-APT-001",
+                  "PER-AUTOSTART-001",
+                  "PER-LDCONF-001"
                 ]
               },
               {

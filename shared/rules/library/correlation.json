@@ -1017,8 +1017,8 @@
             "value": [
               "PER-CRON-002",
               "PER-SYSTEMD-001",
-              "PER-RC-002",
-              "PER-SHELL-002",
+              "PER-STARTUP-001",
+              "PER-SHELL-001",
               "SVC-PATH-001",
               "SVC-UNQUOTED-001",
               "SVC-CMD-001",
