@@ -552,3 +552,19 @@ def test_engine_run_with_detect_writes_results_reports_and_manifest(
         .endswith("case(s)")
     )
     assert ROOT.is_dir()
+
+
+def test_validate_command_knows_the_detection_document_kinds(
+    current: Path, tmp_path: Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    results = tmp_path / "r.json"
+    call(capsys, "detect", "run", str(current), "--output", str(results), "--quiet")
+    rc, out, _ = call(capsys, "validate", str(results))
+    assert rc == 0 and "detection-results.schema.json" in out
+    pack = Path(__file__).resolve().parents[2] / "shared" / "rules" / "library" / "linux-core.json"
+    assert call(capsys, "validate", str(pack))[0] == 0
+    cmp_path = tmp_path / "c.json"
+    a = save(tmp_path, "a.json", CLEAN, aid="a", started="2026-02-01T10:00:00Z")
+    b = save(tmp_path, "b.json", UID0, aid="b", started="2026-02-02T10:00:00Z")
+    call(capsys, "detect", "compare", str(a), str(b), "--output", str(cmp_path))
+    assert call(capsys, "validate", str(cmp_path))[0] == 0

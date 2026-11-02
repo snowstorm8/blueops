@@ -64,6 +64,18 @@ Everything beyond Phase 0 is **planned** and subject to change.
 - [ ] Parallel module execution (opt-in), resumable assessments, output size caps for module streams
 - [ ] Signed plugin manifests
 
+## Phase 2f — Detection and correlation engine (v0.5)
+
+- [x] Rule engine: JSON rule packs, condition language, validation with diagnostics, enable/disable, versions ([detection-engine.md](detection-engine.md))
+- [x] Correlation: clauses, joins, distinct/min-matches, optional corroboration, explicit severity/confidence rules, explanations
+- [x] Snapshot- and history-aware detections; detections across snapshots; indeterminate instead of false conclusions
+- [x] Investigation workflow (statuses, notes, links, history) in a portable append-only file
+- [x] 29 rules with executable examples ([detection-library.md](detection-library.md)); CLI, reports (JSON/Markdown/HTML), export
+- [ ] Merge the v0.3 baseline-diff rules (`shared.reporting.detect`) into the engine
+- [ ] Windows privilege-assignment and event-log-content collectors, then rules over them
+- [ ] Multi-host correlation (needs the fleet merge); rule-pack signing; allowlists/accepted changes for the new engine
+- [ ] A rule-authoring linter for false-positive review (e.g. warn on broad regexes)
+
 ## Phase 3 — Incident response
 
 - [ ] Evidence collection with hashing/manifests (both platforms)

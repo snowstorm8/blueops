@@ -4,6 +4,16 @@ All notable changes are documented here. Format: [Keep a Changelog](https://keep
 
 ## [Unreleased]
 
+### Added (detection and correlation engine, v0.5)
+- `shared/rules/`: rule engine over assessments. Rules are JSON packs (`detection-rule.schema.json`) with a condition language (exact, partial, regex, numeric, set, missing-value, boolean, `all`/`any`/`not`), clauses over findings, inventory, snapshot changes and history, correlation (`join`, `min_matches`, `distinct`, optional clauses, boolean `require`), explicit severity/confidence rules with stated reasons, per-rule coverage requirements, executable examples, versions and enable/disable. Malformed rules fail safely with path-qualified diagnostics.
+- 29 rules (`shared/rules/library/`, [docs/detection-library.md](docs/detection-library.md)): Linux accounts, sshd, SUID, persistence, log tampering, core_pattern, package integrity, legacy services; Windows accounts, services, tasks, logging, credential protections, persistence; cross-platform exposure, privileged-group changes, correlations and snapshot/history rules.
+- Detections (`detection-results.schema.json`): contributing findings and evidence, matched conditions, correlation reason, severity and confidence rationale, missing corroboration, benign causes, investigation steps, remediation, ATT&CK (`direct`/`possible` with explanation) and NIST references, `nature` and disclaimer. Indeterminate rules are listed instead of silently passing.
+- History without a database (`--history DIR`, `--previous`), detections across snapshots (`detect compare`, `detection-comparison.schema.json`).
+- Investigation workflow (`case list|show|status|note|link`, `--state-dir`): statuses, required notes for closing, analyst history, related detections, tamper-evident append-only `cases.jsonl`.
+- CLI in `python -m shared.engine`: `rules list|validate|show|test|docs`, `detect run|compare|show|report|export`, `case ...`, `run --detect`; Detections section in the HTML and Markdown reports (filter, sort, status, evidence links); JSON/JSONL/CSV export (formula-injection safe).
+- Tests: 457 new pytest cases (conditions, validation, library examples, engine, history/timeline, investigation, reports, CLI, synthetic hosts with golden files).
+- `finding_coverage()` is now public in `shared.reporting.snapshot_compare`; HTML finding cards carry their `BOF-` id as an anchor. No existing flag, schema or output was changed.
+
 ### Added (assessment platform, v0.4)
 - **Assessment engine** `python -m shared.engine` (`list`, `run`, `compare`, `report`, `validate`, `verify`): module registry with built-in collector modules and declarative `*.module.json` plugins, dependency planning, one process per module with hard time limits (process-group kill), strict output validation against the audit-report schema, profiles (`profiles/<platform>/*.json`: `default`, `quick`, `persistence-hunt`, Linux `full`), assessment directory with a SHA-256 manifest. Docs: `assessment-engine.md`, `plugins.md`.
 - **Central findings and evidence** (`shared/findings/`): stable finding ids (`BOF-…`) and evidence ids (`EV-…`), deduplication, provenance back to the module report by digest, remediation priority P1-P4, MITRE ATT&CK and NIST SP 800-53 Rev. 5 references. Doc: `findings.md`.

@@ -35,7 +35,12 @@ The assessment platform (engine, findings, comparison, reports) is described in 
 | Validation | `shared/reporting/schema_lite.py`, `jsonio.py` | stdlib | accept a schema keyword it cannot check |
 | Findings | `shared/findings/` | contracts | read a host |
 | Engine | `shared/engine/` | validation, findings | inspect a host, load plugin code, use a shell |
+| Detection | `shared/rules/` | engine documents, findings | read a host, execute rule content, store analyst state in assessments |
 | Analysis and reporting | `shared/reporting/` | engine documents | write anything but the file it is told to |
+
+### Decisions (detection engine)
+
+Details in [detection-engine.md](detection-engine.md#design-decisions). In short: rules are JSON data validated and compiled once; one clause/`require` model covers single and correlated rules; severity changes only through explicit, explained rules (never by count); absence-based conclusions need declared coverage and otherwise end *indeterminate*; analyst state lives in a separate append-only, hash-chained file; history is a directory of assessments, not a database. The v0.3 detection tool over baseline diffs (`shared.reporting.detect`) is kept unchanged beside it.
 
 ### Decisions (assessment platform)
 

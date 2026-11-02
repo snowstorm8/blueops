@@ -46,6 +46,10 @@ python3 -m pytest tests/shared                 # all Python tests (some need bas
 bats --recursive tests/linux                   # the Bash collector tests, including audit-expansion.bats
 ```
 
+### Testing the detection engine
+
+`tests/shared/test_rules_*.py` and `rules_support.py`: the condition language (operator table, missing-value semantics, malformed conditions with paths, regex safety), rule validation (schema and semantic diagnostics, fail-safe loading, overrides), the engine (correlation, joins, optional/distinct/min-matches, explicit severity, coverage and indeterminate handling, determinism, bounds, traceability), history and timelines, the investigation store (transitions, integrity, damage, locks, permissions, separation from evidence), reports (escaping, CSP, filters), CLI behaviour and exit codes, and realistic synthetic Linux and Windows hosts (clean hosts stay quiet; compromised hosts light up the expected rules; golden result files in `tests/fixtures/rules/`). Every library rule carries executable examples that `test_rules_library.py` runs one test per example, and a drift test checks that every check id a rule names exists in a collector. Regenerate golden files with `BO_UPDATE_GOLDEN=1 python -m pytest tests/shared/test_rules_hosts.py` and review the diff; regenerate `docs/detection-library.md` with `python -m shared.engine rules docs`.
+
 ## PowerShell encoding policy and Windows PowerShell 5.1 limitations
 
 All sources are **UTF-8 without BOM** with LF endings (enforced by `.editorconfig`/`.gitattributes`).

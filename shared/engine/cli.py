@@ -56,6 +56,9 @@ DOC_SCHEMAS = {
     "baseline-diff": "baseline-diff.schema.json",
     "detections": "detections.schema.json",
     "run-manifest": "run-manifest.schema.json",
+    "detection-results": "detection-results.schema.json",
+    "detection-comparison": "detection-comparison.schema.json",
+    "rule-pack": "detection-rule.schema.json",
 }
 
 

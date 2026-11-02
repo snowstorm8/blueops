@@ -19,6 +19,7 @@ Status: the repository is scaffolding. Do not claim a capability exists until it
 | `shared/schemas/` | Versioned JSON Schemas (the contract between platforms and tooling). |
 | `shared/engine/` | Python 3 assessment engine: module registry, plugin manifests, runner, profiles, assessment assembly (`python -m shared.engine`). Starts collectors as argv lists only; never inspects a host. |
 | `shared/findings/` | Central findings and evidence: stable ids, deduplication, provenance, standards references. |
+| `shared/rules/` | Detection and correlation engine: JSON rule packs (`library/`), condition language, evaluator, history, case store, CLI (`rules`, `detect`, `case` in `python -m shared.engine`). Rules are data; the engine never reads a host. |
 | `shared/reporting/` | Python 3 (stdlib-first) code: contracts, report validation, baseline diff, detection, snapshot comparison, Markdown/HTML rendering, the dependency-free schema validator. |
 | `shared/config/` | Platform-neutral default configuration. |
 | `profiles/{linux,windows}/` | Named assessment/hardening profiles (assessment profiles select modules and collector options; hardening profiles list protected services). |
