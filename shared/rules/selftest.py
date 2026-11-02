@@ -22,7 +22,9 @@ class ExampleResult:
     message: str
 
 
-def run_example(rule: Rule, ex: dict[str, Any]) -> ExampleResult:
+def run_example(  # noqa: PLR0911 - one early return per failure kind
+    rule: Rule, ex: dict[str, Any]
+) -> ExampleResult:
     platform = ex.get("platform") or ("windows" if rule.platforms == ("windows",) else "linux")
     cur = build_assessment(ex["current"], platform=platform, aid="example-current")
     prev = [
