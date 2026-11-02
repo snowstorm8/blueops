@@ -128,7 +128,7 @@ BlueOps is for **defensive use on systems you own or are explicitly authorized t
 
 ## Development status and roadmap
 
-Pre-alpha. See [docs/roadmap.md](docs/roadmap.md).
+Pre-alpha. See [docs/roadmap.md](docs/roadmap.md); the v0.4 assessment-platform work is reported in [docs/implementation-report-v0.4.md](docs/implementation-report-v0.4.md).
 
 ## Contributing
 

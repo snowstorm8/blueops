@@ -165,4 +165,5 @@ There is no installer ([deployment.md](deployment.md)). Copy the repository to t
 - No parallel execution; no resume of an interrupted assessment (a killed engine leaves a partial directory without `assessment.json`).
 - stdout/stderr of a module are written to files without a size cap; a runaway module is bounded by its time limit, not by bytes.
 - On POSIX a plugin directory or manifest writable by group/other is refused; on Windows ACLs are not inspected, so protect plugin directories yourself.
+- Programs are found through the engine's own `PATH` (`pwsh`, `powershell`, non-absolute plugin commands) and inherit its environment; the Linux collector sanitises its own `PATH`, the engine does not ([security-model.md](security-model.md#assessment-engine)).
 - The engine records `privilege` metadata but does not elevate or check it; run it with the privileges you want the collectors to have.
