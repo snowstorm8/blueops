@@ -11,7 +11,7 @@ All notable changes are documented here. Format: [Keep a Changelog](https://keep
 - History without a database (`--history DIR`, `--previous`), detections across snapshots (`detect compare`, `detection-comparison.schema.json`).
 - Investigation workflow (`case list|show|status|note|link`, `--state-dir`): statuses, required notes for closing, analyst history, related detections, tamper-evident append-only `cases.jsonl`.
 - CLI in `python -m shared.engine`: `rules list|validate|show|test|docs`, `detect run|compare|show|report|export`, `case ...`, `run --detect`; Detections section in the HTML and Markdown reports (filter, sort, status, evidence links); JSON/JSONL/CSV export (formula-injection safe).
-- Tests: 457 new pytest cases (conditions, validation, library examples, engine, history/timeline, investigation, reports, CLI, synthetic hosts with golden files).
+- Tests: 458 new pytest cases (conditions, validation, library examples, engine, history/timeline, investigation, reports, CLI, synthetic hosts with golden files).
 - `finding_coverage()` is now public in `shared.reporting.snapshot_compare`; HTML finding cards carry their `BOF-` id as an anchor. No existing flag, schema or output was changed.
 
 ### Added (assessment platform, v0.4)
