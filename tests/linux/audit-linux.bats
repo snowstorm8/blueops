@@ -22,11 +22,12 @@ setup() {
   [[ "${output}" == "audit-linux "* ]]
 }
 
-@test "--list-modules lists all eight modules" {
+@test "--list-modules lists all ten modules" {
   run "${AUDIT}" --list-modules
   [ "${status}" -eq 0 ]
-  [ "${#lines[@]}" -eq 8 ]
+  [ "${#lines[@]}" -eq 10 ]
   [[ "${output}" == *persistence* && "${output}" == *filesystem* && "${output}" == *pam* ]]
+  [[ "${output}" == *auth* && "${output}" == *sysconfig* ]]
 }
 
 @test "usage errors exit 2" {

@@ -1,0 +1,346 @@
+{
+  "schema_version": "0.1.0",
+  "kind": "assessment",
+  "engine": {
+    "name": "blueops-engine",
+    "version": "0.4.0"
+  },
+  "assessment": {
+    "id": "00000000-0000-4000-8000-000000000001",
+    "profile": "default",
+    "platform": "linux",
+    "started_at": "2026-03-01T10:00:00Z",
+    "finished_at": "2026-03-01T10:00:00Z",
+    "mode": "read-only",
+    "fail_on": "medium",
+    "status": "complete",
+    "exit_code": 4,
+    "modules": [
+      "linux.users",
+      "linux.auth",
+      "linux.network"
+    ]
+  },
+  "modules": [
+    {
+      "id": "linux.users",
+      "status": "ok",
+      "started_at": "2026-03-01T10:00:00Z",
+      "finished_at": "2026-03-01T10:00:00Z",
+      "duration_seconds": 1.2,
+      "findings": 1,
+      "exit_code": 0,
+      "command": [
+        "/opt/blueops/linux/audit/audit-linux.sh",
+        "--modules",
+        "users",
+        "--json",
+        "--quiet",
+        "--no-color",
+        "--output-dir",
+        "/var/lib/blueops/blueops-assessment-20260301T100000Z-default/modules/linux.users/output"
+      ],
+      "report": {
+        "path": "modules/linux.users/output/blueops-run-20260301T100000Z-audit-linux/report.json",
+        "sha256": "0000000000000000000000000000000000000000000000000000000000000000"
+      }
+    },
+    {
+      "id": "linux.auth",
+      "status": "ok",
+      "started_at": "2026-03-01T10:00:00Z",
+      "finished_at": "2026-03-01T10:00:00Z",
+      "duration_seconds": 1.2,
+      "findings": 1,
+      "exit_code": 0,
+      "command": [
+        "/opt/blueops/linux/audit/audit-linux.sh",
+        "--modules",
+        "auth",
+        "--json",
+        "--quiet",
+        "--no-color",
+        "--output-dir",
+        "/var/lib/blueops/blueops-assessment-20260301T100000Z-default/modules/linux.auth/output"
+      ],
+      "report": {
+        "path": "modules/linux.auth/output/blueops-run-20260301T100000Z-audit-linux/report.json",
+        "sha256": "0000000000000000000000000000000000000000000000000000000000000000"
+      }
+    },
+    {
+      "id": "linux.network",
+      "status": "ok",
+      "started_at": "2026-03-01T10:00:00Z",
+      "finished_at": "2026-03-01T10:00:00Z",
+      "duration_seconds": 1.2,
+      "findings": 1,
+      "exit_code": 0,
+      "command": [
+        "/opt/blueops/linux/audit/audit-linux.sh",
+        "--modules",
+        "network",
+        "--json",
+        "--quiet",
+        "--no-color",
+        "--output-dir",
+        "/var/lib/blueops/blueops-assessment-20260301T100000Z-default/modules/linux.network/output"
+      ],
+      "report": {
+        "path": "modules/linux.network/output/blueops-run-20260301T100000Z-audit-linux/report.json",
+        "sha256": "0000000000000000000000000000000000000000000000000000000000000000"
+      }
+    }
+  ],
+  "findings": [
+    {
+      "id": "BOF-fab553043b73c394",
+      "check_id": "USR-UID0-001",
+      "title": "Non-root account with UID 0",
+      "description": "Accounts other than 'root' have UID 0 and therefore full root privileges.",
+      "severity": "critical",
+      "confidence": "high",
+      "category": "users",
+      "component": "users",
+      "host": {
+        "hostname": "web01",
+        "host_id": "H-f2794c66c539"
+      },
+      "detected_at": "2026-01-01T10:00:00Z",
+      "evidence": [
+        "EV-0ddfdf1f81616380"
+      ],
+      "remediation": {
+        "summary": "Verify each account; if unauthorized, lock it (usermod -L) after capturing evidence.",
+        "priority": "P1"
+      },
+      "standards": [
+        {
+          "framework": "MITRE ATT&CK",
+          "id": "T1136.001",
+          "url": "https://attack.mitre.org/techniques/T1136/001/"
+        },
+        {
+          "framework": "NIST SP 800-53 Rev. 5",
+          "id": "AC-2",
+          "title": "Account Management"
+        },
+        {
+          "framework": "NIST SP 800-53 Rev. 5",
+          "id": "AC-6",
+          "title": "Least Privilege"
+        }
+      ],
+      "sources": [
+        {
+          "module": "linux.users",
+          "run_id": "00000000-0000-4000-8000-000000000001",
+          "check_id": "USR-UID0-001"
+        }
+      ],
+      "occurrences": 1
+    },
+    {
+      "id": "BOF-1c2154bcf743f43f",
+      "check_id": "ATH-AGING-001",
+      "title": "Login accounts whose password never expires",
+      "description": "Accounts with a usable password and a login shell have no maximum password age.",
+      "severity": "low",
+      "confidence": "high",
+      "category": "auth",
+      "component": "auth",
+      "host": {
+        "hostname": "web01",
+        "host_id": "H-f2794c66c539"
+      },
+      "detected_at": "2026-01-01T10:00:00Z",
+      "evidence": [
+        "EV-3fa6bc1a6cd709b7"
+      ],
+      "remediation": {
+        "summary": "Apply 'chage -M DAYS USER' per account once you have confirmed scored-service accounts will not break.",
+        "priority": "P3"
+      },
+      "standards": [
+        {
+          "framework": "NIST SP 800-53 Rev. 5",
+          "id": "IA-5",
+          "title": "Authenticator Management"
+        },
+        {
+          "framework": "NIST SP 800-53 Rev. 5",
+          "id": "AC-7",
+          "title": "Unsuccessful Logon Attempts"
+        }
+      ],
+      "sources": [
+        {
+          "module": "linux.auth",
+          "run_id": "00000000-0000-4000-8000-000000000002",
+          "check_id": "ATH-AGING-001"
+        }
+      ],
+      "occurrences": 1
+    },
+    {
+      "id": "BOF-93e3b68f4cbaa63c",
+      "check_id": "NET-INFO-001",
+      "title": "Network summary",
+      "description": "1 listener.",
+      "severity": "info",
+      "confidence": "high",
+      "category": "network",
+      "component": "network",
+      "host": {
+        "hostname": "web01",
+        "host_id": "H-f2794c66c539"
+      },
+      "detected_at": "2026-01-01T10:00:00Z",
+      "evidence": [
+        "EV-9a2b6ed1450146a2"
+      ],
+      "remediation": {
+        "summary": "",
+        "priority": "P4"
+      },
+      "standards": [
+        {
+          "framework": "NIST SP 800-53 Rev. 5",
+          "id": "SC-7",
+          "title": "Boundary Protection"
+        },
+        {
+          "framework": "NIST SP 800-53 Rev. 5",
+          "id": "CM-7",
+          "title": "Least Functionality"
+        }
+      ],
+      "sources": [
+        {
+          "module": "linux.network",
+          "run_id": "00000000-0000-4000-8000-000000000002",
+          "check_id": "NET-INFO-001"
+        }
+      ],
+      "occurrences": 1
+    }
+  ],
+  "evidence": [
+    {
+      "id": "EV-0ddfdf1f81616380",
+      "type": "file",
+      "ref": "/etc/passwd",
+      "excerpts": [
+        "account 'toor' has UID 0"
+      ],
+      "provenance": [
+        {
+          "module": "linux.users",
+          "run_id": "00000000-0000-4000-8000-000000000001",
+          "check_id": "USR-UID0-001",
+          "collected_at": "2026-01-01T10:00:00Z",
+          "collector": "synthetic-audit 0.0.0",
+          "report_sha256": "0000000000000000000000000000000000000000000000000000000000000000"
+        }
+      ]
+    },
+    {
+      "id": "EV-3fa6bc1a6cd709b7",
+      "type": "file",
+      "ref": "/etc/shadow",
+      "excerpts": [
+        "account 'alice': password never expires (max age 99999)"
+      ],
+      "provenance": [
+        {
+          "module": "linux.auth",
+          "run_id": "00000000-0000-4000-8000-000000000002",
+          "check_id": "ATH-AGING-001",
+          "collected_at": "2026-01-01T10:00:00Z",
+          "collector": "synthetic-audit 0.0.0",
+          "report_sha256": "0000000000000000000000000000000000000000000000000000000000000000"
+        }
+      ]
+    },
+    {
+      "id": "EV-9a2b6ed1450146a2",
+      "type": "network",
+      "ref": "tcp/0.0.0.0:22",
+      "provenance": [
+        {
+          "module": "linux.network",
+          "run_id": "00000000-0000-4000-8000-000000000002",
+          "check_id": "NET-INFO-001",
+          "collected_at": "2026-01-01T10:00:00Z",
+          "collector": "synthetic-audit 0.0.0",
+          "report_sha256": "0000000000000000000000000000000000000000000000000000000000000000"
+        }
+      ]
+    }
+  ],
+  "inventory": {
+    "coverage": [
+      {
+        "domain": "users",
+        "status": "complete"
+      }
+    ],
+    "records": [
+      {
+        "domain": "users",
+        "key": "user:toor",
+        "attrs": {
+          "uid": "0",
+          "shell": "/bin/bash"
+        }
+      }
+    ]
+  },
+  "errors": [],
+  "warnings": [],
+  "summary": {
+    "total": 3,
+    "by_severity": {
+      "info": 1,
+      "low": 1,
+      "medium": 0,
+      "high": 0,
+      "critical": 1
+    },
+    "by_confidence": {
+      "low": 0,
+      "medium": 0,
+      "high": 3
+    },
+    "by_category": {
+      "auth": 1,
+      "network": 1,
+      "users": 1
+    },
+    "by_priority": {
+      "P1": 1,
+      "P2": 0,
+      "P3": 1,
+      "P4": 1
+    },
+    "evidence_items": 3,
+    "modules": {
+      "ok": 3,
+      "partial": 0,
+      "failed": 0,
+      "timeout": 0,
+      "invalid_output": 0,
+      "skipped": 0
+    }
+  },
+  "host": {
+    "hostname": "web01",
+    "os": {
+      "family": "linux",
+      "name": "Synthetic",
+      "version": "1"
+    },
+    "arch": "x86_64",
+    "elevated": true
+  }
+}

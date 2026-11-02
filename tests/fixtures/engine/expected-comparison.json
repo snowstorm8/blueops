@@ -1,0 +1,317 @@
+{
+  "schema_version": "0.1.0",
+  "kind": "snapshot-comparison",
+  "generated_at": "2026-03-09T00:00:00Z",
+  "tool": {
+    "name": "blueops-compare",
+    "version": "0.4.0"
+  },
+  "baseline": {
+    "assessment_id": "golden-baseline",
+    "profile": "test",
+    "started_at": "2026-03-01T10:00:00Z",
+    "finished_at": "2026-03-01T10:00:00Z",
+    "hostname": "gold01",
+    "os_family": "linux",
+    "status": "complete",
+    "exit_code": 4,
+    "modules": 2
+  },
+  "current": {
+    "assessment_id": "golden-current",
+    "profile": "test",
+    "started_at": "2026-03-08T10:00:00Z",
+    "finished_at": "2026-03-08T10:00:00Z",
+    "hostname": "gold01",
+    "os_family": "linux",
+    "status": "complete",
+    "exit_code": 4,
+    "modules": 2
+  },
+  "warnings": [],
+  "findings": {
+    "new": [
+      {
+        "id": "BOF-48752e7330551e3f",
+        "check_id": "USR-NEW-001",
+        "title": "A new weak setting",
+        "severity": "low",
+        "confidence": "high",
+        "category": "users",
+        "component": "users",
+        "priority": "P3"
+      }
+    ],
+    "resolved": [
+      {
+        "id": "BOF-7d3078074c8060ca",
+        "check_id": "USR-PWD-001",
+        "title": "Login-capable account with empty password",
+        "severity": "high",
+        "confidence": "high",
+        "category": "users",
+        "component": "users",
+        "priority": "P1"
+      },
+      {
+        "id": "BOF-96c7631d7c9a9728",
+        "check_id": "NET-LISTEN-001",
+        "title": "Exposed legacy service",
+        "severity": "medium",
+        "confidence": "high",
+        "category": "network",
+        "component": "network",
+        "priority": "P2"
+      }
+    ],
+    "persistent": [
+      {
+        "id": "BOF-915e4a45caefe294",
+        "check_id": "USR-UID0-001",
+        "title": "Non-root account with UID 0",
+        "severity": "critical",
+        "confidence": "high",
+        "category": "users",
+        "component": "users",
+        "priority": "P1",
+        "evidence": {
+          "added": [
+            "EV-9d31a1da3ba12231"
+          ],
+          "removed": [],
+          "unchanged": 1,
+          "truncated": false
+        },
+        "baseline_severity": "high",
+        "baseline_confidence": "high",
+        "direction": "increased"
+      },
+      {
+        "id": "BOF-1a8f1be75c9c94ac",
+        "check_id": "USR-SHELL-001",
+        "title": "System accounts with interactive shells",
+        "severity": "medium",
+        "confidence": "high",
+        "category": "users",
+        "component": "users",
+        "priority": "P2",
+        "evidence": {
+          "added": [],
+          "removed": [],
+          "unchanged": 1,
+          "truncated": false
+        },
+        "baseline_severity": "medium",
+        "baseline_confidence": "high"
+      }
+    ],
+    "severity_changed": [
+      {
+        "id": "BOF-915e4a45caefe294",
+        "check_id": "USR-UID0-001",
+        "title": "Non-root account with UID 0",
+        "severity": "critical",
+        "confidence": "high",
+        "category": "users",
+        "component": "users",
+        "priority": "P1",
+        "evidence": {
+          "added": [
+            "EV-9d31a1da3ba12231"
+          ],
+          "removed": [],
+          "unchanged": 1,
+          "truncated": false
+        },
+        "baseline_severity": "high",
+        "baseline_confidence": "high",
+        "direction": "increased"
+      }
+    ],
+    "indeterminate": []
+  },
+  "configuration": {
+    "available": true,
+    "summary": {
+      "added": 1,
+      "removed": 2,
+      "modified": 1,
+      "indeterminate": 0,
+      "domains_partial": 0,
+      "domains_not_compared": 0
+    },
+    "changes": [
+      {
+        "domain": "users",
+        "scope": "",
+        "key": "user:alice",
+        "change": "modified",
+        "priority": "high",
+        "transient": false,
+        "attributes": [
+          {
+            "name": "shell",
+            "before": "/bin/bash",
+            "after": "/bin/sh"
+          }
+        ],
+        "unverified_attributes": [],
+        "observed": {
+          "baseline_at": "2026-03-01T10:00:00Z",
+          "current_at": "2026-03-08T10:00:00Z"
+        },
+        "baseline": {
+          "attrs": {
+            "shell": "/bin/bash",
+            "uid": "1000"
+          },
+          "volatile": {},
+          "evidence": []
+        },
+        "current": {
+          "attrs": {
+            "shell": "/bin/sh",
+            "uid": "1000"
+          },
+          "volatile": {},
+          "evidence": []
+        },
+        "related_findings": []
+      },
+      {
+        "domain": "users",
+        "scope": "",
+        "key": "user:bob",
+        "change": "removed",
+        "priority": "medium",
+        "transient": false,
+        "attributes": [],
+        "unverified_attributes": [],
+        "observed": {
+          "baseline_at": "2026-03-01T10:00:00Z",
+          "current_at": null
+        },
+        "baseline": {
+          "attrs": {
+            "shell": "/bin/bash",
+            "uid": "1001"
+          },
+          "volatile": {},
+          "evidence": []
+        },
+        "current": null,
+        "related_findings": []
+      },
+      {
+        "domain": "users",
+        "scope": "",
+        "key": "user:eve",
+        "change": "added",
+        "priority": "high",
+        "transient": false,
+        "attributes": [],
+        "unverified_attributes": [],
+        "observed": {
+          "baseline_at": null,
+          "current_at": "2026-03-08T10:00:00Z"
+        },
+        "baseline": null,
+        "current": {
+          "attrs": {
+            "shell": "/bin/bash",
+            "uid": "0"
+          },
+          "volatile": {},
+          "evidence": []
+        },
+        "related_findings": []
+      },
+      {
+        "domain": "listeners",
+        "scope": "",
+        "key": "listener:tcp/0.0.0.0/23",
+        "change": "removed",
+        "priority": "low",
+        "transient": false,
+        "attributes": [],
+        "unverified_attributes": [],
+        "observed": {
+          "baseline_at": "2026-03-01T10:00:00Z",
+          "current_at": null
+        },
+        "baseline": {
+          "attrs": {
+            "process": [
+              "telnetd"
+            ]
+          },
+          "volatile": {
+            "count": "1"
+          },
+          "evidence": []
+        },
+        "current": null,
+        "related_findings": []
+      }
+    ],
+    "indeterminate": [],
+    "domains": [
+      {
+        "domain": "users",
+        "scope": "",
+        "status": "compared",
+        "baseline_coverage": {
+          "status": "complete",
+          "reason": ""
+        },
+        "current_coverage": {
+          "status": "complete",
+          "reason": ""
+        },
+        "note": ""
+      },
+      {
+        "domain": "listeners",
+        "scope": "",
+        "status": "compared",
+        "baseline_coverage": {
+          "status": "complete",
+          "reason": ""
+        },
+        "current_coverage": {
+          "status": "complete",
+          "reason": ""
+        },
+        "note": ""
+      }
+    ],
+    "exit_code": 4
+  },
+  "coverage": {
+    "modules": {
+      "added": [],
+      "removed": [],
+      "changed": [],
+      "unchanged": 2
+    },
+    "inventory_partitions": []
+  },
+  "summary": {
+    "findings_baseline": 4,
+    "findings_current": 3,
+    "new": 1,
+    "resolved": 2,
+    "persistent": 2,
+    "severity_increased": 1,
+    "severity_decreased": 0,
+    "indeterminate": 0,
+    "configuration_changes": 4,
+    "coverage_changes": 0,
+    "weighted_index": {
+      "baseline": 20,
+      "current": 19,
+      "delta": -1
+    },
+    "trend": "worse"
+  }
+}

@@ -1,0 +1,32 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://blueops.invalid/schemas/assessment-profile/0.1.0",
+  "title": "BlueOps assessment profile",
+  "description": "A named selection of modules and collector options for `python -m shared.engine run --profile`. Profiles select and parameterise read-only modules; they cannot add commands.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema_version", "kind", "name", "platform", "modules"],
+  "properties": {
+    "schema_version": { "type": "string", "pattern": "^0\\.\\d+\\.\\d+$" },
+    "kind": { "const": "profile" },
+    "name": { "type": "string", "pattern": "^[a-z][a-z0-9-]{0,47}$" },
+    "platform": { "enum": ["linux", "windows"] },
+    "description": { "type": "string", "maxLength": 1000 },
+    "modules": {
+      "description": "Module ids (e.g. linux.users) or the single entry \"all\" for every module of the platform.",
+      "type": "array",
+      "minItems": 1,
+      "items": { "type": "string", "pattern": "^(all|[a-z][a-z0-9]*\\.[a-z][a-z0-9_-]{0,47})$" }
+    },
+    "fail_on": { "enum": ["info", "low", "medium", "high", "critical"] },
+    "timeout_seconds": { "description": "Per-module time limit overriding the module's own.", "type": "integer", "minimum": 1, "maximum": 86400 },
+    "options": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "recent_days": { "type": "integer", "minimum": 1, "maximum": 9999 },
+        "package_integrity": { "type": "boolean" }
+      }
+    }
+  }
+}

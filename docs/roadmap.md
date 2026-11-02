@@ -50,6 +50,20 @@ Everything beyond Phase 0 is **planned** and subject to change.
 - [ ] Single-report (baseline-free) detection mode; the new standing-state checks are audit findings only
 - [ ] `apk`/`pacman` package integrity; Alpine/BusyBox and Bash 4.2 CI jobs; coverage measurement; pin CI actions by commit SHA
 
+## Phase 2e — Assessment platform (v0.4)
+
+- [x] Assessment engine: registry, plugin manifests, dependency planning, per-module time limits, strict output validation, profiles (`python -m shared.engine`; see [assessment-engine.md](assessment-engine.md))
+- [x] Central findings and evidence: stable ids, deduplication, provenance, standards references ([findings.md](findings.md))
+- [x] Coverage-aware snapshot comparison (new / resolved / persistent / severity / configuration / coverage) ([reporting.md](reporting.md))
+- [x] JSON, Markdown and self-contained HTML reports
+- [x] Linux `auth` and `sysconfig` modules; Windows `eventlog` module (**unverified on a real PowerShell**)
+- [ ] Run the new Windows module and the engine's PowerShell path on a Windows runner (Pester `EventLog.Tests.ps1`, engine smoke test)
+- [ ] Feed assessments to `shared.reporting.detect` (detection rules over snapshot comparisons); multi-host merge and fleet report
+- [ ] Windows: local groups beyond Administrators/Remote Desktop Users, security-policy export (`secedit`), SMB/WinRM listener configuration
+- [ ] Linux: installed-software inventory, `apk`/`pacman` integrity, container awareness
+- [ ] Parallel module execution (opt-in), resumable assessments, output size caps for module streams
+- [ ] Signed plugin manifests
+
 ## Phase 3 — Incident response
 
 - [ ] Evidence collection with hashing/manifests (both platforms)
@@ -62,5 +76,6 @@ Everything beyond Phase 0 is **planned** and subject to change.
 
 ## Phase 5 — Reporting and releases
 
-- [ ] HTML/Markdown report rendering, multi-host merge
+- [x] HTML/Markdown report rendering (single host; see Phase 2e)
+- [ ] Multi-host merge
 - [ ] Checksummed release process

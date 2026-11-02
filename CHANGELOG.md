@@ -4,6 +4,22 @@ All notable changes are documented here. Format: [Keep a Changelog](https://keep
 
 ## [Unreleased]
 
+### Added (assessment platform, v0.4)
+- **Assessment engine** `python -m shared.engine` (`list`, `run`, `compare`, `report`, `validate`, `verify`): module registry with built-in collector modules and declarative `*.module.json` plugins, dependency planning, one process per module with hard time limits (process-group kill), strict output validation against the audit-report schema, profiles (`profiles/<platform>/*.json`: `default`, `quick`, `persistence-hunt`, Linux `full`), assessment directory with a SHA-256 manifest. Docs: `assessment-engine.md`, `plugins.md`.
+- **Central findings and evidence** (`shared/findings/`): stable finding ids (`BOF-…`) and evidence ids (`EV-…`), deduplication, provenance back to the module report by digest, remediation priority P1-P4, MITRE ATT&CK and NIST SP 800-53 Rev. 5 references. Doc: `findings.md`.
+- **Snapshot comparison**: new, resolved, persistent findings, severity changes, configuration changes (reusing the inventory engine) and coverage differences, with `indeterminate` instead of a guess when a module did not run cleanly; accepts assessments, run directories and older audit reports. Doc: `reporting.md`.
+- **Reports**: Markdown and a self-contained, responsive HTML report (executive summary, metadata, host, severity distribution, findings breakdown with filters, evidence index, remediation priorities, historical comparison) with a pinned-hash Content-Security-Policy.
+- `shared/reporting/schema_lite.py`: dependency-free JSON Schema validator for the schemas in this repository; unsupported keywords are refused, parity with `jsonschema` is tested.
+- New schemas (version line 0.1.0): `assessment`, `snapshot-comparison`, `assessment-manifest`, `module-manifest`, `assessment-profile`. The audit-report schema is unchanged (0.2.0).
+- **Linux modules** `auth` (login.defs defaults, password aging, group integrity, PAM password-quality and lockout: `ATH-*`) and `sysconfig` (temp-mount options, `core_pattern`/`suid_dumpable`, log-tampering indicators, logging pipeline: `CFG-*`). Fixture root gained `etc/login.defs` and two `/proc/sys` files so the new partitions are collectable.
+- **Windows module** `eventlog` (`EVT-*`: Event Log service, log sizes and retention, disabled diagnostic channels; registry only). Written without a local PowerShell: **unverified until the Windows CI runner executes `tests/windows/EventLog.Tests.ps1`**.
+- Example assessment and example plugin (`examples/`), CI smoke test for the engine.
+
+### Changed (assessment platform)
+- `audit-linux.sh --list-modules` now lists ten modules (`auth`, `sysconfig` added) and `Invoke-WindowsAudit.ps1 -ListModules` twelve (`eventlog` added); existing tests were updated for the new counts. A host whose `/etc/login.defs`, `kernel.core_pattern` or `fs.suid_dumpable` is unreadable now reports those new inventory partitions as `unavailable` (comparison treats that as a coverage gap, never as removal). Take a new baseline after upgrading.
+- `pyproject.toml`: `E501` is ignored for `shared/reporting/render_html.py` only (inline HTML/CSS literals).
+- `CLAUDE.md` layout table lists `shared/engine/` and `shared/findings/`.
+
 ### Security and integrity (audit remediation, P1-P3)
 - **Test hooks need `BO_TEST_MODE=1`** on both platforms (`BO_ROOT`, `BO_FORCE_MISSING_TOOLS`, `BO_FIXTURE_DIR`, `BO_FORCE_MISSING`). Without it they are removed/ignored and the run records `TEST_HOOKS_IGNORED` (material, exit 6); reports made with them carry the new optional `host.test_mode` (report schema 0.2.0, additive). The comparison warns (`TEST_MODE`). Test harnesses (Bats helper, pytest, Pester) now set it explicitly.
 - **Trusted `PATH` (Linux):** the system directories first; relative, missing, non-root-owned and group/other-writable entries are dropped and recorded (`PATH_SANITIZED`). **Windows:** `netstat.exe`, `schtasks.exe`, `auditpol.exe` and `net.exe` run from `System32` by full path.

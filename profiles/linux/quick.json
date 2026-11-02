@@ -1,0 +1,9 @@
+{
+  "schema_version": "0.1.0",
+  "kind": "profile",
+  "name": "quick",
+  "platform": "linux",
+  "description": "Fast triage: accounts, processes, listeners and services. Skips filesystem walks and persistence sweeps.",
+  "modules": ["linux.users", "linux.processes", "linux.network", "linux.services"],
+  "fail_on": "medium"
+}

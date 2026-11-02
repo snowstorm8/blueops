@@ -37,6 +37,15 @@ Bats tests (`tests/linux/*.bats`) run the real scripts against a synthetic root 
 
 Pester tests (`tests/windows/*.Tests.ps1`) run the real entry scripts in a child process against a synthetic host (`tests/fixtures/windows-host`: `data/` provider snapshots and an `fs/` tree) so they pass on any OS with PowerShell. Test-only hooks, honoured only with `BO_TEST_MODE=1` (otherwise ignored and recorded as `TEST_HOOKS_IGNORED`): `BO_FIXTURE_DIR` (fixture root), `BO_FORCE_MISSING` (space-separated providers treated as unavailable); and `BO_TEST_SHELL` (child shell; default `powershell.exe` on Windows, `pwsh` elsewhere). Date tokens `@@AGO:n@@` in fixtures are replaced per test copy. `tests/shared/test_windows_audit_report.py` validates a Windows report against the JSON schema when PowerShell is available. See [windows-audit.md](windows-audit.md).
 
+### Testing the assessment platform
+
+`tests/shared/engine_support.py` provides synthetic audit reports (built on `baseline_builders.py`) and a fake module executor that writes a canned report instead of starting a process, so engine behaviour (ordering, dependencies, failure statuses, exit codes, deduplication, manifest tampering) is tested without any host. Real-process tests use the running Python as the plugin program (timeouts, process-tree kill, hostile output, symlinked reports, nesting bombs). Integration tests run `python -m shared.engine run` against the real Bash collector on `tests/fixtures/linux-root` and assert that the engine finds exactly the findings the monolithic collector finds and that every finding traces back to a module report by digest. `test_schema_lite.py` checks the dependency-free validator against `jsonschema` (which stays a dev-only dependency) on every shipped schema and on mutated documents. `test_render.py` parses the generated HTML for balance and external references, checks the CSP script hash, and feeds hostile values through both renderers. Windows behaviour that needs PowerShell is skipped where PowerShell is absent; a skipped test is not a pass (see the reported counts).
+
+```bash
+python3 -m pytest tests/shared                 # all Python tests (some need bash; Windows ones need PowerShell)
+bats --recursive tests/linux                   # the Bash collector tests, including audit-expansion.bats
+```
+
 ## PowerShell encoding policy and Windows PowerShell 5.1 limitations
 
 All sources are **UTF-8 without BOM** with LF endings (enforced by `.editorconfig`/`.gitattributes`).

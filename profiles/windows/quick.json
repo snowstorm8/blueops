@@ -1,0 +1,9 @@
+{
+  "schema_version": "0.1.0",
+  "kind": "profile",
+  "name": "quick",
+  "platform": "windows",
+  "description": "Fast triage: accounts, processes, listeners and services.",
+  "modules": ["windows.users", "windows.processes", "windows.network", "windows.services"],
+  "fail_on": "medium"
+}

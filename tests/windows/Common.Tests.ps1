@@ -3,7 +3,7 @@
 BeforeAll {
     . (Join-Path $PSScriptRoot 'TestHelper.ps1')
     . (Join-Path $script:RepoRoot 'windows\lib\Common.ps1')
-    foreach ($f in 'Get-SystemAudit', 'Get-UserAudit', 'Get-ProcessAudit', 'Get-NetworkAudit', 'Get-ServiceAudit', 'Get-ScheduledTaskAudit', 'Get-AutorunAudit', 'Get-FirewallAudit', 'Get-SecurityConfigAudit', 'Get-FilesystemAudit') {
+    foreach ($f in 'Get-SystemAudit', 'Get-UserAudit', 'Get-ProcessAudit', 'Get-NetworkAudit', 'Get-ServiceAudit', 'Get-ScheduledTaskAudit', 'Get-AutorunAudit', 'Get-FirewallAudit', 'Get-SecurityConfigAudit', 'Get-EventLogAudit', 'Get-FilesystemAudit') {
         . (Join-Path $script:RepoRoot "windows\audit\$f.ps1")
     }
     . (Join-Path $script:RepoRoot 'windows\persistence\Get-PersistenceAudit.ps1')

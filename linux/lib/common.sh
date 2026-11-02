@@ -27,7 +27,7 @@ BO_PATH_DROPPED=""
 BO_VERSION="0.1.0"
 BO_SCHEMA_VERSION="0.2.0"
 BO_LINUX_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/.." && pwd)"
-BO_ALL_MODULES="system users pam processes network services persistence filesystem"
+BO_ALL_MODULES="system users pam auth processes network services persistence filesystem sysconfig"
 
 BO_SCRATCH=""
 BO_QUIET=0
@@ -420,6 +420,8 @@ bo_module_partitions() {
     services) echo "services:" ;;
     persistence) echo "persistence:systemd persistence:startup persistence:udev persistence:apt persistence:shell persistence:autostart persistence:auditd scheduled_tasks:cron scheduled_tasks:at" ;;
     pam) echo "config:pam" ;;
+    auth) echo "config:logindefs" ;;
+    sysconfig) echo "config:mounts config:core config:logging" ;;
     filesystem) echo "config:suid" ;;
     *) echo "" ;;
   esac
@@ -621,6 +623,8 @@ bo_module_title() {
     system) echo "System" ;;
     users) echo "Users and access" ;;
     pam) echo "PAM" ;;
+    auth) echo "Authentication policy and groups" ;;
+    sysconfig) echo "System configuration and logging" ;;
     processes) echo "Processes" ;;
     network) echo "Network" ;;
     services) echo "Services" ;;

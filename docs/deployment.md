@@ -19,6 +19,10 @@ BlueOps has no installer and requires no network access.
 
 Output directories may contain sensitive data: store them with owner-only permissions and transport them securely.
 
+## Assessment engine
+
+On a host (or analyst machine) with Python 3.9+, `python -m shared.engine run --output-dir DIR` runs the collectors module by module and writes one assessment directory ([assessment-engine.md](assessment-engine.md)). It needs no installation and no network. Python stays optional: the Bash and PowerShell collectors work alone. The assessment directory has its own `manifest.json`; record its digest off-host and check it later with `python -m shared.engine verify DIR --expect-sha256 DIGEST`. Plugin directories are code you choose to run: keep them owner-writable only and review them like any administrator tool.
+
 ## Verifying a run (integrity)
 
 Every run directory contains `manifest.json`: the SHA-256 and size of `report.json`, `report.txt` and `run.log`, plus the digests of the collector scripts that produced them. At the end of the run the collector prints the **manifest's own digest** (`Manifest SHA-256: ...`).

@@ -19,7 +19,7 @@ $script:BoVersion = '0.1.0'
 $script:BoSchemaVersion = '0.2.0'
 $script:BoSeverityRank = @{ info = 0; low = 1; medium = 2; high = 3; critical = 4 }
 $script:BoAllModules = @('system', 'users', 'processes', 'network', 'services', 'tasks',
-    'autoruns', 'persistence', 'firewall', 'security', 'filesystem')
+    'autoruns', 'persistence', 'firewall', 'security', 'eventlog', 'filesystem')
 $script:BoModuleFunctions = @{
     system      = 'Invoke-BoSystemModule'
     users       = 'Invoke-BoUsersModule'
@@ -31,6 +31,7 @@ $script:BoModuleFunctions = @{
     persistence = 'Invoke-BoPersistenceModule'
     firewall    = 'Invoke-BoFirewallModule'
     security    = 'Invoke-BoSecurityModule'
+    eventlog    = 'Invoke-BoEventlogModule'
     filesystem  = 'Invoke-BoFilesystemModule'
 }
 $script:Bo = $null
@@ -144,6 +145,7 @@ $script:BoModulePartitions = @{
     persistence = @('persistence:registry')
     firewall    = @('config:firewall')
     security    = @('config:security')
+    eventlog    = @('config:eventlog')
 }
 
 function ConvertTo-BoInvValue {
