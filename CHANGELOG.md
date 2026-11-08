@@ -4,6 +4,9 @@ All notable changes are documented here. Format: [Keep a Changelog](https://keep
 
 ## [Unreleased]
 
+### Added (detection migration analysis)
+- `docs/detection-migration.md` and `tests/shared/test_detection_parity.py`: rule-by-rule comparison of the legacy diff detections (`BO-*`) with the detection engine (`DR-*`), measured by running both on the same synthetic scenarios. Result: 1 of 31 legacy rules has a predicate-equivalent, 19 partial, 11 none; the engine has no accepted-change allowlist. Recommendation: coexist, no replacement or compatibility layer yet. No behavior changes.
+
 ### Fixed (assessment integrity verification fails closed)
 - `load_assessment` verified an assessment directory only `if` its `manifest.json` existed, so deleting the manifest turned a verified load into an unverified one, and `assessment.json`/`report.json` given as a file were never verified. Verification is now the default and fails closed: a missing, symlinked, malformed or non-matching manifest, unlisted files and symlinks are errors (exit 3); files are verified through their directory; a bare file with no manifest is refused. Telemetry store directories (`telemetry import`/`load_telemetry`) get the same rule.
 - Added: `--allow-unverified` on `compare`, `report`, `detect run|compare|report`, `telemetry import|hunt` (library `verify=False`) as the explicit opt-in for trusted data such as synthetic fixtures; `expected_sha256` is now accepted by `load_assessment` and is an error combined with `verify=False` rather than silently ignored.
