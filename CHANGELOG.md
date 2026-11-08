@@ -4,6 +4,10 @@ All notable changes are documented here. Format: [Keep a Changelog](https://keep
 
 ## [Unreleased]
 
+### Fixed (Bash version requirement)
+- `collect-telemetry.sh` crashed on Bash older than 4 with `declare: -A: invalid option` and exit 2 (the usage code). `linux/lib/bashcheck.sh` (parseable by Bash 3.2) is now sourced first and exits **3** (precondition failed) with a diagnostic naming the required and running versions. Tests: `tests/linux/bashcheck.bats`.
+- Not changed: the audit orchestrator and `check-persistence.sh` still run on Bash 3.2 with the modules that use Bash 4 syntax (`auth`, `network`, `sysconfig`) failing as recorded module errors (exit 6); see docs/linux-audit.md.
+
 ### Security (runtime environment and plugin trust)
 - Modules and `telemetry collect` no longer inherit a copy of the caller's environment. `BASH_ENV` (which runs a file before a collector's first line) and `LD_PRELOAD`/`DYLD_*`, interpreter hooks and secrets are not passed; `PATH` is rebuilt from trusted directories; names of withheld hook variables are reported on stderr. `RunContext(env=...)` stays explicit and trusted. New: `shared/engine/environment.py`. Plugins that relied on inherited variables must use `BLUEOPS_*`. The Windows rule is a small denylist and is unverified on Windows.
 - Plugin trust now also requires root-or-operator ownership, covers the files the command line launches (not only the manifest), every ancestor directory, and is re-checked immediately before each launch. New: `shared/engine/trust.py`. An untrusted plugin file is a `failed` module, not a silent run.

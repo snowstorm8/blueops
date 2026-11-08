@@ -13,6 +13,10 @@ set -Eeuo pipefail
 IFS=$'\n\t'
 
 SCRIPT_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
+# Needs Bash >= 4.2 (associative arrays). Checked before anything newer is parsed; exit 3 if too old.
+# shellcheck source=../lib/bashcheck.sh
+source "${SCRIPT_DIR}/../lib/bashcheck.sh"
+bo_require_bash 4 2
 # shellcheck source=../lib/common.sh
 source "${SCRIPT_DIR}/../lib/common.sh"
 
