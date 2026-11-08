@@ -15,6 +15,7 @@ import sys
 from pathlib import Path
 from typing import Any
 
+from shared.engine.loader import ALLOW_UNVERIFIED_HELP
 from shared.engine.runner import current_platform
 from shared.reporting.contracts import ExitCode
 from shared.reporting.jsonio import JsonInputError, load_json_strict
@@ -71,6 +72,7 @@ def register(sub: argparse._SubParsersAction[argparse.ArgumentParser]) -> None: 
         metavar="PATH",
         help="collector stream, telemetry document/store, or assessment",
     )
+    p.add_argument("--allow-unverified", action="store_true", help=ALLOW_UNVERIFIED_HELP)
     p.add_argument("--output-dir", required=True, metavar="DIR")
     p.add_argument("--format", choices=("text", "json"), default="text")
     p.add_argument("--quiet", action="store_true")
@@ -244,7 +246,7 @@ def _finish_ingest(doc: dict[str, Any], root: Path, args: argparse.Namespace) ->
 
 
 def _cmd_import(args: argparse.Namespace) -> int:
-    raws = [read_path(p) for p in args.paths]
+    raws = [read_path(p, args.allow_unverified) for p in args.paths]
     doc = build_document(raws, mode="import")
     sources = [(Path(p).name, Path(p).read_bytes()) for p in args.paths if Path(p).is_file()]
     root = write_store(doc, args.output_dir, sources)

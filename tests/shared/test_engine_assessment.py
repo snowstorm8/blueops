@@ -237,11 +237,14 @@ def _write(tmp_path: Path, doc: dict[str, Any]) -> Path:
 def test_load_accepts_assessment_file_dir_and_audit_report(tmp_path: Path) -> None:
     a = fake_assessment(tmp_path, {"linux.users": R_USERS})
     (a.directory / "assessment.json").write_text(json.dumps(a.document), encoding="utf-8")
+    write_manifest(a.directory, a.document)  # verified loading requires a manifest
     assert load_assessment(a.directory / "assessment.json")["kind"] == "assessment"
     assert load_assessment(a.directory)["assessment"]["id"] == a.document["assessment"]["id"]
     rp = tmp_path / "report.json"
     rp.write_text(json.dumps(R_USERS), encoding="utf-8")
-    assert load_assessment(rp)["assessment"]["profile"] == "imported"
+    with pytest.raises(LoadError, match="cannot be verified"):  # a bare report has no manifest
+        load_assessment(rp)
+    assert load_assessment(rp, verify=False)["assessment"]["profile"] == "imported"
 
 
 @pytest.mark.parametrize(
@@ -259,14 +262,14 @@ def test_load_rejects_garbage(tmp_path: Path, payload: str) -> None:
     p = tmp_path / "x.json"
     p.write_text(payload, encoding="utf-8")
     with pytest.raises(LoadError):
-        load_assessment(p)
+        load_assessment(p, verify=False)  # exercise the parser, not the manifest check
 
 
 def test_load_rejects_unsupported_assessment_version(tmp_path: Path) -> None:
     a = fake_assessment(tmp_path, {"linux.users": R_USERS})
     doc = {**a.document, "schema_version": "0.9.0"}
     with pytest.raises(LoadError, match="unsupported"):
-        load_assessment(_write(tmp_path, doc))
+        load_assessment(_write(tmp_path, doc), verify=False)
 
 
 def test_manifest_detects_tampering_additions_and_removals(tmp_path: Path) -> None:

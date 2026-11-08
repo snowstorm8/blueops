@@ -9,7 +9,7 @@ from pathlib import Path
 from typing import Any
 
 import pytest
-from engine_support import POSIX_BASH, ROOT, fnd, make_report
+from engine_support import POSIX_BASH, ROOT, fnd, make_report, trust_fixtures
 
 from shared.engine.cli import main
 from shared.engine.manifest import verify_directory
@@ -59,7 +59,7 @@ def _plugin_dir(
 
 
 def _run(capsys: pytest.CaptureFixture[str], *argv: str) -> tuple[int, str, str]:
-    rc = main(list(argv))
+    rc = main(trust_fixtures(list(argv)))
     cap = capsys.readouterr()
     return rc, cap.out, cap.err
 

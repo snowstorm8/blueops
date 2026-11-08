@@ -111,7 +111,7 @@ def test_scan_loads_files_and_reports_what_it_skipped(tmp_path: Path) -> None:
     write(tmp_path, "b.json", doc({"findings": [A]}, aid="b", started="2026-02-02T10:00:00Z"))
     (tmp_path / "garbage.json").write_text("{", encoding="utf-8")
     (tmp_path / "readme.txt").write_text("ignored")
-    store = HistoryStore.scan(tmp_path)
+    store = HistoryStore.scan(tmp_path, verify=False)  # bare synthetic files
     assert [s.doc["assessment"]["id"] for s in store.snaps] == ["a", "b"]
     assert len(store.skipped) == 1 and "garbage.json" in store.skipped[0]["source"]
 
@@ -129,7 +129,7 @@ def test_before_filters_by_host_time_and_identity(tmp_path: Path) -> None:
     write(
         tmp_path, "win.json", doc({}, aid="win", platform="windows", started="2026-02-03T10:00:00Z")
     )
-    prev, notes = HistoryStore.scan(tmp_path).before(cur)
+    prev, notes = HistoryStore.scan(tmp_path, verify=False).before(cur)
     assert [s.doc["assessment"]["id"] for s in prev] == ["old"]
     reasons = {Path(n["source"]).name: n["reason"] for n in notes}
     assert "different host" in reasons["other.json"] and "different host" in reasons["win.json"]

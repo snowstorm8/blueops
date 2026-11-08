@@ -174,6 +174,8 @@ def test_unmapped_inventory_domain_is_reported_not_ignored():
 
 def test_assessment_file_is_importable_by_path(tmp_path):
     t = ingest.ingest_paths(
-        [ROOT / "tests/fixtures/rules/linux-compromised.assessment.json"], mode="assessment"
+        [ROOT / "tests/fixtures/rules/linux-compromised.assessment.json"],
+        mode="assessment",
+        allow_unverified=True,  # a synthetic fixture without a manifest
     )
     assert t["collection"]["imported_from"][0]["format"] == "assessment"

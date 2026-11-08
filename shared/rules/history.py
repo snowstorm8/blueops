@@ -76,17 +76,17 @@ class HistoryStore:
         self.skipped = skipped or []
 
     @classmethod
-    def from_paths(cls, paths: list[str | Path]) -> HistoryStore:
+    def from_paths(cls, paths: list[str | Path], verify: bool = True) -> HistoryStore:
         snaps: list[Snap] = []
         for p in paths:
             try:
-                snaps.append(Snap(load_assessment(p), str(p)))
+                snaps.append(Snap(load_assessment(p, verify=verify), str(p)))
             except LoadError as exc:
                 raise HistoryError(str(exc)) from None
         return cls(snaps)
 
     @classmethod
-    def scan(cls, directory: str | Path) -> HistoryStore:
+    def scan(cls, directory: str | Path, verify: bool = True) -> HistoryStore:
         """Load every readable assessment directly inside ``directory``; report the rest."""
         root = Path(directory)
         if not root.is_dir():
@@ -101,7 +101,7 @@ class HistoryStore:
             if not is_candidate:
                 continue
             try:
-                snaps.append(Snap(load_assessment(child), str(child)))
+                snaps.append(Snap(load_assessment(child, verify=verify), str(child)))
             except LoadError as exc:
                 skipped.append({"source": str(child), "reason": str(exc)[:300]})
         if len(snaps) > MAX_SNAPSHOTS:

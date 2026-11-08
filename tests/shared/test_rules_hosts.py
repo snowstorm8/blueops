@@ -179,7 +179,7 @@ def test_golden_detections_for_the_synthetic_hosts() -> None:
 
 def test_the_stored_collector_output_is_detected_end_to_end() -> None:
     """A real Linux collector run (stored, so the test does not depend on the collector)."""
-    cur = load_assessment(FIX / "linux-compromised.assessment.json")
+    cur = load_assessment(FIX / "linux-compromised.assessment.json", verify=False)
     res = detect(cur, RS, generated_at=STAMP)
     assert validate(res, "detection-results.schema.json") == [] and res["rule_errors"] == []
     assert fired(res) >= {
@@ -235,7 +235,9 @@ def test_detection_over_a_live_collector_run_matches_the_stored_one(tmp_path: Pa
     (d,) = out.glob("blueops-assessment-*")
     live = json.loads((d / "detections.json").read_text("utf-8"))
     stored = detect(
-        load_assessment(FIX / "linux-compromised.assessment.json"), RS, generated_at=STAMP
+        load_assessment(FIX / "linux-compromised.assessment.json", verify=False),
+        RS,
+        generated_at=STAMP,
     )
     assert {x["rule"]["id"] for x in live["detections"]} == fired(stored)
 
@@ -244,7 +246,7 @@ def test_detection_over_a_live_collector_run_matches_the_stored_one(tmp_path: Pa
 def test_existing_report_fixtures_are_processed_without_errors(family: str) -> None:
     base = ROOT / "tests" / "fixtures" / "baseline-e2e" / family
     for name in ("baseline", "changed", "unprivileged", "module-failed", "churn"):
-        cur = load_assessment(base / f"{name}.json")
+        cur = load_assessment(base / f"{name}.json", verify=False)
         res = detect(cur, RS, generated_at=STAMP)
         assert validate(res, "detection-results.schema.json") == [] and res["rule_errors"] == [], (
             name

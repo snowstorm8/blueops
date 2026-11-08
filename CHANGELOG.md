@@ -4,6 +4,11 @@ All notable changes are documented here. Format: [Keep a Changelog](https://keep
 
 ## [Unreleased]
 
+### Fixed (assessment integrity verification fails closed)
+- `load_assessment` verified an assessment directory only `if` its `manifest.json` existed, so deleting the manifest turned a verified load into an unverified one, and `assessment.json`/`report.json` given as a file were never verified. Verification is now the default and fails closed: a missing, symlinked, malformed or non-matching manifest, unlisted files and symlinks are errors (exit 3); files are verified through their directory; a bare file with no manifest is refused. Telemetry store directories (`telemetry import`/`load_telemetry`) get the same rule.
+- Added: `--allow-unverified` on `compare`, `report`, `detect run|compare|report`, `telemetry import|hunt` (library `verify=False`) as the explicit opt-in for trusted data such as synthetic fixtures; `expected_sha256` is now accepted by `load_assessment` and is an error combined with `verify=False` rather than silently ignored.
+- Behaviour change: scripts that pass bare assessment/report files to these commands must add `--allow-unverified` or point at a verified directory.
+
 ### Added (endpoint telemetry and threat hunting, v0.6)
 - `shared/telemetry/`: versioned telemetry schema (`telemetry.schema.json`, 1.0.0) with per-record provenance and coverage that distinguishes *observed absence* from *could not collect*; ingestion of collector streams, telemetry documents/stores and assessments with per-record validation (rejections and collection errors stay visible), deduplication, conflict reporting, derived authentication summaries and a manifest-verified store; coverage-aware snapshot comparison (`telemetry-comparison.schema.json`); constrained queries and process trees.
 - `linux/telemetry/collect-telemetry.sh` and `windows/telemetry/Invoke-TelemetryCollection.ps1`: read-only collectors emitting a JSON Lines stream (processes with parentage, accounts and groups, sessions, services, scheduled tasks, sockets with owners, authentication and security events, security configuration, file hashes, persistence locations). No network access, no secrets collected.

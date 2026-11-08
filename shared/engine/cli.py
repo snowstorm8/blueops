@@ -22,7 +22,7 @@ from typing import Any
 
 from shared.engine import ENGINE_NAME, ENGINE_VERSION
 from shared.engine.assessment import AssessmentError, make_assessment_dir, run_assessment
-from shared.engine.loader import LoadError, load_assessment
+from shared.engine.loader import ALLOW_UNVERIFIED_HELP, LoadError, load_assessment
 from shared.engine.manifest import verify_directory, write_manifest
 from shared.engine.module import ModuleError
 from shared.engine.profile import PROFILES_DIR, Profile, ProfileError, find_profile, list_profiles
@@ -192,6 +192,7 @@ def _parser() -> argparse.ArgumentParser:
     cmp_.add_argument("--format", choices=("json", "markdown"), default="json")
     cmp_.add_argument("--output", metavar="FILE", help="write here (must not exist)")
     cmp_.add_argument("--allow-host-mismatch", action="store_true")
+    cmp_.add_argument("--allow-unverified", action="store_true", help=ALLOW_UNVERIFIED_HELP)
     cmp_.add_argument("--generated-at", metavar="TIMESTAMP")
 
     rep = sub.add_parser("report", help="render an assessment")
@@ -200,6 +201,7 @@ def _parser() -> argparse.ArgumentParser:
     rep.add_argument("--output", metavar="FILE", help="write here (must not exist)")
     rep.add_argument("--compare", action="append", default=[], metavar="PATH")
     rep.add_argument("--allow-host-mismatch", action="store_true")
+    rep.add_argument("--allow-unverified", action="store_true", help=ALLOW_UNVERIFIED_HELP)
     rep.add_argument("--generated-at", metavar="TIMESTAMP")
 
     val = sub.add_parser("validate", help="validate a document against its schema")
@@ -238,7 +240,11 @@ def _cmd_list(args: argparse.Namespace) -> int:
 
 
 def _load_comparisons(
-    paths: list[str], cur: dict[str, Any], allow: bool, generated_at: str | None = None
+    paths: list[str],
+    cur: dict[str, Any],
+    allow: bool,
+    generated_at: str | None = None,
+    verify: bool = True,
 ) -> list[dict[str, Any]]:
     out = []
     for path in paths:
@@ -254,7 +260,7 @@ def _load_comparisons(
                     raise LoadError(f"{p}: invalid comparison: {'; '.join(problems)}")
                 out.append(raw)
                 continue
-        base = load_assessment(path)
+        base = load_assessment(path, verify=verify)
         out.append(
             compare_snapshots(base, cur, allow_host_mismatch=allow, generated_at=generated_at)
         )
@@ -262,8 +268,8 @@ def _load_comparisons(
 
 
 def _cmd_compare(args: argparse.Namespace) -> int:
-    base = load_assessment(args.baseline)
-    cur = load_assessment(args.current)
+    base = load_assessment(args.baseline, verify=not args.allow_unverified)
+    cur = load_assessment(args.current, verify=not args.allow_unverified)
     cmp_doc = compare_snapshots(
         base, cur, allow_host_mismatch=args.allow_host_mismatch, generated_at=args.generated_at
     )
@@ -287,8 +293,14 @@ def _cmd_compare(args: argparse.Namespace) -> int:
 
 
 def _cmd_report(args: argparse.Namespace) -> int:
-    doc = load_assessment(args.assessment)
-    comparisons = _load_comparisons(args.compare, doc, args.allow_host_mismatch, args.generated_at)
+    doc = load_assessment(args.assessment, verify=not args.allow_unverified)
+    comparisons = _load_comparisons(
+        args.compare,
+        doc,
+        args.allow_host_mismatch,
+        args.generated_at,
+        verify=not args.allow_unverified,
+    )
     stamp = args.generated_at or utc_now()
     if args.format == "json":
         text = _json(doc)
