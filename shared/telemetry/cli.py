@@ -15,6 +15,7 @@ import sys
 from pathlib import Path
 from typing import Any
 
+from shared.engine.environment import sanitized_environment
 from shared.engine.loader import ALLOW_UNVERIFIED_HELP
 from shared.engine.runner import current_platform
 from shared.reporting.contracts import ExitCode
@@ -200,7 +201,12 @@ def _cmd_collect(args: argparse.Namespace) -> int:  # noqa: PLR0911 - one early 
         return int(ExitCode.PRECONDITION)
     try:
         proc = subprocess.run(  # noqa: S603 - fixed argv built from repository paths, no shell
-            argv, capture_output=True, timeout=args.timeout, check=False, shell=False
+            argv,
+            capture_output=True,
+            timeout=args.timeout,
+            check=False,
+            shell=False,
+            env=sanitized_environment()[0],
         )
     except subprocess.TimeoutExpired:
         _err(f"the collector did not finish within {args.timeout}s")

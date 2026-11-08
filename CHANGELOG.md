@@ -4,6 +4,10 @@ All notable changes are documented here. Format: [Keep a Changelog](https://keep
 
 ## [Unreleased]
 
+### Security (runtime environment and plugin trust)
+- Modules and `telemetry collect` no longer inherit a copy of the caller's environment. `BASH_ENV` (which runs a file before a collector's first line) and `LD_PRELOAD`/`DYLD_*`, interpreter hooks and secrets are not passed; `PATH` is rebuilt from trusted directories; names of withheld hook variables are reported on stderr. `RunContext(env=...)` stays explicit and trusted. New: `shared/engine/environment.py`. Plugins that relied on inherited variables must use `BLUEOPS_*`. The Windows rule is a small denylist and is unverified on Windows.
+- Plugin trust now also requires root-or-operator ownership, covers the files the command line launches (not only the manifest), every ancestor directory, and is re-checked immediately before each launch. New: `shared/engine/trust.py`. An untrusted plugin file is a `failed` module, not a silent run.
+
 ### Added (detection migration analysis)
 - `docs/detection-migration.md` and `tests/shared/test_detection_parity.py`: rule-by-rule comparison of the legacy diff detections (`BO-*`) with the detection engine (`DR-*`), measured by running both on the same synthetic scenarios. Result: 1 of 31 legacy rules has a predicate-equivalent, 19 partial, 11 none; the engine has no accepted-change allowlist. Recommendation: coexist, no replacement or compatibility layer yet. No behavior changes.
 

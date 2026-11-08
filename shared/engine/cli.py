@@ -22,6 +22,7 @@ from typing import Any
 
 from shared.engine import ENGINE_NAME, ENGINE_VERSION
 from shared.engine.assessment import AssessmentError, make_assessment_dir, run_assessment
+from shared.engine.environment import sanitized_environment
 from shared.engine.loader import ALLOW_UNVERIFIED_HELP, LoadError, load_assessment
 from shared.engine.manifest import verify_directory, write_manifest
 from shared.engine.module import ModuleError
@@ -409,6 +410,12 @@ def _cmd_run(args: argparse.Namespace) -> int:  # noqa: PLR0912, PLR0915 - setup
         timeout_override=args.timeout or profile.timeout_seconds,
         platform_name=platform,
     )
+    withheld = sanitized_environment()[1]
+    if withheld and not args.quiet:
+        _err(
+            "note: not passed to modules (set in this environment; values not shown): "
+            + ", ".join(withheld[:12])
+        )
     if not args.quiet:
         _err(
             f"running {len(selected)} module(s) of profile {profile.name} on {platform} (read-only)"
