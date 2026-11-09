@@ -24,6 +24,7 @@ from dataclasses import dataclass, field
 from typing import Any
 
 from shared.engine.module import OK
+from shared.engine.provenance import entries, stamp
 from shared.findings.model import clean, host_id
 from shared.findings.standards import attack_url
 from shared.reporting.contracts import ExitCode, Severity
@@ -660,7 +661,7 @@ def detect(  # noqa: PLR0912, PLR0915
             d["id"],
         )
     )
-    return {
+    out = {
         "schema_version": RULES_SCHEMA_VERSION,
         "kind": "detection-results",
         "generated_at": generated_at,
@@ -682,6 +683,14 @@ def detect(  # noqa: PLR0912, PLR0915
         "summary": _summary(uniq, indeterminate, rule_errors),
         **({"telemetry": _telemetry_block(telemetry, telemetry_baseline, tel_cmp)} if telemetry else {}),
     }  # fmt: skip
+    # Provenance: every input the results were derived from, with its own verification status.
+    groups = [entries("assessment", current)]
+    groups += [entries("history", s.doc, source=s.source) for s in prev]
+    if telemetry is not None:
+        groups.append(entries("telemetry", telemetry))
+    if telemetry_baseline is not None:
+        groups.append(entries("telemetry-baseline", telemetry_baseline))
+    return stamp(out, *groups)
 
 
 def _telemetry_block(

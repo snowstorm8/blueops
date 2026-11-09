@@ -1080,6 +1080,15 @@
       }
     }
   ],
+  "inputs": [
+    {
+      "path": "(unknown)",
+      "reason": "provenance unknown (verification status was not carried)",
+      "role": "assessment",
+      "verified": false
+    }
+  ],
+  "inputs_verified": false,
   "kind": "detection-results",
   "rule_errors": [],
   "rule_packs": [

@@ -10,6 +10,7 @@ from __future__ import annotations
 
 from typing import Any
 
+from shared.engine.provenance import entries, stamp
 from shared.findings.model import host_id
 from shared.rules import RULES_ENGINE_NAME, RULES_ENGINE_VERSION, RULES_SCHEMA_VERSION
 from shared.rules.engine import detect
@@ -31,7 +32,7 @@ def _brief(d: dict[str, Any]) -> dict[str, Any]:
     }
 
 
-def compare_detections(snaps: list[Snap], rule_set: RuleSet, generated_at: str) -> dict[str, Any]:  # noqa: PLR0912
+def compare_detections(snaps: list[Snap], rule_set: RuleSet, generated_at: str) -> dict[str, Any]:  # noqa: PLR0912, PLR0915
     if len(snaps) < 2:
         raise TimelineError("need at least two snapshots")
     snaps = sorted(snaps, key=lambda s: (s.started_at, s.source))
@@ -109,7 +110,7 @@ def compare_detections(snaps: list[Snap], rule_set: RuleSet, generated_at: str) 
     states: dict[str, int] = {}
     for r in rows:
         states[r["state"]] = states.get(r["state"], 0) + 1
-    return {
+    out = {
         "schema_version": RULES_SCHEMA_VERSION,
         "kind": "detection-comparison",
         "generated_at": generated_at,
@@ -123,3 +124,4 @@ def compare_detections(snaps: list[Snap], rule_set: RuleSet, generated_at: str) 
         "detections": rows,
         "summary": {"detections_total": len(rows), "states": dict(sorted(states.items())), "snapshots": len(snaps)},
     }  # fmt: skip
+    return stamp(out, *(entries("snapshot", s.doc, source=s.source) for s in snaps))

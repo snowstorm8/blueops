@@ -30,6 +30,7 @@ from shared.reporting.contracts import ExitCode, Severity
 from shared.reporting.jsonio import JsonInputError, load_json_strict
 from shared.reporting.render_detections import render_detections_markdown
 from shared.reporting.render_html import render_html
+from shared.reporting.render_provenance import text as provenance_text
 from shared.reporting.schema_lite import validate
 from shared.rules.docgen import render_library, rule_section
 from shared.rules.engine import detect, exit_code_for
@@ -329,6 +330,7 @@ def render_text(results: dict[str, Any], cases: dict[str, dict[str, Any]] | None
         lines.append(f"[indeterminate] {i['rule']['id']}: {i['reason']}")
     for r in results["rule_errors"]:
         lines.append(f"[rule error] {r['code']} {r['rule']}: {r['message']}")
+    lines += provenance_text(("detections", results))
     return "\n".join(lines) + "\n"
 
 
@@ -617,12 +619,28 @@ def _cmd_detect(args: argparse.Namespace) -> int:  # noqa: PLR0911, PLR0912, PLR
 # ---------------------------------------------------------------------------------- case
 
 
+def _case_provenance_line(c: Any) -> str:
+    p = c.provenance()
+    if p["verification"] == "verified":
+        return f"sources: all {p['observations']} observation(s) came from verified inputs"
+    return (
+        f"WARNING: sources UNVERIFIED - {p['verified_observations']} of {p['observations']} "
+        f"observation(s) verified, {p['unverified_observations']} unverified, "
+        f"{p['unknown_observations']} with unknown provenance (counted as unverified)"
+    )
+
+
 def _case_text(c: Any) -> str:
     out = [
         f"{c.id}  {c.title}",
         f"rule {c.rule_id}  severity {c.severity}  confidence {c.confidence}  host {c.hostname}",
         f"status: {c.status}" + ("  (observed again after being closed)" if c.reappeared else ""),
         f"first seen {c.first_seen}, last seen {c.last_seen}, {len(c.assessments)} assessment(s)",
+        _case_provenance_line(c),
+    ]
+    out += [
+        f"  unverified source: {u['role']} {u['path']} ({u['reason']})"
+        for u in c.provenance()["unverified_inputs"]
     ]
     if c.linked:
         out.append("linked: " + ", ".join(c.linked))

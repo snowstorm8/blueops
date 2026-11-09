@@ -34,6 +34,8 @@ from shared.engine.loader import (
 )
 from shared.engine.manifest import MANIFEST_NAME
 from shared.engine.provenance import status
+from shared.rules.cli import _load_results
+from shared.rules.export import to_csv, to_jsonl
 from shared.telemetry import ingest
 
 STAMP = "2026-03-09T00:00:00Z"
@@ -204,6 +206,31 @@ def test_run_never_uses_an_invalid_compare_input_and_says_so(
     assert doc["inputs"] == [] and doc["inputs_verified"] is True  # nothing was consulted
 
 
+def test_run_history_excludes_an_invalid_snapshot_and_records_why(
+    tmp_path: Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    import time  # noqa: PLC0415 - one-second resolution of started_at
+
+    a, b = _two_runs(tmp_path, capsys)
+    time.sleep(1.1)
+    hist = tmp_path / "hist"
+    hist.mkdir()
+    shutil.copytree(a, hist / "ok")
+    shutil.copytree(b, hist / "tampered")
+    _tamper(hist / "tampered")
+    plugins = _plugin_dir(tmp_path / "pp", make_report([]))
+    args = [
+        "run", "--platform", "linux", "--plugin-dir", str(plugins), "--modules", "linux.demo",
+        "--quiet", "--output-dir", str(tmp_path / "out"), "--detect", "--history", str(hist),
+        "--allow-unverified",
+    ]  # fmt: skip
+    assert main(args) in (0, 4, 6)
+    res = json.loads((_assessment_dir(tmp_path / "out") / "detections.json").read_text("utf-8"))
+    assert res["history"]["snapshots"] == 1
+    assert any("failed manifest verification" in x["reason"] for x in res["history"]["excluded"])
+    assert all("tampered" not in e["path"] for e in res["inputs"])
+
+
 def test_a_stored_comparison_in_a_directory_that_fails_its_manifest_is_invalid(
     tmp_path: Path, capsys: pytest.CaptureFixture[str]
 ) -> None:
@@ -232,6 +259,29 @@ def _results_file(tmp_path: Path) -> Path:
     args = ["detect", "run", str(d), "--quiet", "--output", str(out), "--allow-unverified"]
     assert main(args) in (0, 4, 6)
     return out
+
+
+def test_a_stored_results_file_cannot_vouch_for_itself(tmp_path: Path) -> None:
+    res = _results_file(tmp_path)
+    doc = json.loads(res.read_text("utf-8"))
+    doc["inputs_verified"], doc["inputs"] = True, []  # a hand-edited claim of "verified"
+    res.write_text(json.dumps(doc), encoding="utf-8")
+    with pytest.raises(LoadError, match="--allow-unverified|bare"):
+        _load_results(str(res))  # unverifiable and no opt-in: refused
+    loaded = _load_results(
+        str(res), True
+    )  # the loader every detect show/export/report goes through
+    ok, inputs = status(loaded)
+    assert ok is False and any(not i["verified"] and i["role"] == "source" for i in inputs)
+    row = {  # the exporters need one detection to write a row
+        "id": "d1", "rule": {"id": "R"}, "title": "t", "severity": "low", "confidence": "low",
+        "nature": "observation", "category": "c", "host": {"hostname": "h"},
+        "references": {"attack": [], "nist": []}, "contributing": [], "evidence": [],
+        "remediation": "r",
+    }  # fmt: skip
+    loaded["detections"] = [row]
+    assert to_csv(loaded).splitlines()[1].endswith(",false")
+    assert json.loads(to_jsonl(loaded))["inputs_verified"] is False
 
 
 def test_stored_file_status_distinguishes_all_three_states(tmp_path: Path) -> None:
