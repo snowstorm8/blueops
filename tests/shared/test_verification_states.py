@@ -34,6 +34,7 @@ from shared.engine.loader import (
 )
 from shared.engine.manifest import MANIFEST_NAME
 from shared.engine.provenance import status
+from shared.reporting.inventory import ReportError, load_snapshot
 from shared.rules.cli import _load_results
 from shared.rules.export import to_csv, to_jsonl
 from shared.telemetry import ingest
@@ -164,6 +165,17 @@ def test_the_opt_out_cannot_be_combined_with_an_expected_digest(tmp_path: Path) 
         load_assessment(d, verify=False, expected_sha256="0" * 64)
     with pytest.raises(InvalidIntegrityError, match="expected digest"):
         load_assessment(d, expected_sha256="0" * 64)
+
+
+def test_legacy_baseline_loader_does_not_treat_a_dangling_manifest_as_no_manifest(
+    tmp_path: Path,
+) -> None:
+    run = tmp_path / "run"
+    run.mkdir()
+    (run / "report.json").write_text(json.dumps(make_report([])), encoding="utf-8")
+    (run / MANIFEST_NAME).symlink_to(tmp_path / "gone.json")
+    with pytest.raises(ReportError, match="manifest verification"):
+        load_snapshot(run)
 
 
 # ------------------------------------------------------------------------- 2. commands

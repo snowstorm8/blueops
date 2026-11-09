@@ -36,6 +36,7 @@ from shared.reporting.inventory import (
     ReportError,
     load_snapshot,
     parse_timestamp,
+    unverified_notes,
 )
 from shared.reporting.jsonio import JsonInputError, load_json_strict
 
@@ -203,16 +204,20 @@ def main(argv: list[str] | None = None) -> int:
     generated = args.generated_at or _now()
     try:
         parse_timestamp(generated)
+        notes: list[str] = []
         if args.from_diff:
             diff = _load_diff(args.from_diff)
+            notes.append(
+                f"blueops-detect: WARNING: {args.from_diff} is a saved diff with no provenance "
+                "(UNVERIFIED): the reports it came from cannot be checked. The output below is "
+                "not marked: compare the reports directly for manifest verification"
+            )
         else:
             opts = _options(args)
-            diff = compare(
-                load_snapshot(args.reports[0], opts),
-                load_snapshot(args.reports[1], opts),
-                opts,
-                generated,
-            )
+            base = load_snapshot(args.reports[0], opts)
+            cur = load_snapshot(args.reports[1], opts)
+            notes += unverified_notes("blueops-detect", base, cur)
+            diff = compare(base, cur, opts, generated)
         allow = (
             load_allowlist(args.accepted, frozenset(r.rule_id for r in RULES))
             if args.accepted
@@ -228,6 +233,8 @@ def main(argv: list[str] | None = None) -> int:
     ) as exc:
         sys.stderr.write(f"blueops-detect: {exc}\n")
         return int(ExitCode.PRECONDITION)
+    for note in notes:
+        sys.stderr.write(note + "\n")  # stderr only: the documented output is unchanged
     text = json.dumps(doc, indent=2) + "\n" if args.format == "json" else render_text(doc)
     try:
         if args.output:
