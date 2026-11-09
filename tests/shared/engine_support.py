@@ -169,6 +169,13 @@ _LOADS_ASSESSMENTS = {
     ("detect", "report"),
     ("telemetry", "hunt"),
     ("telemetry", "import"),
+    ("telemetry", "show"),
+    ("telemetry", "query"),
+    ("telemetry", "tree"),
+    ("telemetry", "compare"),
+    ("telemetry", "report"),
+    ("detect", "show"),
+    ("detect", "export"),
 }
 
 

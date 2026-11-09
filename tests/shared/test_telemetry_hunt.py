@@ -25,7 +25,7 @@ TEL_RULES = load_rule_set().only(lambda r: any(s.startswith("telemetry") for s i
 def make(tmp_path, records, cov=None, name="t.jsonl", **kw):
     p = tmp_path / name
     p.write_bytes(stream(records, cov, **kw))
-    return ingest.ingest_paths([p], generated_at=STAMP)
+    return ingest.ingest_paths([p], generated_at=STAMP, allow_unverified=True)
 
 
 def run(doc, base=None, rs=TEL_RULES):

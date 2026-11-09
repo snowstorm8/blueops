@@ -19,7 +19,7 @@ ROOT = Path(__file__).resolve().parents[2]
 def build(tmp_path, name, records, cov=None, **kw):
     p = tmp_path / name
     p.write_bytes(stream(records, cov, **kw))
-    return ingest.ingest_paths([p], generated_at="2026-03-01T11:00:00Z")
+    return ingest.ingest_paths([p], generated_at="2026-03-01T11:00:00Z", allow_unverified=True)
 
 
 def svc(name, state="running", path="/usr/bin/x"):

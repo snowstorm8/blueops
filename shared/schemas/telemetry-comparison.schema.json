@@ -1,12 +1,31 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://blueops.invalid/schemas/telemetry-comparison/1.0.0",
+  "$id": "https://blueops.invalid/schemas/telemetry-comparison/1.1.0",
   "title": "BlueOps telemetry comparison",
   "description": "Differences between two telemetry snapshots of one host. A removal or change is reported only for categories that were completely collected in both snapshots; otherwise the category is listed as indeterminate. Event categories are append-only logs: new events are reported, absent events are not treated as removed.",
   "type": "object",
   "additionalProperties": false,
   "required": ["schema_version", "kind", "generated_at", "host", "baseline", "current", "categories", "indeterminate", "summary"],
   "properties": {
+    "inputs_verified": { "type": "boolean", "description": "True only if every input in `inputs` was verified against its manifest when it was read. False as soon as one was not. A statement about what could be checked, not about whether the data is true." },
+    "inputs": {
+      "type": "array",
+      "maxItems": 1000,
+      "description": "The inputs this document was derived from, one entry each, including inputs carried by an input (`via`). Per-input status is authoritative; `inputs_verified` is only the summary.",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["role", "path", "verified"],
+        "properties": {
+          "role": { "type": "string", "maxLength": 40 },
+          "path": { "type": "string", "maxLength": 300 },
+          "verified": { "type": "boolean" },
+          "reason": { "type": "string", "maxLength": 200 },
+          "via": { "type": "string", "maxLength": 300 }
+        }
+      }
+    },
+    "inputs_omitted": { "type": "integer", "minimum": 0, "description": "Entries dropped from `inputs` because of the size cap (unverified entries are kept first)." },
     "schema_version": {"type": "string", "pattern": "^1\\.\\d+\\.\\d+$"},
     "kind": {"const": "telemetry-comparison"},
     "generated_at": {"type": "string", "pattern": "^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}(\\.\\d+)?Z$"},

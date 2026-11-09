@@ -10,6 +10,7 @@ from __future__ import annotations
 from typing import Any
 
 from shared.engine.assessment import assessment_from_report
+from shared.engine.provenance import entries, mark, merge_into
 from shared.reporting.contracts import SCHEMA_VERSION
 
 NATURE_CLASS = {
@@ -54,4 +55,7 @@ def shell_assessment(tel: dict[str, Any]) -> dict[str, Any]:
     doc["assessment"]["modules"] = []
     doc["modules"] = []
     doc["assessment"]["status"] = "complete" if tel["summary"]["complete"] else "partial"
-    return doc
+    # The shell is derived entirely from `tel`, so it inherits exactly tel's provenance.
+    merge_into(doc, entries("telemetry", tel))
+    own_verified = bool(getattr(tel, "load_verified", False))
+    return mark(doc, verified=own_verified, source=getattr(tel, "load_source", "") or "(telemetry)")

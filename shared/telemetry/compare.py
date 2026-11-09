@@ -15,6 +15,7 @@ from __future__ import annotations
 
 from typing import Any
 
+from shared.engine.provenance import entries, stamp
 from shared.reporting.schema_lite import validate
 from shared.telemetry.model import EVENT_CATEGORIES, TELEMETRY_SCHEMA_VERSION, utc_now
 
@@ -119,6 +120,7 @@ def compare_telemetry(
         "indeterminate": indeterminate,
         "summary": {**totals, "indeterminate_categories": len(indeterminate)},
     }
+    stamp(doc, entries("baseline", base), entries("current", cur))
     problems = validate(doc, "telemetry-comparison.schema.json", limit=5)
     if problems:
         raise CompareError("internal error: comparison violates its schema: " + "; ".join(problems))

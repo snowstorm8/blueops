@@ -15,7 +15,7 @@ from typing import Any
 
 from shared.findings.model import clean
 
-TELEMETRY_SCHEMA_VERSION = "1.0.0"
+TELEMETRY_SCHEMA_VERSION = "1.1.0"  # 1.1.0: optional provenance (inputs_verified, inputs)
 TELEMETRY_VERSION = "1.0.0"  # version of the ingestion/normalization logic
 COLLECTION_MODES = ("live", "import", "assessment")
 

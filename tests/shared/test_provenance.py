@@ -35,7 +35,8 @@ from shared.reporting.render_markdown import render_comparison_markdown, render_
 from shared.reporting.schema_lite import validate
 from shared.reporting.snapshot_compare import compare_snapshots
 from shared.rules.loader import load_rule_set
-from shared.telemetry import ingest
+from shared.telemetry import ingest, render
+from shared.telemetry.compare import compare_telemetry
 
 STAMP = "2026-03-09T00:00:00Z"
 RS = load_rule_set()
@@ -264,6 +265,45 @@ def _store(tmp_path: Path, name: str, **kw: Any) -> Path:
     src.write_bytes(stream([proc(1, "init", "/sbin/init")], **kw))
     doc = ingest.ingest_paths([src], allow_unverified=True)
     return ingest.write_store(doc, tmp_path / f"{name}-stores", [(src.name, src.read_bytes())])
+
+
+def test_telemetry_from_a_bare_stream_is_marked_unverified_and_a_store_is_not(
+    tmp_path: Path,
+) -> None:
+    src = tmp_path / "s.jsonl"
+    from telemetry_support import proc, stream  # noqa: PLC0415
+
+    src.write_bytes(stream([proc(1, "init", "/sbin/init")]))
+    doc = ingest.ingest_paths([src], allow_unverified=True)
+    assert doc["inputs_verified"] is False
+    assert "no manifest" in doc["inputs"][0]["reason"]
+    assert validate(doc, "telemetry.schema.json") == []
+    store = ingest.write_store(doc, tmp_path / "st")
+    loaded = ingest.load_telemetry(store)  # the store verifies, but records what it was built from
+    assert loaded.load_verified is True and loaded["inputs_verified"] is False
+    again = ingest.build_document([ingest.read_path(store)])
+    assert again["inputs_verified"] is False  # re-importing a store keeps the ancestry
+
+
+def test_a_collector_run_by_this_process_is_trusted_and_says_so() -> None:
+    from telemetry_support import proc, stream  # noqa: PLC0415
+
+    raw = ingest.read_stream("s.jsonl", stream([proc(1, "init", "/sbin/init")]))
+    assert raw.provenance == []  # unrecorded -> build_document must not call it verified
+    assert ingest.build_document([raw])["inputs_verified"] is False
+    raw.provenance = [{"role": "collector", "path": "(this run)", "verified": True}]
+    assert ingest.build_document([raw])["inputs_verified"] is True
+
+
+def test_telemetry_comparison_and_rendering_carry_the_status(tmp_path: Path) -> None:
+    a, b = _store(tmp_path, "a"), _store(tmp_path, "b")
+    cmp_doc = compare_telemetry(ingest.load_telemetry(a), ingest.load_telemetry(b))
+    assert cmp_doc["inputs_verified"] is False  # both stores were built from bare streams
+    assert validate(cmp_doc, "telemetry-comparison.schema.json") == []
+    doc = ingest.load_telemetry(a)
+    assert "UNVERIFIED" in "\n".join(render.summary_lines(doc))
+    assert "UNVERIFIED INPUTS" in render.render_markdown(doc)
+    assert 'role="alert"' in render.render_html(doc)
 
 
 # ------------------------------------------------------------------------- engine run
