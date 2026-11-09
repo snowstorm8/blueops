@@ -23,10 +23,17 @@ from typing import Any
 from shared.engine import ENGINE_NAME, ENGINE_VERSION
 from shared.engine.assessment import AssessmentError, make_assessment_dir, run_assessment
 from shared.engine.environment import sanitized_environment
-from shared.engine.loader import ALLOW_UNVERIFIED_HELP, LoadError, load_assessment
+from shared.engine.loader import ALLOW_UNVERIFIED_HELP, LoadError, check_bare_file, load_assessment
 from shared.engine.manifest import verify_directory, write_manifest
 from shared.engine.module import ModuleError
 from shared.engine.profile import PROFILES_DIR, Profile, ProfileError, find_profile, list_profiles
+from shared.engine.provenance import (
+    entries,
+    mark,
+    merge_into,
+    produced_here,
+)
+from shared.engine.provenance import stamp as stamp_provenance
 from shared.engine.registry import PluginError, Registry
 from shared.engine.runner import RunContext, current_platform, utc_now
 from shared.reporting.contracts import ExitCode, Severity
@@ -43,7 +50,7 @@ from shared.rules.cli import dispatch as rules_dispatch
 from shared.rules.cli import register as rules_register
 from shared.rules.cli import run_detection
 from shared.rules.engine import exit_code_for as detection_exit_code
-from shared.rules.history import HistoryStore
+from shared.rules.history import HistoryError, HistoryStore
 from shared.rules.investigation import CaseStore, case_summaries
 from shared.rules.loader import load_rule_set
 from shared.telemetry.cli import dispatch as telemetry_dispatch
@@ -158,6 +165,13 @@ def _parser() -> argparse.ArgumentParser:
     )
     run.add_argument("--allow-host-mismatch", action="store_true")
     run.add_argument(
+        "--allow-unverified",
+        action="store_true",
+        help=ALLOW_UNVERIFIED_HELP
+        + ". Applies to --compare and --history inputs only (never to modules); every "
+        "output that used such an input records inputs_verified=false",
+    )
+    run.add_argument(
         "--json",
         action="store_true",
         help="print assessment.json on stdout (human text goes to stderr)",
@@ -240,13 +254,15 @@ def _cmd_list(args: argparse.Namespace) -> int:
 # ------------------------------------------------------------------------ compare helpers
 
 
-def _load_comparisons(
+def _load_comparisons(  # noqa: PLR0913, PLR0917 - one loader for run and report; each flag is distinct
     paths: list[str],
     cur: dict[str, Any],
     allow: bool,
     generated_at: str | None = None,
     verify: bool = True,
+    sink: list[list[dict[str, Any]]] | None = None,
 ) -> list[dict[str, Any]]:
+    """Load ``--compare`` inputs. ``sink`` collects each input's provenance entries."""
     out = []
     for path in paths:
         p = Path(path)
@@ -259,9 +275,16 @@ def _load_comparisons(
                 problems = validate(raw, "snapshot-comparison.schema.json", limit=3)
                 if problems:
                     raise LoadError(f"{p}: invalid comparison: {'; '.join(problems)}")
+                reason = check_bare_file(p, allow=not verify)  # invalid dir: never accepted
+                held = mark(raw, verified=False, source=str(p), reason=reason)
+                merge_into(raw, entries("compare", held))
+                if sink is not None:
+                    sink.append(entries("compare", held))
                 out.append(raw)
                 continue
         base = load_assessment(path, verify=verify)
+        if sink is not None:
+            sink.append(entries("compare", base, source=str(path)))
         out.append(
             compare_snapshots(base, cur, allow_host_mismatch=allow, generated_at=generated_at)
         )
@@ -428,21 +451,49 @@ def _cmd_run(args: argparse.Namespace) -> int:  # noqa: PLR0912, PLR0915 - setup
         _err(f"module reports were kept in {out_dir}")
         return int(ExitCode.ERROR)
     code = result.exit_code
+    verify = not args.allow_unverified
+    sink: list[list[dict[str, Any]]] = []
     comparisons: list[dict[str, Any]] = []
     if args.compare:
         try:
-            comparisons = _load_comparisons(args.compare, doc, args.allow_host_mismatch)
+            comparisons = _load_comparisons(
+                args.compare, produced_here(doc), args.allow_host_mismatch, verify=verify, sink=sink
+            )
         except (LoadError, ComparisonError) as exc:
             _err(f"comparison skipped: {exc}")
             if code == ExitCode.OK:
                 code = ExitCode.PARTIAL
+    prev: list[Any] = []
+    notes: list[dict[str, str]] = []
+    if args.detect and args.history:
+        try:
+            prev, notes = HistoryStore.scan(args.history, verify).before(doc)
+        except HistoryError as exc:
+            _err(f"history skipped: {exc}")
+            if code == ExitCode.OK:
+                code = ExitCode.PARTIAL
+        sink += [entries("history", s.doc, source=s.source) for s in prev]
+    # Record every external input this run consulted and whether each was verified. The module
+    # outputs themselves were produced by this run and are not listed.
+    stamp_provenance(doc, *sink)
+    problems = validate(doc, "assessment.schema.json", limit=5)
+    if problems:
+        _err("internal error: the assessment violates its schema: " + "; ".join(problems))
+        return int(ExitCode.ERROR)
+    unverified_inputs = [e for g in sink for e in g if not e["verified"]]
+    if unverified_inputs and not args.quiet:
+        _err(
+            f"note: {len(unverified_inputs)} input(s) were NOT verified (--allow-unverified); "
+            "this run records inputs_verified=false"
+        )
     _write_new(out_dir / "assessment.json", _json(doc))
     detections: dict[str, Any] | None = None
     cases: dict[str, dict[str, Any]] | None = None
     if args.detect:
         rs = load_rule_set(args.rules_dir)
-        prev, notes = HistoryStore.scan(args.history).before(doc) if args.history else ([], [])
-        detections = run_detection(doc, rs, prev, notes, doc["assessment"]["finished_at"])
+        detections = run_detection(
+            produced_here(doc), rs, prev, notes, doc["assessment"]["finished_at"]
+        )
         store = CaseStore(args.state_dir, args.actor) if args.state_dir else None
         if store:
             store.observe(detections)

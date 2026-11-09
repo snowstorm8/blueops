@@ -26,10 +26,16 @@ from shared.engine.module import (
     ModuleResult,
     ModuleSpec,
 )
+from shared.engine.provenance import carry
 from shared.engine.registry import Registry
 from shared.engine.runner import RunContext, run_module
 from shared.findings.model import FindingStore, clean
-from shared.reporting.contracts import COVERAGE_STATUSES, SCHEMA_VERSION, ExitCode, Severity
+from shared.reporting.contracts import (
+    AUDIT_REPORT_SCHEMA_VERSION,
+    COVERAGE_STATUSES,
+    ExitCode,
+    Severity,
+)
 
 _SEVERITIES = ("info", "low", "medium", "high", "critical")
 _MAX_ERRORS = 500
@@ -314,7 +320,7 @@ def run_assessment(  # noqa: PLR0912, PLR0913 - assembling the document is one l
 
 
 def assessment_to_report(doc: dict[str, Any]) -> dict[str, Any]:
-    """Project an assessment onto the ``audit-report`` shape (schema 0.2.0).
+    """Project an assessment onto the ``audit-report`` shape (schema 0.3.0).
 
     This lets the existing baseline/detection engines (which read audit reports) work on an
     assessment without modification. Only fields the report schema defines are produced.
@@ -369,30 +375,33 @@ def assessment_to_report(doc: dict[str, Any]) -> dict[str, Any]:
         }
         for e in doc["errors"]
     ]
-    return {
-        "schema_version": SCHEMA_VERSION,
-        "tool": {
-            "name": "blueops-assessment",
-            "version": doc["engine"]["version"],
-            "category": "audit",
+    return carry(
+        doc,
+        {
+            "schema_version": AUDIT_REPORT_SCHEMA_VERSION,
+            "tool": {
+                "name": "blueops-assessment",
+                "version": doc["engine"]["version"],
+                "category": "audit",
+            },
+            "run": {
+                "id": a["id"],
+                "started_at": a["started_at"],
+                "finished_at": a["finished_at"],
+                "mode": "read-only",
+                "dry_run": False,
+                "exit_code": a["exit_code"],
+            },
+            "host": h,
+            "findings": findings,
+            "errors": errors,
+            "inventory": doc["inventory"],
+            "summary": {
+                "total": len(findings),
+                "by_severity": dict(doc["summary"]["by_severity"]),
+            },
         },
-        "run": {
-            "id": a["id"],
-            "started_at": a["started_at"],
-            "finished_at": a["finished_at"],
-            "mode": "read-only",
-            "dry_run": False,
-            "exit_code": a["exit_code"],
-        },
-        "host": h,
-        "findings": findings,
-        "errors": errors,
-        "inventory": doc["inventory"],
-        "summary": {
-            "total": len(findings),
-            "by_severity": dict(doc["summary"]["by_severity"]),
-        },
-    }
+    )
 
 
 def assessment_from_report(report: dict[str, Any], report_sha256: str = "") -> dict[str, Any]:
@@ -467,6 +476,7 @@ def assessment_from_report(report: dict[str, Any], report_sha256: str = "") -> d
         "warnings": [],
         "summary": _summary(findings, len(evidence), [res]),
     }
+    carry(report, doc)
     if "inventory" not in report:
         doc["warnings"].append(
             {

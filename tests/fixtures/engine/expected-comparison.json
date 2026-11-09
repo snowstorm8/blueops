@@ -313,5 +313,20 @@
       "delta": -1
     },
     "trend": "worse"
-  }
+  },
+  "inputs_verified": false,
+  "inputs": [
+    {
+      "role": "baseline",
+      "path": "tests/fixtures/engine/baseline.assessment.json",
+      "verified": false,
+      "reason": "a bare file has no manifest, so it cannot be verified"
+    },
+    {
+      "role": "current",
+      "path": "tests/fixtures/engine/current.assessment.json",
+      "verified": false,
+      "reason": "a bare file has no manifest, so it cannot be verified"
+    }
+  ]
 }

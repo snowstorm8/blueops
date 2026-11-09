@@ -9,6 +9,7 @@ import pytest
 from jsonschema import Draft202012Validator
 
 from shared.reporting.contracts import (
+    AUDIT_REPORT_SCHEMA_VERSION,
     COVERAGE_STATUSES,
     INVENTORY_DOMAINS,
     READABLE_REPORT_VERSIONS,
@@ -80,7 +81,9 @@ def test_diff_schema_is_valid_and_versioned() -> None:
     diff_schema = _load(DIFF_SCHEMA_PATH)
     Draft202012Validator.check_schema(diff_schema)
     assert diff_schema["$id"].endswith(f"/{SCHEMA_VERSION}")
-    assert _load(SCHEMA_PATH)["$id"].endswith(f"/{SCHEMA_VERSION}")
+    # the audit-report schema is a superset line (0.3.0 adds optional provenance); collectors
+    # still emit SCHEMA_VERSION documents, which it validates
+    assert _load(SCHEMA_PATH)["$id"].endswith(f"/{AUDIT_REPORT_SCHEMA_VERSION}")
 
 
 def test_diff_schema_reasons_and_coverage_match_code() -> None:
@@ -107,3 +110,5 @@ def test_default_diff_config_matches_builtin_defaults() -> None:
 def test_legacy_schema_0_1_reports_are_still_readable() -> None:
     assert "0.1" in READABLE_REPORT_VERSIONS
     assert SCHEMA_VERSION.rsplit(".", 1)[0] in READABLE_REPORT_VERSIONS
+    assert AUDIT_REPORT_SCHEMA_VERSION.rsplit(".", 1)[0] in READABLE_REPORT_VERSIONS
+    assert "0.4" not in READABLE_REPORT_VERSIONS  # the next, unknown minor stays refused

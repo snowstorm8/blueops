@@ -181,7 +181,7 @@ Every detection has: severity and confidence **with reasons**, the matched condi
 * Repeated identical observations merge (`occurrences`); the same record with different attributes is a `conflict` (newest kept, differing attributes listed).
 * `summary.complete` is true only with coverage on every category, nothing rejected and no errors.
 
-## Collector environment
+## Input verification and provenance
 
 **Environment sanitization.** Modules and `telemetry collect` are started with an allowlisted environment, not a copy of the caller's (`shared/engine/environment.py`): locale, terminal and identity variables (`HOME`, `LANG`, `LANGUAGE`, `TZ`, `TERM`, `TMPDIR`, `USER`, `LOGNAME`, `NO_COLOR`, `LC_*`) and anything named `BLUEOPS_*` or `BO_*` pass; everything else does not, including secrets and the loader and interpreter hooks (`BASH_ENV`, `ENV`, `LD_*`, `DYLD_*`, `PYTHON*`, `PERL5*`, `RUBY*`, `NODE_OPTIONS`). The *names* of withheld hooks are reported on stderr, never their values. `PATH` is rebuilt from the system directories plus only those entries that are root-owned and not group/other-writable, and `pwsh`, `powershell` and non-absolute plugin commands are resolved through it.
 

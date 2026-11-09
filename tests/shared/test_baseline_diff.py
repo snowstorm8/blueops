@@ -733,7 +733,7 @@ def test_loader_rejects_missing_and_oversized_files(
         lambda r: r["run"].update(finished_at="2026-13-45T00:00:00Z"),
         lambda r: r["host"]["os"].pop("family"),
         lambda r: r.update(schema_version="1.0.0"),
-        lambda r: r.update(schema_version="0.3.0"),
+        lambda r: r.update(schema_version="0.4.0"),
         lambda r: r.update(schema_version="banana"),
         lambda r: r.pop("schema_version"),
         lambda r: r["inventory"].update(records="nope"),

@@ -2,6 +2,8 @@
 
 _Generated 2026-03-09T00:00:00Z_
 
+> **WARNING - UNVERIFIED INPUTS. At least one input was not checked against a manifest \(--allow-unverified\), so its content may have been altered. Treat the results below as unverified until the inputs are checked another way.**
+
 > Read-only assessment. For systems you are authorized to administer. Findings are leads for investigation, not verdicts.
 
 ## Executive summary
@@ -25,6 +27,16 @@ _Generated 2026-03-09T00:00:00Z_
 | Exit code | 4 |
 | Fail threshold | medium |
 | Engine | blueops-engine 0.4.0 |
+
+## Input provenance
+
+**Not all inputs were verified.**
+
+| Document | Role | Input | Status |
+|---|---|---|---|
+| assessment | source | `tests/fixtures/engine/current.assessment.json` | **UNVERIFIED** - a bare file has no manifest, so it cannot be verified |
+| comparison 1 | baseline | `tests/fixtures/engine/baseline.assessment.json` | **UNVERIFIED** - a bare file has no manifest, so it cannot be verified |
+| comparison 1 | current | `tests/fixtures/engine/current.assessment.json` | **UNVERIFIED** - a bare file has no manifest, so it cannot be verified |
 
 ## Host
 

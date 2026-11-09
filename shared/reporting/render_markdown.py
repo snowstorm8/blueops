@@ -18,6 +18,7 @@ from shared.reporting.render_common import (
     remediation_plan,
 )
 from shared.reporting.render_detections import render_detections_markdown
+from shared.reporting.render_provenance import markdown as provenance_markdown
 
 _SPECIAL = re.compile(r"([\\`*_{}\[\]<>()#+!|~&])")
 _WS = re.compile(r"\s+")
@@ -68,6 +69,14 @@ def render_markdown(  # noqa: PLR0912, PLR0915 - one linear sequence of report s
     lines: list[str] = ["# BlueOps assessment report", ""]
     if generated_at:
         lines += [f"_Generated {esc(generated_at)}_", ""]
+    prov = provenance_markdown(
+        ("assessment", doc),
+        *[(f"comparison {i}", c) for i, c in enumerate(comparisons or [], 1)],
+        *([("detections", detections)] if detections else []),
+    )
+    if prov and prov[0].startswith("> **WARNING"):
+        lines += prov[:2]  # the warning goes first; the table follows the metadata
+        prov = prov[2:]
     lines += [
         "> Read-only assessment. For systems you are authorized to administer. Findings are "
         "leads for investigation, not verdicts.",
@@ -99,6 +108,7 @@ def render_markdown(  # noqa: PLR0912, PLR0915 - one linear sequence of report s
             ["Engine", esc(f"{doc['engine']['name']} {doc['engine']['version']}")],
         ],
     )
+    lines += prov
     lines += ["## Host", ""]
     if host:
         lines += _table(
@@ -294,12 +304,14 @@ def render_markdown(  # noqa: PLR0912, PLR0915 - one linear sequence of report s
     return "\n".join(lines).rstrip() + "\n"
 
 
-def render_comparison_markdown(cmp_doc: dict[str, Any]) -> str:
+def render_comparison_markdown(cmp_doc: dict[str, Any]) -> str:  # noqa: PLR0912 - one linear sequence of sections
     """Markdown for one snapshot comparison (the same section the full report embeds)."""
     cs = cmp_doc["summary"]
+    prov = provenance_markdown(("comparison", cmp_doc))
     lines = [
         "# BlueOps snapshot comparison",
         "",
+        *(prov[:2] if prov and prov[0].startswith("> **WARNING") else []),
         f"{esc(cmp_doc['baseline']['hostname'])}: {esc(cmp_doc['baseline']['started_at'])} -> "
         f"{esc(cmp_doc['current']['started_at'])}",
         "",
@@ -307,6 +319,8 @@ def render_comparison_markdown(cmp_doc: dict[str, Any]) -> str:
         f"{cs['weighted_index']['current']} ({cs['weighted_index']['delta']:+d}).",
         "",
     ]
+    if prov:
+        lines += prov[2:] if prov[0].startswith("> **WARNING") else prov
     keys = ("new", "resolved", "persistent", "severity_increased", "severity_decreased")
     keys += ("configuration_changes", "indeterminate", "coverage_changes")
     lines += _table(["Metric", "Count"], [[k.replace("_", " "), str(cs[k])] for k in keys])

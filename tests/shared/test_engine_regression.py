@@ -33,10 +33,24 @@ def _check(name: str, text: str) -> None:
     assert text == path.read_text("utf-8"), f"{name} changed; see the module docstring"
 
 
+def _portable(doc: Any, name: str) -> Any:
+    """Give a loaded fixture a checkout-independent source path.
+
+    ``load_assessment`` records the path it was given (``inputs[].path``); the golden files
+    must not contain the absolute path of whoever regenerated them.
+    """
+    shown = f"tests/fixtures/engine/{name}"
+    for entry in doc.get("inputs", []):
+        entry["path"] = shown
+    doc.load_source = shown
+    return doc
+
+
 @pytest.fixture(scope="module")
 def snapshots() -> tuple[dict[str, Any], dict[str, Any]]:
-    return load_assessment(GOLD / "baseline.assessment.json", verify=False), load_assessment(
-        GOLD / "current.assessment.json", verify=False
+    names = ("baseline.assessment.json", "current.assessment.json")
+    return tuple(  # type: ignore[return-value]
+        _portable(load_assessment(GOLD / n, verify=False), n) for n in names
     )
 
 
