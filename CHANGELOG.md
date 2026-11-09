@@ -4,6 +4,15 @@ All notable changes are documented here. Format: [Keep a Changelog](https://keep
 
 ## [Unreleased]
 
+### Added
+- `docs/adr/0001-detection-engine-coexistence.md`: the legacy detection tool and the detection engine coexist; no replacement before rule parity, an engine allowlist and documented output semantics.
+
+### Changed
+- **Breaking (plugins):** plugins and `telemetry collect` no longer inherit the caller's environment; variables a plugin needs must be named `BLUEOPS_*` (see `docs/plugins.md`).
+
+### Fixed
+- Removed `PSMODULEPATH_OVERRIDE` from the Windows environment denylist: it is not a variable PowerShell defines.
+
 ### Fixed (Bash version requirement)
 - `collect-telemetry.sh` crashed on Bash older than 4 with `declare: -A: invalid option` and exit 2 (the usage code). `linux/lib/bashcheck.sh` (parseable by Bash 3.2) is now sourced first and exits **3** (precondition failed) with a diagnostic naming the required and running versions. Tests: `tests/linux/bashcheck.bats`.
 - Not changed: the audit orchestrator and `check-persistence.sh` still run on Bash 3.2 with the modules that use Bash 4 syntax (`auth`, `network`, `sysconfig`) failing as recorded module errors (exit 6); see docs/linux-audit.md.

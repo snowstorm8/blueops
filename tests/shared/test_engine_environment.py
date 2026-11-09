@@ -108,6 +108,14 @@ def test_windows_policy_drops_only_known_injection_variables() -> None:
     assert withheld == ["COR_PROFILER", "DOTNET_STARTUP_HOOKS"]
 
 
+def test_windows_denylist_holds_no_invented_names() -> None:
+    """Only variables known to exist are listed; a name nobody confirmed must not look protected."""
+    env, withheld = sanitized_environment(
+        {"PSMODULEPATH_OVERRIDE": "x", "Path": "C:\\x"}, posix=False
+    )
+    assert "PSMODULEPATH_OVERRIDE" in env and withheld == []
+
+
 @pytest.mark.skipif(not (POSIX and POSIX_BASH), reason="needs POSIX bash")
 def test_bash_env_does_not_run_in_a_module_but_would_in_an_unsanitised_child(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch

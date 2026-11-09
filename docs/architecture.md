@@ -38,6 +38,8 @@ The assessment platform (engine, findings, comparison, reports) is described in 
 | Detection | `shared/rules/` | engine documents, findings | read a host, execute rule content, store analyst state in assessments |
 | Analysis and reporting | `shared/reporting/` | engine documents | write anything but the file it is told to |
 
+Architecture decision records live in [`adr/`](adr/): [0001, detection engine coexistence](adr/0001-detection-engine-coexistence.md).
+
 ### Decisions (detection engine)
 
 Details in [detection-engine.md](detection-engine.md#design-decisions). In short: rules are JSON data validated and compiled once; one clause/`require` model covers single and correlated rules; severity changes only through explicit, explained rules (never by count); absence-based conclusions need declared coverage and otherwise end *indeterminate*; analyst state lives in a separate append-only, hash-chained file; history is a directory of assessments, not a database. The v0.3 detection tool over baseline diffs (`shared.reporting.detect`) is kept unchanged beside it.
