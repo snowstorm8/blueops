@@ -70,8 +70,11 @@ HOOK_NAMES = frozenset(
 )
 HOOK_PREFIXES = ("LD_", "DYLD_", "BASH_FUNC_")
 
+# Windows names are a small denylist of .NET host-injection settings and have NOT been exercised
+# on a Windows host. Only names known to exist belong here: do not add a variable on a hunch
+# (an earlier draft listed PSMODULEPATH_OVERRIDE, which PowerShell does not define).
 WINDOWS_DROP_PREFIXES = ("COR_", "CORECLR_", "COMPLUS_", "DOTNET_STARTUP", "DOTNET_ADDITIONAL")
-WINDOWS_DROP = frozenset({"PSMODULEPATH_OVERRIDE", "__PSLOCKDOWNPOLICY"})
+WINDOWS_DROP = frozenset({"__PSLOCKDOWNPOLICY"})
 
 
 def in_test_mode(env: Mapping[str, str]) -> bool:

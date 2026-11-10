@@ -181,6 +181,14 @@ Every detection has: severity and confidence **with reasons**, the matched condi
 * Repeated identical observations merge (`occurrences`); the same record with different attributes is a `conflict` (newest kept, differing attributes listed).
 * `summary.complete` is true only with coverage on every category, nothing rejected and no errors.
 
+## Collector environment
+
+**Environment sanitization.** Modules and `telemetry collect` are started with an allowlisted environment, not a copy of the caller's (`shared/engine/environment.py`): locale, terminal and identity variables (`HOME`, `LANG`, `LANGUAGE`, `TZ`, `TERM`, `TMPDIR`, `USER`, `LOGNAME`, `NO_COLOR`, `LC_*`) and anything named `BLUEOPS_*` or `BO_*` pass; everything else does not, including secrets and the loader and interpreter hooks (`BASH_ENV`, `ENV`, `LD_*`, `DYLD_*`, `PYTHON*`, `PERL5*`, `RUBY*`, `NODE_OPTIONS`). The *names* of withheld hooks are reported on stderr, never their values. `PATH` is rebuilt from the system directories plus only those entries that are root-owned and not group/other-writable, and `pwsh`, `powershell` and non-absolute plugin commands are resolved through it.
+
+**Exceptions and limits.** (1) With `BO_TEST_MODE=1` the given `PATH` is kept as it is; whoever controls the whole invocation can set it, and reports made that way say `test_mode`. (2) `BO_*` passes through, which includes the collectors' test hooks; the collectors ignore them unless `BO_TEST_MODE=1` and report when they were used. (3) The engine process itself, and the `blueops` launcher (a Bash script), run in the environment they were given: a `BASH_ENV` or `PYTHON*` variable set before they start affects them and cannot be defended against from inside. (4) On Windows the rule is a small denylist of .NET host-injection variables (`COR_*`, `CORECLR_*`, `COMPLUS_*`, `DOTNET_STARTUP*`, `DOTNET_ADDITIONAL*`, `__PSLOCKDOWNPOLICY`) and has **not been exercised on a Windows host**; it is not an allowlist.
+
+`telemetry collect` also starts its collector with this environment, so variables the collector needs must be `BLUEOPS_*` or `BO_*`. Plugins are not involved in telemetry collection; see [plugins.md](plugins.md) for their trust rules and the breaking change for plugin environments.
+
 ## Known limitations
 
 See [implementation-report-v0.6.md](implementation-report-v0.6.md#limitations). In short: Windows collector behavior is verified only by the Windows CI jobs; no process-integrity (signature/hash of running images), no memory or network-content analysis, no real-time collection (snapshots only), no multi-host correlation, authentication windows are bounded by `--since-hours`/`--max-events`, traditional syslog lines have no usable time, runtime service state is not collected on Linux, and rule false-positive rates are unknown outside synthetic data.
