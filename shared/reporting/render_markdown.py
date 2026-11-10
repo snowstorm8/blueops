@@ -17,6 +17,7 @@ from shared.reporting.render_common import (
     findings_by_category,
     remediation_plan,
 )
+from shared.reporting.render_detections import render_detections_markdown
 
 _SPECIAL = re.compile(r"([\\`*_{}\[\]<>()#+!|~&])")
 _WS = re.compile(r"\s+")
@@ -55,7 +56,11 @@ def _bar(n: int, total: int, width: int = 20) -> str:
 
 
 def render_markdown(  # noqa: PLR0912, PLR0915 - one linear sequence of report sections
-    doc: dict[str, Any], comparisons: list[dict[str, Any]] | None = None, generated_at: str = ""
+    doc: dict[str, Any],
+    comparisons: list[dict[str, Any]] | None = None,
+    generated_at: str = "",
+    detections: dict[str, Any] | None = None,
+    cases: dict[str, dict[str, Any]] | None = None,
 ) -> str:
     ex = executive_summary(doc, comparisons)
     a, s = doc["assessment"], doc["summary"]
@@ -268,6 +273,14 @@ def render_markdown(  # noqa: PLR0912, PLR0915 - one linear sequence of report s
                 lines.append(f"- Warning {esc(w['code'])}: {esc(w['message'], 400)}")
             lines.append("")
 
+    if detections is not None:
+        body = render_detections_markdown(detections, cases).splitlines()
+        # demote the standalone report headings so they nest under this report
+        lines += (
+            ["## Detections", ""]
+            + [("#" + ln if ln.startswith("#") else ln) for ln in body[2:]]
+            + [""]
+        )
     lines += ["## Errors and warnings", ""]
     if doc["errors"] or doc["warnings"]:
         lines += [

@@ -1,0 +1,1334 @@
+{
+  "schema_version": "0.1.0",
+  "kind": "rule-pack",
+  "pack": {
+    "name": "changes",
+    "version": "1.0.0",
+    "description": "Rules over snapshot changes and history."
+  },
+  "rules": [
+    {
+      "enabled": true,
+      "false_positives": [
+        "Operating system or application upgrades, new deployments, a first run with additional modules enabled."
+      ],
+      "confidence_boosters": [
+        "Package manager and deployment logs between the two snapshots.",
+        "Whether the new findings share paths or accounts."
+      ],
+      "id": "DR-ANY-CHG-001",
+      "version": "1.0.0",
+      "name": "New findings appeared together after a clean assessment",
+      "description": "The previous snapshot was complete and had no finding of medium severity or higher; this one has new medium-or-higher findings in at least two different areas.",
+      "platforms": [
+        "any"
+      ],
+      "category": "change",
+      "severity": "medium",
+      "severity_reason": "A sudden cluster of independent problems on a previously clean host deserves a look, but a patch or deployment can cause the same picture.",
+      "severity_rules": [
+        {
+          "when": "critical_new",
+          "value": "high",
+          "reason": "At least one of the new findings is critical."
+        }
+      ],
+      "confidence": "medium",
+      "confidence_reason": "The previous snapshot was complete, so absence there is trustworthy; the cause of the change is unknown.",
+      "nature": "correlated",
+      "requires_coverage": [
+        "comparison",
+        "history:1"
+      ],
+      "clauses": [
+        {
+          "id": "clean",
+          "source": "snapshot",
+          "description": "The previous snapshot was complete and clean (no medium+ findings)",
+          "where": {
+            "all": [
+              {
+                "field": "previous.clean",
+                "op": "eq",
+                "value": true
+              }
+            ]
+          }
+        },
+        {
+          "id": "fresh",
+          "source": "new_findings",
+          "description": "New medium-or-higher findings in at least two categories",
+          "where": {
+            "field": "severity_rank",
+            "op": "gte",
+            "value": 2
+          },
+          "distinct": {
+            "field": "category",
+            "count": 2
+          }
+        },
+        {
+          "id": "critical_new",
+          "source": "new_findings",
+          "description": "A new critical finding",
+          "where": {
+            "field": "severity",
+            "op": "eq",
+            "value": "critical"
+          },
+          "optional": true
+        }
+      ],
+      "require": {
+        "all": [
+          "clean",
+          "fresh"
+        ]
+      },
+      "title": "New findings in several areas after a clean assessment",
+      "rationale": "Independent new problems that appear together after a clean baseline usually share a cause: a deployment, a package change, or an intrusion.",
+      "investigation": [
+        "List the new findings and look for a common path, account or time.",
+        "Check change records and package logs between the snapshots.",
+        "Compare module coverage of the two assessments."
+      ],
+      "remediation": "Triage the new findings by severity; if the cause was an approved change, accept it into the baseline.",
+      "references": {
+        "nist": [
+          "CM-3",
+          "SI-4"
+        ]
+      },
+      "examples": [
+        {
+          "name": "two new findings after clean",
+          "expect": "match",
+          "platform": "linux",
+          "current": {
+            "findings": [
+              {
+                "check_id": "USR-SUDO-002",
+                "severity": "medium",
+                "category": "users",
+                "confidence": "high"
+              },
+              {
+                "check_id": "NET-EXPOSE-001",
+                "severity": "high",
+                "category": "network",
+                "confidence": "high"
+              }
+            ],
+            "inventory": [],
+            "modules": {
+              "users": "ok",
+              "network": "ok",
+              "system": "ok"
+            }
+          },
+          "previous": [
+            {
+              "findings": [
+                {
+                  "check_id": "SYS-INFO-001",
+                  "severity": "info",
+                  "category": "system",
+                  "confidence": "high"
+                }
+              ],
+              "inventory": [],
+              "modules": {
+                "users": "ok",
+                "network": "ok",
+                "system": "ok"
+              }
+            }
+          ],
+          "count": 1
+        },
+        {
+          "name": "new finding in one area only",
+          "expect": "no_match",
+          "platform": "linux",
+          "current": {
+            "findings": [
+              {
+                "check_id": "USR-SUDO-002",
+                "severity": "medium",
+                "category": "users",
+                "confidence": "high"
+              },
+              {
+                "check_id": "USR-SHELL-001",
+                "severity": "medium",
+                "category": "users",
+                "confidence": "high"
+              }
+            ],
+            "inventory": [],
+            "modules": {
+              "users": "ok",
+              "network": "ok",
+              "system": "ok"
+            }
+          },
+          "previous": [
+            {
+              "findings": [
+                {
+                  "check_id": "SYS-INFO-001",
+                  "severity": "info",
+                  "category": "system",
+                  "confidence": "high"
+                }
+              ],
+              "inventory": [],
+              "modules": {
+                "users": "ok",
+                "network": "ok",
+                "system": "ok"
+              }
+            }
+          ]
+        },
+        {
+          "name": "previous was not clean",
+          "expect": "no_match",
+          "platform": "linux",
+          "current": {
+            "findings": [
+              {
+                "check_id": "USR-SUDO-002",
+                "severity": "medium",
+                "category": "users",
+                "confidence": "high"
+              },
+              {
+                "check_id": "NET-EXPOSE-001",
+                "severity": "high",
+                "category": "network",
+                "confidence": "high"
+              }
+            ],
+            "inventory": [],
+            "modules": {
+              "users": "ok",
+              "network": "ok",
+              "system": "ok"
+            }
+          },
+          "previous": [
+            {
+              "findings": [
+                {
+                  "check_id": "USR-UID0-001",
+                  "severity": "high",
+                  "category": "users",
+                  "confidence": "high"
+                }
+              ],
+              "inventory": [],
+              "modules": {
+                "users": "ok",
+                "network": "ok",
+                "system": "ok"
+              }
+            }
+          ]
+        },
+        {
+          "name": "previous coverage incomplete",
+          "expect": "indeterminate",
+          "platform": "linux",
+          "current": {
+            "findings": [
+              {
+                "check_id": "USR-SUDO-002",
+                "severity": "medium",
+                "category": "users",
+                "confidence": "high"
+              },
+              {
+                "check_id": "NET-EXPOSE-001",
+                "severity": "high",
+                "category": "network",
+                "confidence": "high"
+              }
+            ],
+            "inventory": [],
+            "modules": {
+              "users": "ok",
+              "network": "ok"
+            }
+          },
+          "previous": [
+            {
+              "findings": [
+                {
+                  "check_id": "SYS-INFO-001",
+                  "severity": "info",
+                  "category": "system",
+                  "confidence": "high"
+                }
+              ],
+              "inventory": [],
+              "modules": {
+                "users": "ok",
+                "network": "failed"
+              }
+            }
+          ]
+        },
+        {
+          "name": "no earlier snapshot",
+          "expect": "indeterminate",
+          "platform": "linux",
+          "current": {
+            "findings": [
+              {
+                "check_id": "USR-SUDO-002",
+                "severity": "medium",
+                "category": "users",
+                "confidence": "high"
+              }
+            ],
+            "inventory": []
+          }
+        }
+      ]
+    },
+    {
+      "enabled": true,
+      "false_positives": [
+        "Rollback of an environment to an earlier image; a flapping check at the edge of a threshold."
+      ],
+      "confidence_boosters": [],
+      "id": "DR-ANY-CHG-002",
+      "version": "1.0.0",
+      "name": "A previously resolved finding has returned",
+      "description": "A medium-or-higher finding that earlier snapshots recorded as resolved is present again.",
+      "platforms": [
+        "any"
+      ],
+      "category": "change",
+      "severity": "medium",
+      "severity_reason": "A fix that did not hold means a process re-applied the weakness: configuration management drift, a restored backup, or someone re-introducing it.",
+      "confidence": "medium",
+      "confidence_reason": "The finding id is stable across snapshots and absence in the earlier snapshot was confirmed by a clean module run.",
+      "nature": "indicator",
+      "requires_coverage": [
+        "history:2"
+      ],
+      "clauses": [
+        {
+          "id": "back",
+          "source": "findings",
+          "description": "A medium+ finding that reappeared after being absent",
+          "where": {
+            "all": [
+              {
+                "field": "history.reappeared",
+                "op": "is_true"
+              },
+              {
+                "field": "severity_rank",
+                "op": "gte",
+                "value": 2
+              }
+            ]
+          }
+        }
+      ],
+      "title": "Finding returned after being resolved: {back.title}",
+      "rationale": "Re-appearing findings point to something undoing remediation. That is more interesting than a persistent finding because it implies an active cause.",
+      "investigation": [
+        "Find what changed between the snapshots that included the fix and the re-appearance.",
+        "Check configuration management and backup restores.",
+        "Check whether the evidence is the same as before the fix."
+      ],
+      "remediation": "Fix the root cause that re-introduced it (configuration management, image, backup), then re-assess.",
+      "references": {
+        "nist": [
+          "CM-3",
+          "CM-6"
+        ]
+      },
+      "examples": [
+        {
+          "name": "finding present, absent, present again",
+          "expect": "match",
+          "platform": "linux",
+          "current": {
+            "findings": [
+              {
+                "check_id": "USR-SUDO-002",
+                "severity": "medium",
+                "category": "users",
+                "confidence": "high"
+              }
+            ],
+            "inventory": [],
+            "modules": {
+              "users": "ok"
+            }
+          },
+          "previous": [
+            {
+              "findings": [
+                {
+                  "check_id": "USR-SUDO-002",
+                  "severity": "medium",
+                  "category": "users",
+                  "confidence": "high"
+                }
+              ],
+              "inventory": [],
+              "modules": {
+                "users": "ok"
+              }
+            },
+            {
+              "findings": [
+                {
+                  "check_id": "SYS-INFO-001",
+                  "severity": "info",
+                  "category": "users",
+                  "confidence": "high"
+                }
+              ],
+              "inventory": [],
+              "modules": {
+                "users": "ok"
+              }
+            }
+          ],
+          "count": 1
+        },
+        {
+          "name": "continuously present",
+          "expect": "no_match",
+          "platform": "linux",
+          "current": {
+            "findings": [
+              {
+                "check_id": "USR-SUDO-002",
+                "severity": "medium",
+                "category": "users",
+                "confidence": "high"
+              }
+            ],
+            "inventory": [],
+            "modules": {
+              "users": "ok"
+            }
+          },
+          "previous": [
+            {
+              "findings": [
+                {
+                  "check_id": "USR-SUDO-002",
+                  "severity": "medium",
+                  "category": "users",
+                  "confidence": "high"
+                }
+              ],
+              "inventory": [],
+              "modules": {
+                "users": "ok"
+              }
+            },
+            {
+              "findings": [
+                {
+                  "check_id": "USR-SUDO-002",
+                  "severity": "medium",
+                  "category": "users",
+                  "confidence": "high"
+                }
+              ],
+              "inventory": [],
+              "modules": {
+                "users": "ok"
+              }
+            }
+          ]
+        },
+        {
+          "name": "absence was not confirmed (module failed)",
+          "expect": "no_match",
+          "platform": "linux",
+          "current": {
+            "findings": [
+              {
+                "check_id": "USR-SUDO-002",
+                "severity": "medium",
+                "category": "users",
+                "confidence": "high"
+              }
+            ],
+            "inventory": [],
+            "modules": {
+              "users": "ok"
+            }
+          },
+          "previous": [
+            {
+              "findings": [
+                {
+                  "check_id": "USR-SUDO-002",
+                  "severity": "medium",
+                  "category": "users",
+                  "confidence": "high"
+                }
+              ],
+              "inventory": [],
+              "modules": {
+                "users": "ok"
+              }
+            },
+            {
+              "findings": [
+                {
+                  "check_id": "SYS-INFO-001",
+                  "severity": "info",
+                  "category": "system",
+                  "confidence": "high"
+                }
+              ],
+              "inventory": [],
+              "modules": {
+                "users": "failed"
+              }
+            }
+          ]
+        },
+        {
+          "name": "only one earlier snapshot",
+          "expect": "indeterminate",
+          "platform": "linux",
+          "current": {
+            "findings": [
+              {
+                "check_id": "USR-SUDO-002",
+                "severity": "medium",
+                "category": "users",
+                "confidence": "high"
+              }
+            ],
+            "inventory": []
+          },
+          "previous": [
+            {
+              "findings": [
+                {
+                  "check_id": "SYS-INFO-001",
+                  "severity": "info",
+                  "category": "system",
+                  "confidence": "high"
+                }
+              ],
+              "inventory": []
+            }
+          ]
+        }
+      ],
+      "join": {
+        "on": "id",
+        "mode": "equal"
+      }
+    },
+    {
+      "enabled": true,
+      "false_positives": [
+        "Collector version upgrades that re-rate checks; look at evidence added."
+      ],
+      "confidence_boosters": [],
+      "id": "DR-ANY-CHG-003",
+      "version": "1.0.0",
+      "name": "A finding's severity increased to high or critical",
+      "description": "A finding that was present in the previous snapshot is now rated high or critical.",
+      "platforms": [
+        "any"
+      ],
+      "category": "change",
+      "severity": "high",
+      "severity_reason": "The same weakness got worse: more evidence, or a stronger indicator, since the last look.",
+      "confidence": "high",
+      "confidence_reason": "The severity values are taken directly from the two snapshots for the same finding id.",
+      "nature": "indicator",
+      "requires_coverage": [
+        "comparison"
+      ],
+      "clauses": [
+        {
+          "id": "worse",
+          "source": "severity_increased",
+          "description": "A finding whose severity rose to high or critical",
+          "where": {
+            "field": "severity_rank",
+            "op": "gte",
+            "value": 3
+          }
+        }
+      ],
+      "title": "Severity increased to {worse.severity}: {worse.title}",
+      "rationale": "A severity increase means the collector now sees stronger signs (for example a second uid-0 account on top of an existing one). It identifies where the situation worsened.",
+      "investigation": [
+        "Compare the evidence added since the previous snapshot (detail in contributing items).",
+        "Check the collector versions of both snapshots.",
+        "Investigate the added evidence items first."
+      ],
+      "remediation": "Address the added evidence; remediate the underlying finding as described by its own remediation text.",
+      "references": {
+        "nist": [
+          "SI-4",
+          "CM-3"
+        ]
+      },
+      "examples": [
+        {
+          "name": "medium became critical",
+          "expect": "match",
+          "platform": "linux",
+          "current": {
+            "findings": [
+              {
+                "check_id": "USR-UID0-001",
+                "severity": "critical",
+                "category": "users",
+                "confidence": "high",
+                "evidence": [
+                  {
+                    "ref": "/etc/passwd",
+                    "excerpt": "toor"
+                  },
+                  {
+                    "ref": "/etc/passwd.bak",
+                    "excerpt": "evil"
+                  }
+                ]
+              }
+            ],
+            "inventory": [],
+            "modules": {
+              "users": "ok"
+            }
+          },
+          "previous": [
+            {
+              "findings": [
+                {
+                  "check_id": "USR-UID0-001",
+                  "severity": "medium",
+                  "category": "users",
+                  "confidence": "high",
+                  "evidence": [
+                    {
+                      "ref": "/etc/passwd",
+                      "excerpt": "toor"
+                    }
+                  ]
+                }
+              ],
+              "inventory": [],
+              "modules": {
+                "users": "ok"
+              }
+            }
+          ],
+          "count": 1
+        },
+        {
+          "name": "low became medium",
+          "expect": "no_match",
+          "platform": "linux",
+          "current": {
+            "findings": [
+              {
+                "check_id": "USR-SHELL-001",
+                "severity": "medium",
+                "category": "users",
+                "confidence": "high"
+              }
+            ],
+            "inventory": [],
+            "modules": {
+              "users": "ok"
+            }
+          },
+          "previous": [
+            {
+              "findings": [
+                {
+                  "check_id": "USR-SHELL-001",
+                  "severity": "low",
+                  "category": "users",
+                  "confidence": "high"
+                }
+              ],
+              "inventory": [],
+              "modules": {
+                "users": "ok"
+              }
+            }
+          ]
+        },
+        {
+          "name": "severity unchanged",
+          "expect": "no_match",
+          "platform": "linux",
+          "current": {
+            "findings": [
+              {
+                "check_id": "USR-UID0-001",
+                "severity": "critical",
+                "category": "users",
+                "confidence": "high"
+              }
+            ],
+            "inventory": [],
+            "modules": {
+              "users": "ok"
+            }
+          },
+          "previous": [
+            {
+              "findings": [
+                {
+                  "check_id": "USR-UID0-001",
+                  "severity": "critical",
+                  "category": "users",
+                  "confidence": "high"
+                }
+              ],
+              "inventory": [],
+              "modules": {
+                "users": "ok"
+              }
+            }
+          ]
+        },
+        {
+          "name": "no earlier snapshot",
+          "expect": "indeterminate",
+          "platform": "linux",
+          "current": {
+            "findings": [
+              {
+                "check_id": "USR-UID0-001",
+                "severity": "critical",
+                "category": "users",
+                "confidence": "high"
+              }
+            ],
+            "inventory": []
+          }
+        }
+      ],
+      "join": {
+        "on": "id",
+        "mode": "equal"
+      }
+    },
+    {
+      "enabled": true,
+      "false_positives": [
+        "Scheduled hardening or patch windows."
+      ],
+      "confidence_boosters": [],
+      "id": "DR-ANY-CHG-004",
+      "version": "1.0.0",
+      "name": "Security-relevant configuration changed after a long stable period",
+      "description": "A configuration record (sshd, sudoers, PAM, firewall, security policy, sysctl, event log, ...) changed after holding the same value in at least three earlier snapshots.",
+      "platforms": [
+        "any"
+      ],
+      "category": "change",
+      "severity": "medium",
+      "severity_reason": "A value that was stable for several assessments and then changed is more likely a deliberate act than routine churn.",
+      "confidence": "medium",
+      "confidence_reason": "The stability history is exact; the cause of the change is not.",
+      "nature": "indicator",
+      "requires_coverage": [
+        "comparison",
+        "history:3"
+      ],
+      "clauses": [
+        {
+          "id": "cfg",
+          "source": "config_changes",
+          "description": "A security-relevant config record changed after >= 3 stable snapshots",
+          "where": {
+            "all": [
+              {
+                "field": "domain",
+                "op": "eq",
+                "value": "config"
+              },
+              {
+                "field": "change",
+                "op": "eq",
+                "value": "modified"
+              },
+              {
+                "field": "scope",
+                "op": "in",
+                "value": [
+                  "sshd",
+                  "sudoers",
+                  "pam",
+                  "firewall",
+                  "security",
+                  "sysctl",
+                  "eventlog",
+                  "core",
+                  "logindefs",
+                  "logging"
+                ]
+              },
+              {
+                "field": "history.before_stable_snapshots",
+                "op": "gte",
+                "value": 3
+              }
+            ]
+          }
+        }
+      ],
+      "title": "Long-stable security setting changed: {cfg.key}",
+      "rationale": "Baselines are most valuable for settings that rarely change. A change to one of those is a better lead than a change to a volatile value.",
+      "investigation": [
+        "Read the before and after values (detail of the contributing change).",
+        "Check change records for the date between the two snapshots.",
+        "Check who could have edited the file or registry key."
+      ],
+      "remediation": "Revert unapproved changes and investigate how the edit was made; record approved changes in the baseline.",
+      "references": {
+        "nist": [
+          "CM-3",
+          "CM-6"
+        ]
+      },
+      "examples": [
+        {
+          "name": "sshd setting changed after 3 stable snapshots",
+          "expect": "match",
+          "platform": "linux",
+          "current": {
+            "findings": [],
+            "inventory": [
+              {
+                "domain": "config",
+                "key": "config:sshd:permitrootlogin",
+                "attrs": {
+                  "value": "yes"
+                },
+                "scope": "sshd"
+              }
+            ]
+          },
+          "previous": [
+            {
+              "findings": [],
+              "inventory": [
+                {
+                  "domain": "config",
+                  "key": "config:sshd:permitrootlogin",
+                  "attrs": {
+                    "value": "no"
+                  },
+                  "scope": "sshd"
+                }
+              ]
+            },
+            {
+              "findings": [],
+              "inventory": [
+                {
+                  "domain": "config",
+                  "key": "config:sshd:permitrootlogin",
+                  "attrs": {
+                    "value": "no"
+                  },
+                  "scope": "sshd"
+                }
+              ]
+            },
+            {
+              "findings": [],
+              "inventory": [
+                {
+                  "domain": "config",
+                  "key": "config:sshd:permitrootlogin",
+                  "attrs": {
+                    "value": "no"
+                  },
+                  "scope": "sshd"
+                }
+              ]
+            }
+          ],
+          "count": 1
+        },
+        {
+          "name": "changed after only two stable snapshots",
+          "expect": "indeterminate",
+          "platform": "linux",
+          "current": {
+            "findings": [],
+            "inventory": [
+              {
+                "domain": "config",
+                "key": "config:sshd:permitrootlogin",
+                "attrs": {
+                  "value": "yes"
+                },
+                "scope": "sshd"
+              }
+            ]
+          },
+          "previous": [
+            {
+              "findings": [],
+              "inventory": [
+                {
+                  "domain": "config",
+                  "key": "config:sshd:permitrootlogin",
+                  "attrs": {
+                    "value": "no"
+                  },
+                  "scope": "sshd"
+                }
+              ]
+            },
+            {
+              "findings": [],
+              "inventory": [
+                {
+                  "domain": "config",
+                  "key": "config:sshd:permitrootlogin",
+                  "attrs": {
+                    "value": "no"
+                  },
+                  "scope": "sshd"
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "name": "flapping value is not stable",
+          "expect": "no_match",
+          "platform": "linux",
+          "current": {
+            "findings": [],
+            "inventory": [
+              {
+                "domain": "config",
+                "key": "config:sshd:permitrootlogin",
+                "attrs": {
+                  "value": "yes"
+                },
+                "scope": "sshd"
+              }
+            ]
+          },
+          "previous": [
+            {
+              "findings": [],
+              "inventory": [
+                {
+                  "domain": "config",
+                  "key": "config:sshd:permitrootlogin",
+                  "attrs": {
+                    "value": "yes"
+                  },
+                  "scope": "sshd"
+                }
+              ]
+            },
+            {
+              "findings": [],
+              "inventory": [
+                {
+                  "domain": "config",
+                  "key": "config:sshd:permitrootlogin",
+                  "attrs": {
+                    "value": "no"
+                  },
+                  "scope": "sshd"
+                }
+              ]
+            },
+            {
+              "findings": [],
+              "inventory": [
+                {
+                  "domain": "config",
+                  "key": "config:sshd:permitrootlogin",
+                  "attrs": {
+                    "value": "yes"
+                  },
+                  "scope": "sshd"
+                }
+              ]
+            },
+            {
+              "findings": [],
+              "inventory": [
+                {
+                  "domain": "config",
+                  "key": "config:sshd:permitrootlogin",
+                  "attrs": {
+                    "value": "no"
+                  },
+                  "scope": "sshd"
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "name": "unchanged",
+          "expect": "no_match",
+          "platform": "linux",
+          "current": {
+            "findings": [],
+            "inventory": [
+              {
+                "domain": "config",
+                "key": "config:sshd:permitrootlogin",
+                "attrs": {
+                  "value": "no"
+                },
+                "scope": "sshd"
+              }
+            ]
+          },
+          "previous": [
+            {
+              "findings": [],
+              "inventory": [
+                {
+                  "domain": "config",
+                  "key": "config:sshd:permitrootlogin",
+                  "attrs": {
+                    "value": "no"
+                  },
+                  "scope": "sshd"
+                }
+              ]
+            },
+            {
+              "findings": [],
+              "inventory": [
+                {
+                  "domain": "config",
+                  "key": "config:sshd:permitrootlogin",
+                  "attrs": {
+                    "value": "no"
+                  },
+                  "scope": "sshd"
+                }
+              ]
+            },
+            {
+              "findings": [],
+              "inventory": [
+                {
+                  "domain": "config",
+                  "key": "config:sshd:permitrootlogin",
+                  "attrs": {
+                    "value": "no"
+                  },
+                  "scope": "sshd"
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "name": "change outside the sensitive scopes",
+          "expect": "no_match",
+          "platform": "linux",
+          "current": {
+            "findings": [],
+            "inventory": [
+              {
+                "domain": "config",
+                "key": "config:dns:resolv.conf",
+                "attrs": {
+                  "nameservers": [
+                    "10.0.0.9"
+                  ]
+                },
+                "scope": "dns"
+              }
+            ]
+          },
+          "previous": [
+            {
+              "findings": [],
+              "inventory": [
+                {
+                  "domain": "config",
+                  "key": "config:dns:resolv.conf",
+                  "attrs": {
+                    "nameservers": [
+                      "10.0.0.2"
+                    ]
+                  },
+                  "scope": "dns"
+                }
+              ]
+            },
+            {
+              "findings": [],
+              "inventory": [
+                {
+                  "domain": "config",
+                  "key": "config:dns:resolv.conf",
+                  "attrs": {
+                    "nameservers": [
+                      "10.0.0.2"
+                    ]
+                  },
+                  "scope": "dns"
+                }
+              ]
+            },
+            {
+              "findings": [],
+              "inventory": [
+                {
+                  "domain": "config",
+                  "key": "config:dns:resolv.conf",
+                  "attrs": {
+                    "nameservers": [
+                      "10.0.0.2"
+                    ]
+                  },
+                  "scope": "dns"
+                }
+              ]
+            }
+          ]
+        }
+      ],
+      "join": {
+        "on": "key",
+        "mode": "equal"
+      }
+    },
+    {
+      "enabled": true,
+      "false_positives": [
+        "A profile with fewer modules was chosen deliberately."
+      ],
+      "confidence_boosters": [],
+      "id": "DR-ANY-CHG-005",
+      "version": "1.0.0",
+      "name": "Audit coverage decreased since the previous snapshot",
+      "description": "One or more modules that finished cleanly in the previous snapshot did not finish cleanly (or were not run) in this one.",
+      "platforms": [
+        "any"
+      ],
+      "category": "change",
+      "severity": "low",
+      "severity_reason": "Lost coverage is not a threat by itself; it means conclusions about the affected areas cannot be drawn this time.",
+      "confidence": "high",
+      "confidence_reason": "Module statuses are recorded by the engine for both snapshots.",
+      "nature": "observation",
+      "requires_coverage": [
+        "comparison:exists"
+      ],
+      "clauses": [
+        {
+          "id": "cov",
+          "source": "snapshot",
+          "description": "Modules degraded or removed compared with the previous snapshot",
+          "where": {
+            "any": [
+              {
+                "field": "coverage.modules_degraded",
+                "op": "gte",
+                "value": 1
+              },
+              {
+                "field": "coverage.modules_removed",
+                "op": "gte",
+                "value": 1
+              }
+            ]
+          }
+        }
+      ],
+      "title": "Audit coverage decreased since the previous snapshot",
+      "rationale": "Resolved or missing findings in an area that was not audited are not good news. Collectors can fail because of tampering, resource exhaustion or permission changes, which is itself worth knowing.",
+      "investigation": [
+        "Open the module list of the assessment and read the reason of each non-ok module.",
+        "Check the privileges and tool availability of the run.",
+        "Re-run the missing modules."
+      ],
+      "remediation": "Re-run the assessment with the same profile and privileges as before; investigate modules that fail repeatedly.",
+      "references": {
+        "nist": [
+          "AU-6",
+          "SI-4"
+        ]
+      },
+      "examples": [
+        {
+          "name": "a module timed out",
+          "expect": "match",
+          "platform": "linux",
+          "current": {
+            "findings": [
+              {
+                "check_id": "SYS-INFO-001",
+                "severity": "info",
+                "category": "system",
+                "confidence": "high"
+              }
+            ],
+            "inventory": [],
+            "modules": {
+              "system": "ok",
+              "users": "timeout"
+            }
+          },
+          "previous": [
+            {
+              "findings": [
+                {
+                  "check_id": "SYS-INFO-001",
+                  "severity": "info",
+                  "category": "system",
+                  "confidence": "high"
+                }
+              ],
+              "inventory": [],
+              "modules": {
+                "system": "ok",
+                "users": "ok"
+              }
+            }
+          ],
+          "count": 1
+        },
+        {
+          "name": "a module was dropped",
+          "expect": "match",
+          "platform": "linux",
+          "current": {
+            "findings": [
+              {
+                "check_id": "SYS-INFO-001",
+                "severity": "info",
+                "category": "system",
+                "confidence": "high"
+              }
+            ],
+            "inventory": [],
+            "modules": {
+              "system": "ok"
+            }
+          },
+          "previous": [
+            {
+              "findings": [
+                {
+                  "check_id": "SYS-INFO-001",
+                  "severity": "info",
+                  "category": "system",
+                  "confidence": "high"
+                }
+              ],
+              "inventory": [],
+              "modules": {
+                "system": "ok",
+                "users": "ok"
+              }
+            }
+          ]
+        },
+        {
+          "name": "same coverage",
+          "expect": "no_match",
+          "platform": "linux",
+          "current": {
+            "findings": [
+              {
+                "check_id": "SYS-INFO-001",
+                "severity": "info",
+                "category": "system",
+                "confidence": "high"
+              }
+            ],
+            "inventory": [],
+            "modules": {
+              "system": "ok",
+              "users": "ok"
+            }
+          },
+          "previous": [
+            {
+              "findings": [
+                {
+                  "check_id": "SYS-INFO-001",
+                  "severity": "info",
+                  "category": "system",
+                  "confidence": "high"
+                }
+              ],
+              "inventory": [],
+              "modules": {
+                "system": "ok",
+                "users": "ok"
+              }
+            }
+          ]
+        },
+        {
+          "name": "coverage improved",
+          "expect": "no_match",
+          "platform": "linux",
+          "current": {
+            "findings": [
+              {
+                "check_id": "SYS-INFO-001",
+                "severity": "info",
+                "category": "system",
+                "confidence": "high"
+              }
+            ],
+            "inventory": [],
+            "modules": {
+              "system": "ok",
+              "users": "ok"
+            }
+          },
+          "previous": [
+            {
+              "findings": [
+                {
+                  "check_id": "SYS-INFO-001",
+                  "severity": "info",
+                  "category": "system",
+                  "confidence": "high"
+                }
+              ],
+              "inventory": [],
+              "modules": {
+                "system": "ok",
+                "users": "failed"
+              }
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

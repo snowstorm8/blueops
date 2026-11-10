@@ -1,0 +1,1310 @@
+{
+  "assessment": {
+    "finished_at": "2026-03-01T10:00:00Z",
+    "id": "linux-compromised",
+    "profile": "example",
+    "started_at": "2026-03-01T10:00:00Z"
+  },
+  "detections": [
+    {
+      "category": "accounts",
+      "components": [
+        "accounts",
+        "users"
+      ],
+      "confidence": "high",
+      "contributing": [
+        {
+          "clause": "acct",
+          "domain": "users",
+          "key": "user:toor",
+          "label": "users/user:toor",
+          "scope": "",
+          "type": "inventory"
+        }
+      ],
+      "description": "An account other than root has user id 0 and therefore the same privileges as root.",
+      "detected_at": "2026-03-05T00:00:00Z",
+      "evidence": [],
+      "explanation": {
+        "caveats": [],
+        "confidence_rationale": "Confidence high: The uid comes directly from /etc/passwd; the only uncertainty is intent, not the observation.",
+        "disclaimer": "This is a suspicious indicator. Benign activity can produce the same observation; it does not prove compromise.",
+        "missing_corroboration": [
+          "Account creation time and who created it (auth log, /var/log/wtmp, file times of the home directory).",
+          "A shell history or SSH key for the account that nobody recognises."
+        ],
+        "possible_benign_causes": [
+          "Some appliance images or migration leftovers deliberately keep a second uid-0 account (for example 'toor').",
+          "A documented break-glass account."
+        ],
+        "severity_rationale": "Severity high is the rule's base severity: UID 0 grants full control of the host, but the data alone does not show who created the account or why. The number of matching items did not change it.",
+        "why_correlated": "Rule DR-LNX-ACC-001 requires: acct. Satisfied clauses: acct (1 item(s)). Each matching item is reported separately (grouped by key = 'user:toor').",
+        "why_flagged": "Linux treats every account with uid 0 as root. Attackers add such an account (often named like a system account) to keep root access that survives a password change of root itself."
+      },
+      "host": {
+        "host_id": "H-cc6b60bc89b6",
+        "hostname": "host01"
+      },
+      "id": "DT-045df844415a3637",
+      "investigation_steps": [
+        "Compare the account against the host's documented account list.",
+        "Check /etc/passwd and /etc/shadow modification times and the home directory contents.",
+        "Look for logins by this account in wtmp/auth logs and for SSH keys in its home."
+      ],
+      "matched_conditions": [
+        {
+          "clause": "acct",
+          "conditions": [
+            "domain eq 'users'",
+            "key regex '^user:'",
+            "not (key eq 'user:root')",
+            "attrs.uid eq '0'"
+          ],
+          "description": "A user record other than root has uid 0",
+          "matched_items": 1,
+          "optional": false
+        }
+      ],
+      "nature": "indicator",
+      "references": {
+        "attack": [
+          {
+            "explanation": "A second uid-0 local account is one way to persist with root access; the data does not show it was created by an adversary.",
+            "id": "T1136.001",
+            "relationship": "possible",
+            "url": "https://attack.mitre.org/techniques/T1136/001/"
+          },
+          {
+            "explanation": "Such an account could be used as a valid local account for later access.",
+            "id": "T1078.003",
+            "relationship": "possible",
+            "url": "https://attack.mitre.org/techniques/T1078/003/"
+          }
+        ],
+        "nist": [
+          {
+            "id": "AC-2",
+            "title": "Account Management"
+          },
+          {
+            "id": "AC-6",
+            "title": "Least Privilege"
+          }
+        ],
+        "other": []
+      },
+      "remediation": "If unauthorised, lock the account (usermod -L) after preserving evidence, then remove it and rotate credentials of accounts it could have reached; if legitimate, document it and give it a distinct non-zero uid where possible.",
+      "rule": {
+        "id": "DR-LNX-ACC-001",
+        "name": "Non-root account with UID 0",
+        "pack": "linux-core",
+        "version": "1.0.0"
+      },
+      "severity": "high",
+      "title": "Account user:toor has UID 0"
+    },
+    {
+      "category": "defense-evasion",
+      "components": [
+        "defense-evasion",
+        "sysconfig"
+      ],
+      "confidence": "high",
+      "contributing": [
+        {
+          "check_id": "CFG-LOG-001",
+          "clause": "log",
+          "id": "BOF-8d0639b366981658",
+          "label": "CFG-LOG-001: Synthetic finding CFG-LOG-001",
+          "severity": "high",
+          "type": "finding"
+        }
+      ],
+      "description": "A system log file is a symbolic link to /dev/null or another device, which silently discards log records.",
+      "detected_at": "2026-03-05T00:00:00Z",
+      "evidence": [
+        "EV-3d78892bd1e30f52"
+      ],
+      "explanation": {
+        "caveats": [],
+        "confidence_rationale": "Confidence high: A link from a log path to a device is an unambiguous configuration fact.",
+        "disclaimer": "This is a suspicious indicator. Benign activity can produce the same observation; it does not prove compromise.",
+        "missing_corroboration": [],
+        "possible_benign_causes": [
+          "Deliberately disabling noisy logs on a diskless or embedded image (rare for auth logs)."
+        ],
+        "severity_rationale": "Severity high is the rule's base severity: Discarded logs remove the evidence defenders depend on, and the configuration has no common benign purpose. The number of matching items did not change it.",
+        "why_correlated": "Rule DR-LNX-LOG-001 requires: log. Satisfied clauses: log (1 item(s)).",
+        "why_flagged": "Linking /var/log files to /dev/null is a known way to stop recording activity without stopping the logging service."
+      },
+      "host": {
+        "host_id": "H-cc6b60bc89b6",
+        "hostname": "host01"
+      },
+      "id": "DT-6cd607b1beb75400",
+      "investigation_steps": [
+        "Record the link, its target and timestamps (stat), then check who changed it (auth logs from before the change, shell history).",
+        "Look for other defense-evasion signs: cleared history files, stopped auditd, altered rsyslog configuration."
+      ],
+      "matched_conditions": [
+        {
+          "clause": "log",
+          "conditions": [
+            "check_id eq 'CFG-LOG-001'"
+          ],
+          "description": "The log-redirect finding",
+          "matched_items": 1,
+          "optional": false
+        }
+      ],
+      "nature": "indicator",
+      "references": {
+        "attack": [
+          {
+            "explanation": "Discarding log output is a form of blocking indicators; the data does not show who did it.",
+            "id": "T1562.006",
+            "relationship": "possible",
+            "url": "https://attack.mitre.org/techniques/T1562/006/"
+          },
+          {
+            "explanation": "Related to clearing Linux system logs; no clearing is observed, only the redirect.",
+            "id": "T1070.002",
+            "relationship": "possible",
+            "url": "https://attack.mitre.org/techniques/T1070/002/"
+          }
+        ],
+        "nist": [
+          {
+            "id": "AU-9",
+            "title": "Protection of Audit Information"
+          },
+          {
+            "id": "AU-2",
+            "title": "Event Logging"
+          }
+        ],
+        "other": []
+      },
+      "remediation": "Replace the link with a regular file with correct ownership and mode, restart the logging service, and forward logs off the host.",
+      "rule": {
+        "id": "DR-LNX-LOG-001",
+        "name": "System log redirected to a device",
+        "pack": "linux-core",
+        "version": "1.0.0"
+      },
+      "severity": "high",
+      "title": "System log redirected to a device"
+    },
+    {
+      "category": "persistence",
+      "components": [
+        "persistence"
+      ],
+      "confidence": "high",
+      "contributing": [
+        {
+          "check_id": "PER-CRON-002",
+          "clause": "entry",
+          "id": "BOF-8e852976a016a806",
+          "label": "PER-CRON-002: Synthetic finding PER-CRON-002",
+          "severity": "high",
+          "type": "finding"
+        },
+        {
+          "check_id": "PER-CRON-002",
+          "clause": "reverse",
+          "id": "BOF-8e852976a016a806",
+          "label": "PER-CRON-002: Synthetic finding PER-CRON-002",
+          "severity": "high",
+          "type": "finding"
+        }
+      ],
+      "description": "A cron job, systemd unit, startup script or shell profile was flagged for reverse-shell, download-and-execute or world-writable-path behaviour.",
+      "detected_at": "2026-03-05T00:00:00Z",
+      "evidence": [
+        "EV-73c39801ab64b5df"
+      ],
+      "explanation": {
+        "caveats": [],
+        "confidence_rationale": "Confidence high: A /dev/tcp or netcat reverse-shell pattern has few benign explanations.",
+        "disclaimer": "This is a suspicious indicator. Benign activity can produce the same observation; it does not prove compromise.",
+        "missing_corroboration": [
+          "The file's owner, creation time and package ownership.",
+          "Outbound connections to the address named in the command."
+        ],
+        "possible_benign_causes": [
+          "Backup or monitoring scripts that use /tmp or /dev/tcp for legitimate reasons."
+        ],
+        "severity_rationale": "Severity high is the rule's base severity: The collector matched command-content patterns that are rarely written by administrators. The number of matching items did not change it.",
+        "why_correlated": "Rule DR-LNX-PER-001 requires: entry. Satisfied clauses: entry (1 item(s)), reverse (1 item(s)). The contributing items were grouped because they share id = 'BOF-8e852976a016a806'.",
+        "why_flagged": "Jobs and units that open network shells, fetch and run code, or execute from world-writable directories are common footholds that survive reboots."
+      },
+      "host": {
+        "host_id": "H-cc6b60bc89b6",
+        "hostname": "host01"
+      },
+      "id": "DT-06a2cd3afbeee13b",
+      "investigation_steps": [
+        "Read the full file and identify who last modified it (stat, package verification).",
+        "Check for the destination host/port in network logs and current connections.",
+        "Look for sibling persistence (other cron.d entries, units, profile scripts)."
+      ],
+      "matched_conditions": [
+        {
+          "clause": "entry",
+          "conditions": [
+            "check_id in ['PER-CRON-002', 'PER-SYSTEMD-001', 'PER-STARTUP-001', 'PER-SHELL-001', 'PER-UDEV-001', 'PER-APT-001', ...]"
+          ],
+          "description": "A persistence finding for suspicious commands",
+          "matched_items": 1,
+          "optional": false
+        },
+        {
+          "clause": "reverse",
+          "conditions": [
+            "check_id in ['PER-CRON-002', 'PER-SYSTEMD-001', 'PER-STARTUP-001', 'PER-SHELL-001', 'PER-UDEV-001', 'PER-APT-001', ...]",
+            "evidence.excerpts regex '(?i)(/dev/tcp/|reverse-shell|nc(at)? .* -e|mkfifo)'"
+          ],
+          "description": "...whose evidence shows a reverse-shell pattern",
+          "matched_items": 1,
+          "optional": true
+        }
+      ],
+      "nature": "indicator",
+      "references": {
+        "attack": [
+          {
+            "explanation": "Cron is a common way to schedule attacker commands; the finding concerns a cron entry only if the check id is PER-CRON-002.",
+            "id": "T1053.003",
+            "relationship": "possible",
+            "url": "https://attack.mitre.org/techniques/T1053/003/"
+          },
+          {
+            "explanation": "A suspicious systemd unit would be a systemd service persistence candidate.",
+            "id": "T1543.002",
+            "relationship": "possible",
+            "url": "https://attack.mitre.org/techniques/T1543/002/"
+          }
+        ],
+        "nist": [
+          {
+            "id": "SI-7",
+            "title": "Software, Firmware, and Information Integrity"
+          },
+          {
+            "id": "CM-7",
+            "title": "Least Functionality"
+          }
+        ],
+        "other": []
+      },
+      "remediation": "Preserve the file as evidence, disable it (do not delete first), and review the accounts and files it touches; restore from a known-good package or backup.",
+      "rule": {
+        "id": "DR-LNX-PER-001",
+        "name": "Persistence entry with attacker-style behaviour",
+        "pack": "linux-core",
+        "version": "1.0.0"
+      },
+      "severity": "high",
+      "title": "Suspicious persistence entry: Synthetic finding PER-CRON-002"
+    },
+    {
+      "category": "persistence",
+      "components": [
+        "filesystem",
+        "persistence"
+      ],
+      "confidence": "medium",
+      "contributing": [
+        {
+          "check_id": "PER-SYSTEMD-001",
+          "clause": "start",
+          "id": "BOF-e372cc751bf901c7",
+          "label": "PER-SYSTEMD-001: Synthetic finding PER-SYSTEMD-001",
+          "severity": "high",
+          "type": "finding"
+        },
+        {
+          "check_id": "FS-PERM-003",
+          "clause": "file",
+          "id": "BOF-7a9a08a17f3c58f5",
+          "label": "FS-PERM-003: Synthetic finding FS-PERM-003",
+          "severity": "high",
+          "type": "finding"
+        }
+      ],
+      "description": "A service, task, autorun, cron job or unit refers to a path that a filesystem finding (world-writable, temporary, unsigned, hidden or recently modified executable) also lists.",
+      "detected_at": "2026-03-05T00:00:00Z",
+      "evidence": [
+        "EV-55dedfaa73a740fc",
+        "EV-5a225436da3d4395"
+      ],
+      "explanation": {
+        "caveats": [],
+        "confidence_rationale": "Confidence medium: Linking is by a shared path string in two independent findings; the path is exact but the file's purpose is still unknown.",
+        "disclaimer": "These independent indicators were correlated by a rule. Correlation raises a question; it does not prove malicious activity.",
+        "missing_corroboration": [
+          "Hash and signature of the file; creation time relative to the startup entry.",
+          "Network connections made by the process started from this path."
+        ],
+        "possible_benign_causes": [
+          "Software legitimately installed under ProgramData or /opt that is also unsigned or recently updated."
+        ],
+        "severity_rationale": "Severity high is the rule's base severity: A startup mechanism that points at a file sitting in an unsafe place or flagged as unusual is the shape of a planted foothold. The number of matching items did not change it.",
+        "why_correlated": "Rule DR-ANY-COR-001 requires: (start all file). Satisfied clauses: start (1 item(s)), file (1 item(s)). The contributing items were grouped because they share evidence.paths = '/tmp/.hidden/agent'.",
+        "why_flagged": "Two independent collectors (startup configuration and file inspection) describe the same path. That agreement is stronger than either finding alone and shows where to look first."
+      },
+      "host": {
+        "host_id": "H-cc6b60bc89b6",
+        "hostname": "host01"
+      },
+      "id": "DT-ba44f5408f28e089",
+      "investigation_steps": [
+        "Open the shared path: owner, hash, signature, timestamps.",
+        "Read the startup entry that references it.",
+        "Check whether other entries reference the same path."
+      ],
+      "matched_conditions": [
+        {
+          "clause": "start",
+          "conditions": [
+            "check_id in ['PER-CRON-002', 'PER-SYSTEMD-001', 'PER-STARTUP-001', 'PER-SHELL-001', 'SVC-PATH-001', 'SVC-UNQUOTED-001', ...]"
+          ],
+          "description": "A suspicious service, task, autorun or cron/unit finding",
+          "matched_items": 1,
+          "optional": false
+        },
+        {
+          "clause": "file",
+          "conditions": [
+            "check_id in ['FS-PERM-003', 'FS-PERM-001', 'FS-PERM-002', 'FS-SUID-002', 'FS-HIDDEN-001', 'FS-EXE-001', ...]"
+          ],
+          "description": "A filesystem finding about an unusual executable or writable file",
+          "matched_items": 1,
+          "optional": false
+        }
+      ],
+      "nature": "correlated",
+      "references": {
+        "attack": [
+          {
+            "explanation": "Service/unit persistence can launch attacker-placed files; here the link is only a shared path.",
+            "id": "T1543",
+            "relationship": "possible",
+            "url": "https://attack.mitre.org/techniques/T1543/"
+          },
+          {
+            "explanation": "Scheduled execution can launch attacker-placed files; here the link is only a shared path.",
+            "id": "T1053",
+            "relationship": "possible",
+            "url": "https://attack.mitre.org/techniques/T1053/"
+          }
+        ],
+        "nist": [
+          {
+            "id": "SI-7",
+            "title": "Software, Firmware, and Information Integrity"
+          },
+          {
+            "id": "CM-7",
+            "title": "Least Functionality"
+          }
+        ],
+        "other": []
+      },
+      "remediation": "Preserve the file and the entry as evidence, disable the startup entry, then remove or restore the file from a trusted source.",
+      "rule": {
+        "id": "DR-ANY-COR-001",
+        "name": "Persistence entry executes a file that the filesystem checks also flagged",
+        "pack": "correlation",
+        "version": "1.0.0"
+      },
+      "severity": "high",
+      "title": "Persistence entry runs a file flagged by the filesystem checks: /tmp/.hidden/agent"
+    },
+    {
+      "category": "defense-evasion",
+      "components": [
+        "defense-evasion",
+        "persistence",
+        "sysconfig"
+      ],
+      "confidence": "medium",
+      "contributing": [
+        {
+          "check_id": "CFG-LOG-001",
+          "clause": "impair",
+          "id": "BOF-8d0639b366981658",
+          "label": "CFG-LOG-001: Synthetic finding CFG-LOG-001",
+          "severity": "high",
+          "type": "finding"
+        },
+        {
+          "check_id": "PER-CRON-002",
+          "clause": "persist",
+          "id": "BOF-8e852976a016a806",
+          "label": "PER-CRON-002: Synthetic finding PER-CRON-002",
+          "severity": "high",
+          "type": "finding"
+        },
+        {
+          "check_id": "PER-SYSTEMD-001",
+          "clause": "persist",
+          "id": "BOF-e372cc751bf901c7",
+          "label": "PER-SYSTEMD-001: Synthetic finding PER-SYSTEMD-001",
+          "severity": "high",
+          "type": "finding"
+        }
+      ],
+      "description": "A log-impairment or protection-disabling finding appears on the same host as a high-signal persistence finding.",
+      "detected_at": "2026-03-05T00:00:00Z",
+      "evidence": [
+        "EV-3d78892bd1e30f52",
+        "EV-73c39801ab64b5df",
+        "EV-55dedfaa73a740fc"
+      ],
+      "explanation": {
+        "caveats": [],
+        "confidence_rationale": "Confidence medium: Both are accurate findings; their link is that they co-occur, not that one caused the other.",
+        "disclaimer": "These independent indicators were correlated by a rule. Correlation raises a question; it does not prove malicious activity.",
+        "missing_corroboration": [
+          "Timestamps showing the persistence artefact was created after logging was reduced.",
+          "Network activity from the artefact."
+        ],
+        "possible_benign_causes": [
+          "Hosts with custom logging pipelines that look impaired to the collector, plus an unrelated admin script flagged as persistence."
+        ],
+        "severity_rationale": "Severity high is the rule's base severity: Persistence indicators are concerning on their own; paired with reduced logging or protection they suggest the host was prepared to avoid detection. The number of matching items did not change it.",
+        "why_correlated": "Rule DR-ANY-COR-005 requires: (impair all persist). Satisfied clauses: impair (1 item(s)), persist (2 item(s)).",
+        "why_flagged": "Attackers who establish persistence commonly also reduce what is recorded. Co-occurrence prioritises this host for investigation over hosts with only one of the signals."
+      },
+      "host": {
+        "host_id": "H-cc6b60bc89b6",
+        "hostname": "host01"
+      },
+      "id": "DT-d62078651b3bb042",
+      "investigation_steps": [
+        "Establish the timeline from file and configuration timestamps.",
+        "Check whether other hosts show the same pair.",
+        "Collect volatile evidence (processes, connections) before changing anything."
+      ],
+      "matched_conditions": [
+        {
+          "clause": "impair",
+          "conditions": [
+            "check_id in ['CFG-LOG-001', 'CFG-LOG-003', 'EVT-SVC-001', 'EVT-CHAN-001', 'SEC-DEF-001']"
+          ],
+          "description": "Logging or protection impaired",
+          "matched_items": 1,
+          "optional": false
+        },
+        {
+          "clause": "persist",
+          "conditions": [
+            "check_id in ['PER-CRON-002', 'PER-SYSTEMD-001', 'PER-LDPRE-001', 'PER-WMI-001', 'PER-IFEO-001', 'AUT-CMD-001', ...]"
+          ],
+          "description": "A high-signal persistence indicator",
+          "matched_items": 2,
+          "optional": false
+        }
+      ],
+      "nature": "correlated",
+      "references": {
+        "attack": [
+          {
+            "explanation": "Impairing defences is a tactic used alongside persistence; co-occurrence here does not prove it.",
+            "id": "T1562",
+            "relationship": "possible",
+            "url": "https://attack.mitre.org/techniques/T1562/"
+          }
+        ],
+        "nist": [
+          {
+            "id": "AU-9",
+            "title": "Protection of Audit Information"
+          },
+          {
+            "id": "SI-4",
+            "title": "System Monitoring"
+          },
+          {
+            "id": "SI-7",
+            "title": "Software, Firmware, and Information Integrity"
+          }
+        ],
+        "other": []
+      },
+      "remediation": "Restore logging and protection, preserve and then remove the persistence artefact, and review the host for further changes.",
+      "rule": {
+        "id": "DR-ANY-COR-005",
+        "name": "Logging or protection impaired alongside a persistence indicator",
+        "pack": "correlation",
+        "version": "1.0.0"
+      },
+      "severity": "high",
+      "title": "Reduced logging/protection together with a persistence indicator"
+    },
+    {
+      "category": "network-exposure",
+      "components": [
+        "listeners",
+        "network-exposure"
+      ],
+      "confidence": "medium",
+      "contributing": [
+        {
+          "clause": "lst",
+          "domain": "listeners",
+          "key": "listener:tcp/0.0.0.0/23",
+          "label": "listeners/listener:tcp/0.0.0.0/23",
+          "scope": "",
+          "type": "inventory"
+        }
+      ],
+      "description": "A telnet, FTP, TFTP or r-service port is listening on an address other than loopback.",
+      "detected_at": "2026-03-05T00:00:00Z",
+      "evidence": [],
+      "explanation": {
+        "caveats": [],
+        "confidence_rationale": "Confidence medium: The port number identifies the usual service; the process may be something else, and reachability depends on filtering.",
+        "disclaimer": "This is a suspicious indicator. Benign activity can produce the same observation; it does not prove compromise.",
+        "missing_corroboration": [
+          "The listening process name matching the protocol.",
+          "Firewall rules allowing the port from untrusted networks."
+        ],
+        "possible_benign_causes": [
+          "Legacy device management on an isolated network.",
+          "A different service that happens to use one of these ports."
+        ],
+        "severity_rationale": "Severity high is the rule's base severity: These protocols send credentials or data unprotected, and TFTP has no authentication at all. The number of matching items did not change it.",
+        "why_correlated": "Rule DR-ANY-NET-001 requires: lst. Satisfied clauses: lst (1 item(s)). Each matching item is reported separately (grouped by key = 'listener:tcp/0.0.0.0/23').",
+        "why_flagged": "Cleartext remote-access protocols expose credentials to anyone on the path and are frequent entry points; a listener on a routable address makes them reachable."
+      },
+      "host": {
+        "host_id": "H-cc6b60bc89b6",
+        "hostname": "host01"
+      },
+      "id": "DT-6431064ebd505d65",
+      "investigation_steps": [
+        "Identify the owning process and package.",
+        "Check firewall policy for the port.",
+        "Review authentication logs for the service."
+      ],
+      "matched_conditions": [
+        {
+          "clause": "lst",
+          "conditions": [
+            "domain eq 'listeners'",
+            "attrs.port in ['21', '23', '69', '512', '513', '514']",
+            "not ((attrs.bind regex '^127\\\\.') any (attrs.bind in ['127.0.0.1', '::1', 'localhost', '[::1]']))"
+          ],
+          "description": "A cleartext-protocol port bound to a non-loopback address",
+          "matched_items": 1,
+          "optional": false
+        }
+      ],
+      "nature": "indicator",
+      "references": {
+        "attack": [
+          {
+            "explanation": "An exposed remote-access service can serve as an external access point; exposure to attackers is not established.",
+            "id": "T1133",
+            "relationship": "possible",
+            "url": "https://attack.mitre.org/techniques/T1133/"
+          }
+        ],
+        "nist": [
+          {
+            "id": "SC-7",
+            "title": "Boundary Protection"
+          },
+          {
+            "id": "CM-7",
+            "title": "Least Functionality"
+          },
+          {
+            "id": "IA-2",
+            "title": "Identification and Authentication (Organizational Users)"
+          }
+        ],
+        "other": []
+      },
+      "remediation": "Replace with SSH/SFTP (or restrict to a management network) and disable the service once confirmed unnecessary.",
+      "rule": {
+        "id": "DR-ANY-NET-001",
+        "name": "Cleartext remote-access service listening on a non-loopback address",
+        "pack": "correlation",
+        "version": "1.0.0"
+      },
+      "severity": "high",
+      "title": "Cleartext service port 23 listening on 0.0.0.0"
+    },
+    {
+      "category": "privilege",
+      "components": [
+        "auth",
+        "pam",
+        "privilege",
+        "users"
+      ],
+      "confidence": "medium",
+      "contributing": [
+        {
+          "check_id": "USR-UID0-001",
+          "clause": "priv",
+          "id": "BOF-913180f71c150ef2",
+          "label": "USR-UID0-001: Synthetic finding USR-UID0-001",
+          "severity": "critical",
+          "type": "finding"
+        },
+        {
+          "check_id": "PAM-PERMIT-001",
+          "clause": "auth",
+          "id": "BOF-39460b24348cb42d",
+          "label": "PAM-PERMIT-001: Synthetic finding PAM-PERMIT-001",
+          "severity": "high",
+          "type": "finding"
+        },
+        {
+          "check_id": "ATH-LOCKOUT-001",
+          "clause": "auth",
+          "id": "BOF-c068bdd701e970c7",
+          "label": "ATH-LOCKOUT-001: Synthetic finding ATH-LOCKOUT-001",
+          "severity": "low",
+          "type": "finding"
+        },
+        {
+          "check_id": "PAM-PERMIT-001",
+          "clause": "bypass",
+          "id": "BOF-39460b24348cb42d",
+          "label": "PAM-PERMIT-001: Synthetic finding PAM-PERMIT-001",
+          "severity": "high",
+          "type": "finding"
+        }
+      ],
+      "description": "An unexpected or over-privileged account configuration was found on a host that also has weak authentication controls.",
+      "detected_at": "2026-03-05T00:00:00Z",
+      "evidence": [
+        "EV-0ddfdf1f81616380",
+        "EV-3cfdfd2807726464",
+        "EV-45ab82cd4100b0f7"
+      ],
+      "explanation": {
+        "caveats": [],
+        "confidence_rationale": "Confidence medium: Both sides are exact findings; their relationship (same accounts, reachable service) is not established by the data.",
+        "disclaimer": "These independent indicators were correlated by a rule. Correlation raises a question; it does not prove malicious activity.",
+        "missing_corroboration": [
+          "Evidence that the weak control applies to the privileged account (for example sshd allowing that account).",
+          "Logons by the privileged account from unusual sources."
+        ],
+        "possible_benign_causes": [
+          "Competition or lab hosts configured deliberately weak."
+        ],
+        "severity_rationale": "Severity high was set by an explicit rule condition: An authentication-bypass-class weakness (PAM accepts without credential, passwordless accounts, no NLA, auto-logon) is present.",
+        "why_correlated": "Rule DR-ANY-PRIV-002 requires: (priv all auth). Satisfied clauses: priv (1 item(s)), auth (2 item(s)), bypass (1 item(s)).",
+        "why_flagged": "An attacker needs a way to authenticate and a privileged identity to use. Seeing a questionable privileged account and weak authentication on one host is more actionable than either alone."
+      },
+      "host": {
+        "host_id": "H-cc6b60bc89b6",
+        "hostname": "host01"
+      },
+      "id": "DT-6d9cd4d25cda0658",
+      "investigation_steps": [
+        "Check whether the privileged account can use the weak authentication path (sshd AllowUsers, PAM stack for the service).",
+        "Review authentication logs for the privileged accounts.",
+        "Fix the bypass-class weakness first."
+      ],
+      "matched_conditions": [
+        {
+          "clause": "priv",
+          "conditions": [
+            "check_id in ['USR-UID0-001', 'USR-SUDO-002', 'USR-SUDO-004', 'USR-SUDO-005', 'USR-GROUP-003', 'USR-HIDDEN-001', ...]"
+          ],
+          "description": "A privileged-account anomaly",
+          "matched_items": 1,
+          "optional": false
+        },
+        {
+          "clause": "auth",
+          "conditions": [
+            "check_id in ['PAM-PERMIT-001', 'PAM-NULLOK-001', 'PAM-HASH-001', 'NET-SSHD-002', 'ATH-LOCKOUT-001', 'SEC-PWD-002', ...]"
+          ],
+          "description": "A weak authentication control",
+          "matched_items": 2,
+          "optional": false
+        },
+        {
+          "clause": "bypass",
+          "conditions": [
+            "check_id in ['PAM-PERMIT-001', 'USR-PWD-001', 'SEC-RDP-002', 'SEC-AUTOLOGON-001']"
+          ],
+          "description": "...of the bypass class",
+          "matched_items": 1,
+          "optional": true
+        }
+      ],
+      "nature": "correlated",
+      "references": {
+        "attack": [
+          {
+            "explanation": "Valid accounts are often used with weak authentication to gain access; nothing here shows use.",
+            "id": "T1078",
+            "relationship": "possible",
+            "url": "https://attack.mitre.org/techniques/T1078/"
+          },
+          {
+            "explanation": "Account manipulation is one way a privileged anomaly arises.",
+            "id": "T1098",
+            "relationship": "possible",
+            "url": "https://attack.mitre.org/techniques/T1098/"
+          }
+        ],
+        "nist": [
+          {
+            "id": "AC-2",
+            "title": "Account Management"
+          },
+          {
+            "id": "IA-5",
+            "title": "Authenticator Management"
+          },
+          {
+            "id": "AC-6",
+            "title": "Least Privilege"
+          }
+        ],
+        "other": []
+      },
+      "remediation": "Remove or justify the anomalous privileged account, then close the authentication weakness (PAM/sshd/NLA/lockout) in the order of the severity rationale.",
+      "rule": {
+        "id": "DR-ANY-PRIV-002",
+        "name": "Privileged-account anomaly together with weak authentication settings",
+        "pack": "correlation",
+        "version": "1.0.0"
+      },
+      "severity": "high",
+      "title": "Privileged-account anomaly with weak authentication on host01"
+    },
+    {
+      "category": "persistence",
+      "components": [
+        "persistence"
+      ],
+      "confidence": "medium",
+      "contributing": [
+        {
+          "check_id": "PER-SYSTEMD-001",
+          "clause": "entry",
+          "id": "BOF-e372cc751bf901c7",
+          "label": "PER-SYSTEMD-001: Synthetic finding PER-SYSTEMD-001",
+          "severity": "high",
+          "type": "finding"
+        }
+      ],
+      "description": "A cron job, systemd unit, startup script or shell profile was flagged for reverse-shell, download-and-execute or world-writable-path behaviour.",
+      "detected_at": "2026-03-05T00:00:00Z",
+      "evidence": [
+        "EV-55dedfaa73a740fc"
+      ],
+      "explanation": {
+        "caveats": [],
+        "confidence_rationale": "Confidence medium: Pattern matching on command text has false positives (admin scripts using /tmp, backup tools using /dev/tcp).",
+        "disclaimer": "This is a suspicious indicator. Benign activity can produce the same observation; it does not prove compromise.",
+        "missing_corroboration": [
+          "Optional corroboration not observed: ...whose evidence shows a reverse-shell pattern",
+          "The file's owner, creation time and package ownership.",
+          "Outbound connections to the address named in the command."
+        ],
+        "possible_benign_causes": [
+          "Backup or monitoring scripts that use /tmp or /dev/tcp for legitimate reasons."
+        ],
+        "severity_rationale": "Severity high is the rule's base severity: The collector matched command-content patterns that are rarely written by administrators. The number of matching items did not change it.",
+        "why_correlated": "Rule DR-LNX-PER-001 requires: entry. Satisfied clauses: entry (1 item(s)). The contributing items were grouped because they share id = 'BOF-e372cc751bf901c7'.",
+        "why_flagged": "Jobs and units that open network shells, fetch and run code, or execute from world-writable directories are common footholds that survive reboots."
+      },
+      "host": {
+        "host_id": "H-cc6b60bc89b6",
+        "hostname": "host01"
+      },
+      "id": "DT-d4fe4106bb5fe858",
+      "investigation_steps": [
+        "Read the full file and identify who last modified it (stat, package verification).",
+        "Check for the destination host/port in network logs and current connections.",
+        "Look for sibling persistence (other cron.d entries, units, profile scripts)."
+      ],
+      "matched_conditions": [
+        {
+          "clause": "entry",
+          "conditions": [
+            "check_id in ['PER-CRON-002', 'PER-SYSTEMD-001', 'PER-STARTUP-001', 'PER-SHELL-001', 'PER-UDEV-001', 'PER-APT-001', ...]"
+          ],
+          "description": "A persistence finding for suspicious commands",
+          "matched_items": 1,
+          "optional": false
+        }
+      ],
+      "nature": "indicator",
+      "references": {
+        "attack": [
+          {
+            "explanation": "Cron is a common way to schedule attacker commands; the finding concerns a cron entry only if the check id is PER-CRON-002.",
+            "id": "T1053.003",
+            "relationship": "possible",
+            "url": "https://attack.mitre.org/techniques/T1053/003/"
+          },
+          {
+            "explanation": "A suspicious systemd unit would be a systemd service persistence candidate.",
+            "id": "T1543.002",
+            "relationship": "possible",
+            "url": "https://attack.mitre.org/techniques/T1543/002/"
+          }
+        ],
+        "nist": [
+          {
+            "id": "SI-7",
+            "title": "Software, Firmware, and Information Integrity"
+          },
+          {
+            "id": "CM-7",
+            "title": "Least Functionality"
+          }
+        ],
+        "other": []
+      },
+      "remediation": "Preserve the file as evidence, disable it (do not delete first), and review the accounts and files it touches; restore from a known-good package or backup.",
+      "rule": {
+        "id": "DR-LNX-PER-001",
+        "name": "Persistence entry with attacker-style behaviour",
+        "pack": "linux-core",
+        "version": "1.0.0"
+      },
+      "severity": "high",
+      "title": "Suspicious persistence entry: Synthetic finding PER-SYSTEMD-001"
+    },
+    {
+      "category": "services",
+      "components": [
+        "listeners",
+        "services"
+      ],
+      "confidence": "medium",
+      "contributing": [
+        {
+          "clause": "unit",
+          "domain": "services",
+          "key": "service:telnet.service",
+          "label": "services/service:telnet.service",
+          "scope": "",
+          "type": "inventory"
+        },
+        {
+          "clause": "port",
+          "domain": "listeners",
+          "key": "listener:tcp/0.0.0.0/23",
+          "label": "listeners/listener:tcp/0.0.0.0/23",
+          "scope": "",
+          "type": "inventory"
+        }
+      ],
+      "description": "A legacy service known for cleartext authentication (telnet, r-services, tftp, FTP) is enabled and a matching process is listening.",
+      "detected_at": "2026-03-05T00:00:00Z",
+      "evidence": [],
+      "explanation": {
+        "caveats": [],
+        "confidence_rationale": "Confidence medium: Names identify the service; they do not prove it is reachable from untrusted networks.",
+        "disclaimer": "These independent indicators were correlated by a rule. Correlation raises a question; it does not prove malicious activity.",
+        "missing_corroboration": [
+          "Firewall rules showing the port reachable from outside the management network."
+        ],
+        "possible_benign_causes": [
+          "Isolated management networks or labs that depend on tftp/ftp for provisioning."
+        ],
+        "severity_rationale": "Severity high is the rule's base severity: Credentials sent in cleartext and unauthenticated file transfer are directly exploitable on a reachable network. The number of matching items did not change it.",
+        "why_correlated": "Rule DR-LNX-SVC-001 requires: (unit all port). Satisfied clauses: unit (1 item(s)), port (1 item(s)).",
+        "why_flagged": "An enabled unit says the service starts at boot; a listening process says it is running now. Together they show an exposed cleartext service rather than a stray package."
+      },
+      "host": {
+        "host_id": "H-cc6b60bc89b6",
+        "hostname": "host01"
+      },
+      "id": "DT-94a324308ef980dc",
+      "investigation_steps": [
+        "Confirm the service owner and whether the port is scored.",
+        "Check the firewall policy for the listening port.",
+        "Review authentication logs for the service."
+      ],
+      "matched_conditions": [
+        {
+          "clause": "unit",
+          "conditions": [
+            "domain eq 'services'",
+            "key regex '^service:(telnet|rsh|rlogin|rexec|tftp|vsftpd|proftpd|pure-ftpd|xinetd|inetd)'",
+            "attrs.enabled in ['enabled', 'static', 'yes']"
+          ],
+          "description": "A legacy cleartext service is enabled",
+          "matched_items": 1,
+          "optional": false
+        },
+        {
+          "clause": "port",
+          "conditions": [
+            "domain eq 'listeners'",
+            "attrs.process regex '(in\\\\.)?(telnetd|rshd|rlogind|rexecd|tftpd|vsftpd|proftpd|pure-ftpd|xinetd|inetd)'"
+          ],
+          "description": "A matching legacy daemon is listening",
+          "matched_items": 1,
+          "optional": false
+        }
+      ],
+      "nature": "correlated",
+      "references": {
+        "attack": [
+          {
+            "explanation": "An exposed remote service can be used for external access; reachability is not established by this rule.",
+            "id": "T1133",
+            "relationship": "possible",
+            "url": "https://attack.mitre.org/techniques/T1133/"
+          }
+        ],
+        "nist": [
+          {
+            "id": "CM-7",
+            "title": "Least Functionality"
+          },
+          {
+            "id": "SC-7",
+            "title": "Boundary Protection"
+          }
+        ],
+        "other": []
+      },
+      "remediation": "Disable the service in favour of SSH/SFTP once confirmed it is not required (disable, do not delete; reload dependants).",
+      "rule": {
+        "id": "DR-LNX-SVC-001",
+        "name": "Legacy cleartext service enabled and listening",
+        "pack": "linux-core",
+        "version": "1.0.0"
+      },
+      "severity": "high",
+      "title": "Legacy cleartext service enabled and listening (service:telnet.service)"
+    }
+  ],
+  "engine": {
+    "name": "blueops-rules",
+    "version": "0.5.0"
+  },
+  "generated_at": "2026-03-05T00:00:00Z",
+  "history": {
+    "compared_with": null,
+    "comparison_trend": null,
+    "excluded": [],
+    "snapshots": 0
+  },
+  "host": {
+    "host_id": "H-cc6b60bc89b6",
+    "hostname": "host01",
+    "os_family": "linux"
+  },
+  "indeterminate": [
+    {
+      "category": "change",
+      "nature": "correlated",
+      "reason": "no earlier snapshot to compare with; needs 1 earlier snapshot(s), have 0",
+      "rule": {
+        "id": "DR-ANY-CHG-001",
+        "name": "New findings appeared together after a clean assessment"
+      }
+    },
+    {
+      "category": "change",
+      "nature": "indicator",
+      "reason": "needs 2 earlier snapshot(s), have 0",
+      "rule": {
+        "id": "DR-ANY-CHG-002",
+        "name": "A previously resolved finding has returned"
+      }
+    },
+    {
+      "category": "change",
+      "nature": "indicator",
+      "reason": "no earlier snapshot to compare with",
+      "rule": {
+        "id": "DR-ANY-CHG-003",
+        "name": "A finding's severity increased to high or critical"
+      }
+    },
+    {
+      "category": "change",
+      "nature": "indicator",
+      "reason": "no earlier snapshot to compare with; needs 3 earlier snapshot(s), have 0",
+      "rule": {
+        "id": "DR-ANY-CHG-004",
+        "name": "Security-relevant configuration changed after a long stable period"
+      }
+    },
+    {
+      "category": "change",
+      "nature": "observation",
+      "reason": "no earlier snapshot to compare with",
+      "rule": {
+        "id": "DR-ANY-CHG-005",
+        "name": "Audit coverage decreased since the previous snapshot"
+      }
+    },
+    {
+      "category": "network-exposure",
+      "nature": "correlated",
+      "reason": "no earlier snapshot to compare with",
+      "rule": {
+        "id": "DR-ANY-COR-002",
+        "name": "Firewall configuration changed and a new non-loopback listener appeared"
+      }
+    },
+    {
+      "category": "persistence",
+      "nature": "correlated",
+      "reason": "no earlier snapshot to compare with",
+      "rule": {
+        "id": "DR-ANY-COR-003",
+        "name": "Scheduled-job change together with an account or group change"
+      }
+    },
+    {
+      "category": "privilege",
+      "nature": "indicator",
+      "reason": "no earlier snapshot to compare with",
+      "rule": {
+        "id": "DR-ANY-PRIV-001",
+        "name": "Membership of a privileged group changed"
+      }
+    }
+  ],
+  "kind": "detection-results",
+  "rule_errors": [],
+  "rule_packs": [
+    {
+      "name": "changes",
+      "rules": 5,
+      "sha256": "3c502bfb1d264c0a456d3373718d8af97847213d00527a506e634dd20b5740fd",
+      "source": "changes.json",
+      "version": "1.0.0"
+    },
+    {
+      "name": "correlation",
+      "rules": 9,
+      "sha256": "d993e13956b92dbda9ba2ff4205c715587ddac7743b79a4bcbb3ecd0ec4129aa",
+      "source": "correlation.json",
+      "version": "1.0.0"
+    },
+    {
+      "name": "linux-core",
+      "rules": 9,
+      "sha256": "8b08fa48943d754cf6329525302816fca89dc31f7ce175cc7eafe2d998bc6eba",
+      "source": "linux-core.json",
+      "version": "1.0.0"
+    },
+    {
+      "name": "windows-core",
+      "rules": 6,
+      "sha256": "116bf8a03b9eb54fe49f0804ed3117bfcdafb5d3c71f59da1e2ac146a23bd948",
+      "source": "windows-core.json",
+      "version": "1.0.0"
+    }
+  ],
+  "rule_results": [
+    {
+      "detections": 0,
+      "reason": "no earlier snapshot to compare with; needs 1 earlier snapshot(s), have 0",
+      "rule": "DR-ANY-CHG-001",
+      "status": "indeterminate"
+    },
+    {
+      "detections": 0,
+      "reason": "needs 2 earlier snapshot(s), have 0",
+      "rule": "DR-ANY-CHG-002",
+      "status": "indeterminate"
+    },
+    {
+      "detections": 0,
+      "reason": "no earlier snapshot to compare with",
+      "rule": "DR-ANY-CHG-003",
+      "status": "indeterminate"
+    },
+    {
+      "detections": 0,
+      "reason": "no earlier snapshot to compare with; needs 3 earlier snapshot(s), have 0",
+      "rule": "DR-ANY-CHG-004",
+      "status": "indeterminate"
+    },
+    {
+      "detections": 0,
+      "reason": "no earlier snapshot to compare with",
+      "rule": "DR-ANY-CHG-005",
+      "status": "indeterminate"
+    },
+    {
+      "detections": 1,
+      "rule": "DR-ANY-COR-001",
+      "status": "evaluated"
+    },
+    {
+      "detections": 0,
+      "reason": "no earlier snapshot to compare with",
+      "rule": "DR-ANY-COR-002",
+      "status": "indeterminate"
+    },
+    {
+      "detections": 0,
+      "reason": "no earlier snapshot to compare with",
+      "rule": "DR-ANY-COR-003",
+      "status": "indeterminate"
+    },
+    {
+      "detections": 0,
+      "rule": "DR-ANY-COR-004",
+      "status": "evaluated"
+    },
+    {
+      "detections": 1,
+      "rule": "DR-ANY-COR-005",
+      "status": "evaluated"
+    },
+    {
+      "detections": 1,
+      "rule": "DR-ANY-NET-001",
+      "status": "evaluated"
+    },
+    {
+      "detections": 0,
+      "rule": "DR-ANY-NET-002",
+      "status": "evaluated"
+    },
+    {
+      "detections": 0,
+      "reason": "no earlier snapshot to compare with",
+      "rule": "DR-ANY-PRIV-001",
+      "status": "indeterminate"
+    },
+    {
+      "detections": 1,
+      "rule": "DR-ANY-PRIV-002",
+      "status": "evaluated"
+    },
+    {
+      "detections": 1,
+      "rule": "DR-LNX-ACC-001",
+      "status": "evaluated"
+    },
+    {
+      "detections": 0,
+      "rule": "DR-LNX-ACC-002",
+      "status": "evaluated"
+    },
+    {
+      "detections": 0,
+      "rule": "DR-LNX-FS-001",
+      "status": "evaluated"
+    },
+    {
+      "detections": 1,
+      "rule": "DR-LNX-LOG-001",
+      "status": "evaluated"
+    },
+    {
+      "detections": 2,
+      "rule": "DR-LNX-PER-001",
+      "status": "evaluated"
+    },
+    {
+      "detections": 0,
+      "rule": "DR-LNX-PKG-001",
+      "status": "evaluated"
+    },
+    {
+      "detections": 0,
+      "rule": "DR-LNX-SSH-001",
+      "status": "evaluated"
+    },
+    {
+      "detections": 1,
+      "rule": "DR-LNX-SVC-001",
+      "status": "evaluated"
+    },
+    {
+      "detections": 0,
+      "rule": "DR-LNX-SYS-001",
+      "status": "evaluated"
+    },
+    {
+      "detections": 0,
+      "rule": "DR-WIN-ACC-001",
+      "status": "not_applicable"
+    },
+    {
+      "detections": 0,
+      "rule": "DR-WIN-CRED-001",
+      "status": "not_applicable"
+    },
+    {
+      "detections": 0,
+      "rule": "DR-WIN-LOG-001",
+      "status": "not_applicable"
+    },
+    {
+      "detections": 0,
+      "rule": "DR-WIN-PER-001",
+      "status": "not_applicable"
+    },
+    {
+      "detections": 0,
+      "rule": "DR-WIN-SVC-001",
+      "status": "not_applicable"
+    },
+    {
+      "detections": 0,
+      "rule": "DR-WIN-TSK-001",
+      "status": "not_applicable"
+    }
+  ],
+  "rules": {
+    "disabled": 0,
+    "error": 0,
+    "evaluated": 15,
+    "indeterminate": 8,
+    "not_applicable": 6,
+    "total": 29
+  },
+  "schema_version": "0.1.0",
+  "summary": {
+    "by_category": {
+      "accounts": 1,
+      "defense-evasion": 2,
+      "network-exposure": 1,
+      "persistence": 3,
+      "privilege": 1,
+      "services": 1
+    },
+    "by_confidence": {
+      "high": 3,
+      "low": 0,
+      "medium": 6
+    },
+    "by_nature": {
+      "correlated": 4,
+      "hypothesis": 0,
+      "indicator": 5,
+      "observation": 0
+    },
+    "by_severity": {
+      "critical": 0,
+      "high": 9,
+      "info": 0,
+      "low": 0,
+      "medium": 0
+    },
+    "indeterminate": 8,
+    "rule_errors": 0,
+    "total": 9
+  }
+}

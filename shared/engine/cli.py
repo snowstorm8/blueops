@@ -38,6 +38,13 @@ from shared.reporting.snapshot_compare import (
     compare_snapshots,
     comparison_exit_code,
 )
+from shared.rules.cli import dispatch as rules_dispatch
+from shared.rules.cli import register as rules_register
+from shared.rules.cli import run_detection
+from shared.rules.engine import exit_code_for as detection_exit_code
+from shared.rules.history import HistoryStore
+from shared.rules.investigation import CaseStore, case_summaries
+from shared.rules.loader import load_rule_set
 
 REPO_ROOT = Path(__file__).resolve().parent.parent.parent
 DOC_SCHEMAS = {
@@ -49,6 +56,9 @@ DOC_SCHEMAS = {
     "baseline-diff": "baseline-diff.schema.json",
     "detections": "detections.schema.json",
     "run-manifest": "run-manifest.schema.json",
+    "detection-results": "detection-results.schema.json",
+    "detection-comparison": "detection-comparison.schema.json",
+    "rule-pack": "detection-rule.schema.json",
 }
 
 
@@ -150,7 +160,29 @@ def _parser() -> argparse.ArgumentParser:
         help="print assessment.json on stdout (human text goes to stderr)",
     )
     run.add_argument("--quiet", action="store_true")
+    run.add_argument(
+        "--detect",
+        action="store_true",
+        help="also run the detection rules; writes detections.json and adds a Detections section",
+    )
+    run.add_argument(
+        "--rules-dir",
+        action="append",
+        default=[],
+        metavar="PATH",
+        help="extra rule packs (with --detect)",
+    )
+    run.add_argument(
+        "--history",
+        metavar="DIR",
+        help="earlier assessments of this host for history-aware rules (with --detect)",
+    )
+    run.add_argument(
+        "--state-dir", metavar="DIR", help="register detections as cases here (with --detect)"
+    )
+    run.add_argument("--actor", metavar="NAME")
 
+    rules_register(sub)
     cmp_ = sub.add_parser("compare", help="compare two assessments or audit reports")
     cmp_.add_argument("baseline")
     cmp_.add_argument("current")
@@ -338,7 +370,7 @@ def _summary_lines(doc: dict[str, Any], directory: Path) -> list[str]:
     return lines
 
 
-def _cmd_run(args: argparse.Namespace) -> int:  # noqa: PLR0912 - setup, run, write: one sequence
+def _cmd_run(args: argparse.Namespace) -> int:  # noqa: PLR0912, PLR0915 - setup, run, write
     platform = args.platform or current_platform()
     reg = _registry(args.plugin_dir)
     profile, selected = _select(args, reg, platform)
@@ -383,13 +415,31 @@ def _cmd_run(args: argparse.Namespace) -> int:  # noqa: PLR0912 - setup, run, wr
             if code == ExitCode.OK:
                 code = ExitCode.PARTIAL
     _write_new(out_dir / "assessment.json", _json(doc))
+    detections: dict[str, Any] | None = None
+    cases: dict[str, dict[str, Any]] | None = None
+    if args.detect:
+        rs = load_rule_set(args.rules_dir)
+        prev, notes = HistoryStore.scan(args.history).before(doc) if args.history else ([], [])
+        detections = run_detection(doc, rs, prev, notes, doc["assessment"]["finished_at"])
+        store = CaseStore(args.state_dir, args.actor) if args.state_dir else None
+        if store:
+            store.observe(detections)
+        cases = case_summaries(store, detections)
+        _write_new(out_dir / "detections.json", _json(detections))
+        dcode = detection_exit_code(detections, doc["assessment"]["fail_on"])
+        if dcode == ExitCode.FINDINGS or (dcode == ExitCode.PARTIAL and code == ExitCode.OK):
+            code = dcode
     for n, c in enumerate(comparisons, 1):
         _write_new(out_dir / f"comparison-{n}.json", _json(c))
     stamp_iso = doc["assessment"]["finished_at"]
     if "markdown" in formats:
-        _write_new(out_dir / "report.md", render_markdown(doc, comparisons, stamp_iso))
+        _write_new(
+            out_dir / "report.md", render_markdown(doc, comparisons, stamp_iso, detections, cases)
+        )
     if "html" in formats:
-        _write_new(out_dir / "report.html", render_html(doc, comparisons, stamp_iso))
+        _write_new(
+            out_dir / "report.html", render_html(doc, comparisons, stamp_iso, detections, cases)
+        )
     _, digest = write_manifest(out_dir, doc)
     if args.json:
         sys.stdout.write(_json(doc))
@@ -413,6 +463,9 @@ _COMMANDS = {
 def main(argv: list[str] | None = None) -> int:
     args = _parser().parse_args(argv)
     try:
+        handled = rules_dispatch(args)
+        if handled is not None:
+            return handled
         return _COMMANDS[args.cmd](args)
     except (ModuleError, PluginError, ProfileError) as exc:
         _err(str(exc))
