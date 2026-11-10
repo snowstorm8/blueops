@@ -11,8 +11,9 @@ from __future__ import annotations
 import fnmatch
 import ipaddress
 import json
+import os
 import re
-from dataclasses import dataclass, field
+from dataclasses import dataclass, field, replace
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, Optional, Union
@@ -131,6 +132,30 @@ class Snapshot:
     has_inventory: bool
     ignored: int = 0
     errors: list[dict[str, Any]] = field(default_factory=list)
+    # How it was loaded. Not part of any output: the legacy tools' documents are identical for a
+    # report file and its run directory. It only drives the stderr warning (``unverified_notes``).
+    source: str = ""
+    verified: bool = False
+    unverified_reason: str = "provenance unknown"
+
+
+NO_MANIFEST = "no manifest.json to verify against (a bare report file or a run without one)"
+
+
+def unverified_notes(tool: str, *snaps: Snapshot) -> list[str]:
+    """One stderr line per input that was **not** verified, for the legacy tools.
+
+    Their stdout/file output keeps its documented, input-form-independent format, so the only
+    place to say "this rests on unverified data" is stderr. Machine consumers read stdout and
+    are unaffected; people running the tool see the warning (``--quiet`` does not hide it).
+    """
+    return [
+        f"{tool}: WARNING: input {s.source or '(unknown)'} is UNVERIFIED ({s.unverified_reason}); "
+        "its integrity was not checked. The output below is not marked: use 'blueops engine' "
+        "for verified provenance"
+        for s in snaps
+        if not s.verified
+    ]
 
 
 # ------------------------------------------------------------------ parsing helpers
@@ -546,12 +571,17 @@ def load_snapshot(path: str | Path, options: Options | None = None) -> Snapshot:
     """
     opts = options or Options()
     p = Path(path)
-    if p.is_dir() and (p / "manifest.json").exists():
+    # lexists, not exists: a dangling or symlinked manifest is something that is there and fails
+    # verification, not "no manifest" (which would be accepted unverified).
+    verified, reason = False, NO_MANIFEST
+    if p.is_dir() and os.path.lexists(p / "manifest.json"):
         problems = verify_run_dir(p)
         if problems:
             shown = "; ".join(problems[:5]) + (" ..." if len(problems) > 5 else "")
             raise ReportError(f"{p} failed manifest verification: {shown}")
-    return build_snapshot(read_report_file(path), opts, source=str(path))
+        verified, reason = True, ""
+    snap = build_snapshot(read_report_file(path), opts, source=str(path))
+    return replace(snap, source=str(path), verified=verified, unverified_reason=reason)
 
 
 class ConfigError(ValueError):

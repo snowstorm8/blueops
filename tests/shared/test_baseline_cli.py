@@ -163,7 +163,10 @@ def test_json_goes_to_stdout_and_summary_to_stderr(capsys: pytest.CaptureFixture
     _, _, quiet_err = _run(
         capsys, GOLDEN / "linux-baseline.json", GOLDEN / "linux-current.json", "--json", "--quiet"
     )
-    assert quiet_err == ""
+    # --quiet silences the summary only. The unverified-input warning is deliberately not hidden
+    # by it (see test_legacy_unverified_warnings.py), so the stderr is exactly those warnings.
+    assert "blueops-diff:" in quiet_err
+    assert all("UNVERIFIED" in line for line in quiet_err.splitlines())
 
 
 def test_run_directory_input(tmp_path: Path, capsys: pytest.CaptureFixture[str]) -> None:

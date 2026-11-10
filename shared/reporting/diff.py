@@ -32,6 +32,7 @@ from shared.reporting.inventory import (
     load_snapshot,
     options_from_config,
     parse_timestamp,
+    unverified_notes,
 )
 from shared.reporting.jsonio import JsonInputError, load_json_strict
 
@@ -122,6 +123,8 @@ def main(argv: list[str] | None = None) -> int:
     except (ReportError, ConfigError, IncompatibleReportsError) as exc:
         sys.stderr.write(f"blueops-diff: {exc}\n")
         return int(ExitCode.PRECONDITION)
+    for note in unverified_notes("blueops-diff", base, cur):
+        sys.stderr.write(note + "\n")  # stderr only: the documented output is unchanged
     text = _emit(args, diff)
     try:
         if args.output:

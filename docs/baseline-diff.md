@@ -202,6 +202,8 @@ Reports are untrusted input. A report whose `findings` or `errors` is not a list
 
 ## Limitations
 
+- **Unverified inputs.** The output of `blueops-diff` and `blueops-detect` is identical for a report file and its run directory (a documented contract), so it cannot carry the standing of its inputs. A run directory with a `manifest.json` is verified (refused on mismatch). Any input that could not be verified (a bare report, a directory without a manifest, `blueops-detect --from-diff`) prints one `WARNING: ... UNVERIFIED` line per input on **stderr**; `--quiet` does not suppress it, and stdout and `--output` are unchanged. Redirecting stderr away hides the warning: use `python -m shared.engine compare` / `detect` for outputs that record `inputs_verified`.
+
 - It is only as complete as the audits behind it: anything the collectors do not inventory (e.g. file contents outside the listed paths) cannot be diffed.
 - A compromised host can lie to its own audit (see [security-model.md](security-model.md)); a clean diff is not proof of integrity. Compare against a baseline taken before the incident, ideally cross-checked from offline media.
 - Windows keys are compared case-insensitively; attribute values are compared exactly.

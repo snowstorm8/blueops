@@ -1039,7 +1039,9 @@ def test_cli_from_diff_equals_from_reports(
     capsys.readouterr()
     a = _cli(capsys, "--from-diff", saved, "--json", "--quiet", "--generated-at", NOW)
     b = _cli(capsys, *_pair_args("windows"), "--json", "--quiet", "--generated-at", NOW)
-    assert a == b and a[0] == 4
+    # the documented output (exit code and stdout) is identical; stderr legitimately differs
+    # because each says why its input is unverified (a saved diff vs. two bare reports)
+    assert a[:2] == b[:2] and a[0] == 4
 
 
 def test_cli_text_report_explains_each_detection(capsys: pytest.CaptureFixture[str]) -> None:
