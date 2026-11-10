@@ -12,8 +12,6 @@ All notable changes are documented here. Format: [Keep a Changelog](https://keep
 - README `Quick start` leads with the exact clone commands; `docs/deployment.md` documents Debian, Rocky, Windows and offline requirements.
 - Lint/format now cover the extensionless `blueops` launcher (`.editorconfig`, `lint.yml`, `check.sh`).
 
-### Added (WCComps 2026 Invitational 2)
-- `docs/ccdc-invitational-2.md`: event-specific deployment and operations guide derived from the team packet (machine-to-collector map with full/partial/manual tiers, collect/compare/investigate/verify workflow, report locations, router and scoring-safety rules, known gaps). No code changes.
 
 ### Security and integrity (audit remediation, P1-P3)
 - **Test hooks need `BO_TEST_MODE=1`** on both platforms (`BO_ROOT`, `BO_FORCE_MISSING_TOOLS`, `BO_FIXTURE_DIR`, `BO_FORCE_MISSING`). Without it they are removed/ignored and the run records `TEST_HOOKS_IGNORED` (material, exit 6); reports made with them carry the new optional `host.test_mode` (report schema 0.2.0, additive). The comparison warns (`TEST_MODE`). Test harnesses (Bats helper, pytest, Pester) now set it explicitly.
