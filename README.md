@@ -95,7 +95,7 @@ scripts/development/                                         Maintainer helpers
 
 ## Installation and deployment philosophy
 
-There is no installer. BlueOps is meant to be cloned (see Quick start) or copied to a host (or run from read-only media); verify what you cloned with `./blueops version` (prints the Git commit) or a checksum you obtained out-of-band. It never downloads or executes remote code, and never needs internet access. See [docs/deployment.md](docs/deployment.md). Event-specific guide: [WCComps 2026 Invitational 2](docs/ccdc-invitational-2.md).
+There is no installer. BlueOps is meant to be cloned (see Quick start) or copied to a host (or run from read-only media); verify what you cloned with `./blueops version` (prints the Git commit) or a checksum you obtained out-of-band. It never downloads or executes remote code, and never needs internet access. See [docs/deployment.md](docs/deployment.md).
 
 ## Configuration overview
 
