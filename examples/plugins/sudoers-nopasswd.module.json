@@ -1,0 +1,14 @@
+{
+  "schema_version": "0.1.0",
+  "kind": "module",
+  "id": "linux.sudoers-nopasswd",
+  "title": "Passwordless sudo rules (example plugin)",
+  "description": "Example plugin: reports sudoers rules that grant NOPASSWD: ALL. Read-only; reads /etc/sudoers and /etc/sudoers.d only.",
+  "version": "1.0.0",
+  "platform": "linux",
+  "category": "audit",
+  "privilege": "recommended",
+  "timeout_seconds": 60,
+  "provides": [],
+  "command": ["python3", "-I", "{plugin_dir}/sudoers_nopasswd.py", "{output_dir}"]
+}

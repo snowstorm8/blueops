@@ -8,7 +8,42 @@
 4. **Strict separation of intent.** `audit` and `persistence` are read-only; `incident` collects evidence and offers opt-in containment; `hardening` changes state. A script lives in exactly one category.
 5. **Safety by construction.** Confirmation, dry-run, rollback records, and protected-service checks are implemented once in each platform's `lib/` and reused.
 
-## Data flow (planned)
+## Data flow
+
+```
+linux/*.sh ──┐                        ┌─> report.json (audit-report 0.2.0)
+             ├─> per-host run dir ────┤
+windows/*.ps1┘   (logs, evidence,     └─> evidence/ + manifest.json (SHA-256)
+plugins ─────┘    rollback/)                    │
+                                                v
+                  shared/engine (registry -> runner -> validation -> assessment)
+                                                │
+                       shared/findings (BOF-/EV- identity, dedupe, provenance)
+                                                │
+              assessment.json ──> shared/reporting (snapshot compare, Markdown, HTML)
+                                  shared/reporting.diff / detect (inventory diff, detection rules)
+```
+
+The assessment platform (engine, findings, comparison, reports) is described in [assessment-engine.md](assessment-engine.md), [findings.md](findings.md), [reporting.md](reporting.md) and [plugins.md](plugins.md).
+
+### Layers
+
+| Layer | Package | Depends on | Must not |
+|---|---|---|---|
+| Collectors | `linux/`, `windows/` | OS tools only | import Python, call the engine |
+| Contracts | `shared/schemas/`, `shared/reporting/contracts.py` | nothing | change meaning of a field in a minor release |
+| Validation | `shared/reporting/schema_lite.py`, `jsonio.py` | stdlib | accept a schema keyword it cannot check |
+| Findings | `shared/findings/` | contracts | read a host |
+| Engine | `shared/engine/` | validation, findings | inspect a host, load plugin code, use a shell |
+| Analysis and reporting | `shared/reporting/` | engine documents | write anything but the file it is told to |
+
+### Decisions (assessment platform)
+
+- **A central document derived from, not replacing, the collector reports.** Old tooling (`diff`, `detect`, `verify`) keeps working on report files; an assessment projects back onto the report shape (`assessment_to_report`) so the inventory engine can be reused unchanged.
+- **Separate schema version line.** The audit-report schema stays at 0.2.0 (no collector change was needed for the platform); assessment, snapshot-comparison, manifest, module and profile documents start at 0.1.0 (`shared/engine/__init__.py`). Alternative considered: bump everything to 0.3.0. Rejected: it would force a version change onto every golden fixture without any change in meaning.
+- **Identity per check per host, evidence-level detail inside.** Alternative considered: one finding per evidence item. Rejected: it would contradict the collectors' own findings and make counts depend on list truncation (`only the first N are listed`); evidence ids remain available for item-level tracking.
+- **Coverage before conclusions.** The comparison reports `indeterminate` rather than guessing when a module did not run cleanly, extending the principle already used for inventory.
+- **No parallelism, no resume.** Chosen for availability and simplicity; revisit with evidence.
 
 ```
 linux/*.sh ──┐                        ┌─> report.json (schema 0.x)

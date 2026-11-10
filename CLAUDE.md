@@ -17,9 +17,11 @@ Status: the repository is scaffolding. Do not claim a capability exists until it
 | `linux/{audit,persistence,incident,hardening,lib}` | Bash tooling. `lib/` holds sourced helpers only (no top-level side effects). |
 | `windows/{audit,persistence,incident,hardening,lib}` | PowerShell tooling. `lib/` holds dot-sourced/imported helpers only. |
 | `shared/schemas/` | Versioned JSON Schemas (the contract between platforms and tooling). |
-| `shared/reporting/` | Python 3 (stdlib-first) code: contracts, report validation, merging, rendering. |
+| `shared/engine/` | Python 3 assessment engine: module registry, plugin manifests, runner, profiles, assessment assembly (`python -m shared.engine`). Starts collectors as argv lists only; never inspects a host. |
+| `shared/findings/` | Central findings and evidence: stable ids, deduplication, provenance, standards references. |
+| `shared/reporting/` | Python 3 (stdlib-first) code: contracts, report validation, baseline diff, detection, snapshot comparison, Markdown/HTML rendering, the dependency-free schema validator. |
 | `shared/config/` | Platform-neutral default configuration. |
-| `profiles/{linux,windows}/` | Named hardening/audit profiles (e.g. per-competition service allowlists). |
+| `profiles/{linux,windows}/` | Named assessment/hardening profiles (assessment profiles select modules and collector options; hardening profiles list protected services). |
 | `tests/{linux,windows,shared,fixtures}` | Bats, Pester, pytest tests; fixtures are synthetic data only. |
 | `docs/` | Architecture, development, deployment, security model, roadmap, contracts. |
 | `examples/` | Example reports and configs (synthetic). |

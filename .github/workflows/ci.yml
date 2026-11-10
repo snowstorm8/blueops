@@ -15,12 +15,18 @@ concurrency:
 jobs:
   python:
     name: Python tests (${{ matrix.os }}, py${{ matrix.python }})
-    runs-on: ${{ matrix.os }}
+    runs-on: ${{ matrix.runner || matrix.os }}
     strategy:
       fail-fast: false
       matrix:
         os: [ubuntu-latest, windows-latest]
         python: ["3.9", "3.12"]
+        include:
+          # setup-python has no Python 3.9 build for the Ubuntu 26.04 image behind
+          # ubuntu-latest; pin only this combination (the job name stays unchanged).
+          - os: ubuntu-latest
+            python: "3.9"
+            runner: ubuntu-24.04
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
@@ -53,6 +59,28 @@ jobs:
           code=$?
           test "$code" -eq 4 || { echo "allowlist: expected exit 4, got $code"; exit 1; }
           python -c "import json; d=json.load(open('allow.json')); s=d['summary']; assert s['accepted']==1 and s['total']==11 and d['allowlist']['entries'][0]['status']=='matched', s"
+      - name: Assessment engine smoke test (plugin module, compare, reports, verify)
+        if: runner.os != 'Windows'
+        shell: bash
+        run: |
+          set -e
+          work="$(mktemp -d)"
+          cp -R examples/plugins "$work/plugins"
+          chmod 755 "$work/plugins" && chmod 644 "$work"/plugins/*
+          python -m shared.engine list --platform linux --plugin-dir "$work/plugins" | grep -q linux.sudoers-nopasswd
+          for n in 1 2; do
+            set +e
+            python -m shared.engine run --platform linux --plugin-dir "$work/plugins" --modules linux.sudoers-nopasswd --output-dir "$work/out$n" --quiet
+            code=$?
+            set -e
+            # 6 is expected for an unprivileged runner: /etc/sudoers is unreadable, which the plugin reports
+            test "$code" -eq 0 -o "$code" -eq 4 -o "$code" -eq 6 || { echo "engine run exited $code"; exit 1; }
+          done
+          a="$(ls -d "$work"/out1/blueops-assessment-*)"; b="$(ls -d "$work"/out2/blueops-assessment-*)"
+          python -m shared.engine verify "$b"
+          python -m shared.engine validate "$b/assessment.json"
+          python -m shared.engine report "$b" --compare "$a" --format html --output "$work/r.html"
+          grep -q "Content-Security-Policy" "$work/r.html"
       - name: Run-manifest smoke test (offline collector + verifier)
         if: runner.os != 'Windows'
         shell: bash

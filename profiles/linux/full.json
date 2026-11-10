@@ -1,0 +1,10 @@
+{
+  "schema_version": "0.1.0",
+  "kind": "profile",
+  "name": "full",
+  "platform": "linux",
+  "description": "Every module plus package-integrity verification (slow: hashes installed package files).",
+  "modules": ["all"],
+  "fail_on": "medium",
+  "options": { "package_integrity": true }
+}

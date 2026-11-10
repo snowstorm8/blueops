@@ -1,0 +1,274 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://blueops.invalid/schemas/assessment/0.1.0",
+  "title": "BlueOps assessment",
+  "description": "Central, deduplicated result of one assessment run: module outcomes, findings with stable identifiers, evidence with provenance, merged inventory and coverage. Produced by `python -m shared.engine run`; module reports are kept unchanged beside it.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema_version", "kind", "engine", "assessment", "modules", "findings", "evidence", "inventory", "errors", "warnings", "summary"],
+  "properties": {
+    "schema_version": { "type": "string", "pattern": "^0\\.\\d+\\.\\d+$" },
+    "kind": { "const": "assessment" },
+    "engine": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["name", "version"],
+      "properties": { "name": { "type": "string", "minLength": 1 }, "version": { "type": "string", "minLength": 1 } }
+    },
+    "assessment": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "profile", "platform", "started_at", "finished_at", "mode", "fail_on", "status", "exit_code", "modules"],
+      "properties": {
+        "id": { "type": "string", "minLength": 1 },
+        "profile": { "type": "string", "minLength": 1 },
+        "platform": { "type": "string", "minLength": 1 },
+        "started_at": { "$ref": "#/$defs/timestamp" },
+        "finished_at": { "$ref": "#/$defs/timestamp" },
+        "mode": { "const": "read-only" },
+        "fail_on": { "$ref": "#/$defs/severity" },
+        "status": { "enum": ["complete", "partial", "failed"] },
+        "exit_code": { "type": "integer", "minimum": 0, "maximum": 6 },
+        "modules": { "type": "array", "items": { "type": "string" } }
+      }
+    },
+    "host": {
+      "description": "Absent only when no module produced a usable report.",
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["hostname", "os", "arch"],
+      "properties": {
+        "hostname": { "type": "string", "minLength": 1 },
+        "os": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["family", "name", "version"],
+          "properties": {
+            "family": { "enum": ["linux", "windows"] },
+            "name": { "type": "string" },
+            "version": { "type": "string" }
+          }
+        },
+        "arch": { "type": "string" },
+        "user": { "type": "string" },
+        "elevated": { "type": "boolean" },
+        "test_mode": { "const": true }
+      }
+    },
+    "modules": { "type": "array", "items": { "$ref": "#/$defs/module_result" } },
+    "findings": { "type": "array", "items": { "$ref": "#/$defs/finding" } },
+    "evidence": { "type": "array", "items": { "$ref": "#/$defs/evidence" } },
+    "inventory": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["coverage", "records"],
+      "properties": {
+        "coverage": { "type": "array", "items": { "type": "object" } },
+        "records": { "type": "array", "items": { "type": "object" } }
+      }
+    },
+    "errors": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["module", "code", "message"],
+        "properties": {
+          "module": { "type": "string" },
+          "code": { "type": "string", "minLength": 1 },
+          "message": { "type": "string" },
+          "check_id": { "type": "string" }
+        }
+      }
+    },
+    "warnings": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["code", "message"],
+        "properties": { "code": { "type": "string", "minLength": 1 }, "message": { "type": "string" } }
+      }
+    },
+    "summary": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["total", "by_severity", "by_confidence", "by_category", "by_priority", "evidence_items", "modules"],
+      "properties": {
+        "total": { "type": "integer", "minimum": 0 },
+        "by_severity": { "$ref": "#/$defs/count_map_severity" },
+        "by_confidence": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["low", "medium", "high"],
+          "properties": {
+            "low": { "type": "integer", "minimum": 0 },
+            "medium": { "type": "integer", "minimum": 0 },
+            "high": { "type": "integer", "minimum": 0 }
+          }
+        },
+        "by_category": { "type": "object", "additionalProperties": { "type": "integer", "minimum": 0 } },
+        "by_priority": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["P1", "P2", "P3", "P4"],
+          "properties": {
+            "P1": { "type": "integer", "minimum": 0 },
+            "P2": { "type": "integer", "minimum": 0 },
+            "P3": { "type": "integer", "minimum": 0 },
+            "P4": { "type": "integer", "minimum": 0 }
+          }
+        },
+        "evidence_items": { "type": "integer", "minimum": 0 },
+        "modules": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["ok", "partial", "failed", "timeout", "invalid_output", "skipped"],
+          "properties": {
+            "ok": { "type": "integer", "minimum": 0 },
+            "partial": { "type": "integer", "minimum": 0 },
+            "failed": { "type": "integer", "minimum": 0 },
+            "timeout": { "type": "integer", "minimum": 0 },
+            "invalid_output": { "type": "integer", "minimum": 0 },
+            "skipped": { "type": "integer", "minimum": 0 }
+          }
+        }
+      }
+    }
+  },
+  "$defs": {
+    "timestamp": { "type": "string", "pattern": "^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}(\\.\\d+)?Z$" },
+    "severity": { "enum": ["info", "low", "medium", "high", "critical"] },
+    "count_map_severity": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["info", "low", "medium", "high", "critical"],
+      "properties": {
+        "info": { "type": "integer", "minimum": 0 },
+        "low": { "type": "integer", "minimum": 0 },
+        "medium": { "type": "integer", "minimum": 0 },
+        "high": { "type": "integer", "minimum": 0 },
+        "critical": { "type": "integer", "minimum": 0 }
+      }
+    },
+    "module_result": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "status", "started_at", "finished_at", "duration_seconds", "findings"],
+      "properties": {
+        "id": { "type": "string", "minLength": 1 },
+        "status": { "enum": ["ok", "partial", "failed", "timeout", "invalid_output", "skipped"] },
+        "reason": { "type": "string" },
+        "started_at": { "$ref": "#/$defs/timestamp" },
+        "finished_at": { "$ref": "#/$defs/timestamp" },
+        "duration_seconds": { "type": "number", "minimum": 0 },
+        "exit_code": { "type": "integer" },
+        "command": { "type": "array", "items": { "type": "string" } },
+        "findings": { "type": "integer", "minimum": 0 },
+        "report": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["path", "sha256"],
+          "properties": {
+            "path": { "type": "string", "minLength": 1 },
+            "sha256": { "type": "string", "pattern": "^[a-f0-9]{64}$" }
+          }
+        },
+        "errors": { "type": "array", "items": { "type": "object" } },
+        "stderr_tail": { "type": "string" }
+      }
+    },
+    "standard": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["framework", "id"],
+      "properties": {
+        "framework": { "enum": ["MITRE ATT&CK", "NIST SP 800-53 Rev. 5"] },
+        "id": { "type": "string", "minLength": 1 },
+        "title": { "type": "string" },
+        "url": { "type": "string" }
+      }
+    },
+    "finding": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "check_id", "title", "description", "severity", "confidence", "category", "component", "host", "detected_at", "evidence", "remediation", "standards", "sources", "occurrences"],
+      "properties": {
+        "id": { "type": "string", "pattern": "^BOF-[a-f0-9]{16}$" },
+        "check_id": { "type": "string", "pattern": "^[A-Z]{2,6}-[A-Z0-9]+-\\d{3,}$" },
+        "title": { "type": "string", "minLength": 1 },
+        "description": { "type": "string" },
+        "severity": { "$ref": "#/$defs/severity" },
+        "confidence": { "enum": ["low", "medium", "high"] },
+        "category": { "type": "string", "minLength": 1 },
+        "component": { "type": "string", "minLength": 1 },
+        "host": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["hostname", "host_id"],
+          "properties": {
+            "hostname": { "type": "string", "minLength": 1 },
+            "host_id": { "type": "string", "pattern": "^H-[a-f0-9]{12}$" }
+          }
+        },
+        "detected_at": { "$ref": "#/$defs/timestamp" },
+        "evidence": { "type": "array", "items": { "type": "string", "pattern": "^EV-[a-f0-9]{16}$" } },
+        "remediation": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["summary", "priority"],
+          "properties": {
+            "summary": { "type": "string" },
+            "priority": { "enum": ["P1", "P2", "P3", "P4"] }
+          }
+        },
+        "standards": { "type": "array", "items": { "$ref": "#/$defs/standard" } },
+        "references": { "type": "array", "items": { "type": "string" } },
+        "sources": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["module", "run_id", "check_id"],
+            "properties": {
+              "module": { "type": "string" },
+              "run_id": { "type": "string" },
+              "check_id": { "type": "string" }
+            }
+          }
+        },
+        "occurrences": { "type": "integer", "minimum": 1 }
+      }
+    },
+    "evidence": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "type", "ref", "provenance"],
+      "properties": {
+        "id": { "type": "string", "pattern": "^EV-[a-f0-9]{16}$" },
+        "type": { "enum": ["file", "registry", "process", "network", "command", "log", "other"] },
+        "ref": { "type": "string", "minLength": 1, "maxLength": 1024 },
+        "sha256": { "type": "string", "pattern": "^[a-f0-9]{64}$" },
+        "excerpts": { "type": "array", "maxItems": 5, "items": { "type": "string", "maxLength": 2000 } },
+        "provenance": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["module", "run_id", "check_id", "collected_at", "collector"],
+            "properties": {
+              "module": { "type": "string" },
+              "run_id": { "type": "string" },
+              "check_id": { "type": "string" },
+              "collected_at": { "$ref": "#/$defs/timestamp" },
+              "collector": { "type": "string" },
+              "report_sha256": { "type": "string", "pattern": "^[a-f0-9]{64}$" }
+            }
+          }
+        }
+      }
+    }
+  }
+}

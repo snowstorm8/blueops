@@ -29,11 +29,11 @@ Describe 'usage and informational options' {
         $r.Out | Should -Match '^audit-windows \d+\.\d+\.\d+'
     }
 
-    It '-ListModules lists all eleven modules' {
+    It '-ListModules lists all twelve modules' {
         $r = Invoke-BoTestRun -Fixture $script:Fx -Arguments @('-ListModules')
         $r.ExitCode | Should -Be 0
         $names = @($r.Out -split "`r?`n" | Where-Object { $_ })
-        $names.Count | Should -Be 11
+        $names.Count | Should -Be 12
         $names | Should -Contain 'persistence'
         $names | Should -Contain 'firewall'
         $names | Should -Contain 'tasks'
@@ -93,7 +93,7 @@ Describe 'report shape' {
 
     It 'every module contributes findings in a full audit' -ForEach @(
         @{ Prefix = 'SYS' }, @{ Prefix = 'USR' }, @{ Prefix = 'PRC' }, @{ Prefix = 'NET' }, @{ Prefix = 'SVC' }, @{ Prefix = 'TSK' },
-        @{ Prefix = 'AUT' }, @{ Prefix = 'PER' }, @{ Prefix = 'FW' }, @{ Prefix = 'SEC' }, @{ Prefix = 'FS' }
+        @{ Prefix = 'AUT' }, @{ Prefix = 'PER' }, @{ Prefix = 'FW' }, @{ Prefix = 'SEC' }, @{ Prefix = 'EVT' }, @{ Prefix = 'FS' }
     ) {
         @($script:Full.Json.findings | Where-Object { $_.id -like "$Prefix-*" }).Count | Should -BeGreaterThan 0
     }
