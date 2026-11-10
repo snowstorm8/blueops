@@ -156,6 +156,13 @@
             }
           }
         },
+        "known_issue": {
+          "type": "object",
+          "description": "A documented weakness: the scenario is expected to fail today. It still counts in the metrics (a known false positive lowers precision); it does not fail the run, and it fails the run once it starts passing so the marker gets removed.",
+          "additionalProperties": false,
+          "required": ["description"],
+          "properties": {"description": {"type": "string", "minLength": 1, "maxLength": 400}}
+        },
         "limitations": {"type": "array", "minItems": 1, "maxItems": 10, "items": {"type": "string", "minLength": 1, "maxLength": 400}}
       }
     }

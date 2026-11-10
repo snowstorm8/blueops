@@ -1,0 +1,69 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://blueops.invalid/schemas/validation-results/1.0.0",
+  "title": "BlueOps validation results",
+  "description": "Outcomes of running scenarios against the detection engine, detection quality metrics (undefined values are null with a reason), reproducibility metadata and calibration recommendations. Synthetic results measure rule logic on the scenario library; they are not a measure of real-world detection accuracy.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema_version", "kind", "generated_at", "run", "reproducibility", "scenarios", "metrics", "coverage", "failures", "recommendations", "summary"],
+  "properties": {
+    "schema_version": {"type": "string", "pattern": "^1\\.\\d+\\.\\d+$"},
+    "kind": {"const": "validation-results"},
+    "generated_at": {"type": "string", "pattern": "^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}(\\.\\d+)?Z$"},
+    "run": {
+      "type": "object",
+      "required": ["id", "mode", "dry_run", "started_at", "finished_at", "host"],
+      "properties": {
+        "id": {"type": "string", "minLength": 1},
+        "mode": {"enum": ["synthetic", "live", "recorded"]},
+        "dry_run": {"type": "boolean"},
+        "started_at": {"type": "string"},
+        "finished_at": {"type": "string"},
+        "host": {"type": "object"},
+        "isolation": {"type": "object"},
+        "command": {"type": "string", "maxLength": 1000}
+      }
+    },
+    "reproducibility": {
+      "type": "object",
+      "required": ["digest", "scenario_packs", "rule_packs", "rules", "versions"],
+      "properties": {
+        "digest": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+        "scenario_packs": {"type": "array", "items": {"type": "object"}},
+        "rule_packs": {"type": "array", "items": {"type": "object"}},
+        "rules": {"type": "array", "items": {"type": "object", "required": ["id", "version", "sha256"], "properties": {"id": {"type": "string"}, "version": {"type": "string"}, "sha256": {"type": "string"}}}},
+        "versions": {"type": "object"}
+      }
+    },
+    "scenarios": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["id", "kind", "status", "reason", "platforms", "checks", "outcomes", "sha256"],
+        "properties": {
+          "id": {"type": "string"},
+          "kind": {"enum": ["positive", "negative", "coverage"]},
+          "status": {"enum": ["pass", "fail", "error", "inconclusive", "skipped", "known_issue"]},
+          "reason": {"type": "string"},
+          "platforms": {"type": "array", "items": {"enum": ["linux", "windows"]}},
+          "sha256": {"type": "string"},
+          "checks": {"type": "array", "items": {"type": "object"}},
+          "outcomes": {"type": "array", "items": {"type": "object", "required": ["scenario", "rule", "outcome"], "properties": {"outcome": {"enum": ["true_positive", "false_negative", "false_positive", "true_negative", "inconclusive", "expected_inconclusive", "rule_error", "not_evaluated", "unexpected_detection"]}}}}
+        }
+      }
+    },
+    "metrics": {
+      "type": "object",
+      "required": ["global", "by_platform", "by_rule", "by_kind", "explanations"],
+      "properties": {"global": {"type": "object"}, "by_platform": {"type": "object"}, "by_rule": {"type": "object"}, "by_kind": {"type": "object"}, "explanations": {"type": "object"}}
+    },
+    "coverage": {"type": "object"},
+    "failures": {"type": "array", "items": {"type": "object", "required": ["scenario", "status", "reason"]}},
+    "recommendations": {"type": "array", "items": {"type": "object", "required": ["id", "rule", "kind", "summary", "strength", "applied"], "properties": {"applied": {"const": false}}}},
+    "summary": {
+      "type": "object",
+      "required": ["scenarios", "by_status", "exit_status", "synthetic_only"],
+      "properties": {"scenarios": {"type": "integer"}, "by_status": {"type": "object"}, "exit_status": {"enum": ["ok", "failures", "incomplete"]}, "synthetic_only": {"type": "boolean"}, "disclaimer": {"type": "string"}}
+    }
+  }
+}

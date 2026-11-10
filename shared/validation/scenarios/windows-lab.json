@@ -1,0 +1,2101 @@
+{
+ "schema_version": "1.0.0",
+ "kind": "scenario-pack",
+ "pack": {
+  "name": "windows-lab",
+  "version": "1.0.0",
+  "description": "Windows endpoint conditions: process relationships, persistence, authentication, network, integrity and coverage gaps (synthetic telemetry)."
+ },
+ "scenarios": [
+  {
+   "id": "SCN-WIN-PRC-001",
+   "title": "Command shell under the IIS worker process",
+   "description": "w3wp.exe is the parent of cmd.exe.",
+   "objective": "HPRC-001 detects a shell under a network-facing service on Windows.",
+   "kind": "positive",
+   "platforms": [
+    "windows"
+   ],
+   "supported_versions": [
+    "any"
+   ],
+   "tags": [
+    "process",
+    "relationship"
+   ],
+   "dataset": {
+    "platform": "windows",
+    "records": [
+     {
+      "category": "process",
+      "key": "pid:4:1",
+      "attributes": {
+       "pid": 4,
+       "ppid": 0,
+       "name": "system",
+       "exe": "",
+       "user": "NT AUTHORITY\\SYSTEM",
+       "cmdline": ""
+      }
+     },
+     {
+      "category": "process",
+      "key": "pid:100:1",
+      "attributes": {
+       "pid": 100,
+       "ppid": 4,
+       "name": "w3wp.exe",
+       "exe": "C:\\Windows\\System32\\inetsrv\\w3wp.exe",
+       "user": "IIS APPPOOL\\site",
+       "cmdline": "C:\\Windows\\System32\\inetsrv\\w3wp.exe"
+      }
+     },
+     {
+      "category": "process",
+      "key": "pid:200:1",
+      "attributes": {
+       "pid": 200,
+       "ppid": 100,
+       "name": "cmd.exe",
+       "exe": "C:\\Windows\\System32\\cmd.exe",
+       "user": "IIS APPPOOL\\site",
+       "cmdline": "C:\\Windows\\System32\\cmd.exe"
+      }
+     }
+    ]
+   },
+   "expect": {
+    "detections": [
+     {
+      "rule": "DR-ANY-HPRC-001",
+      "count": 1
+     }
+    ]
+   },
+   "cleanup": {
+    "required": false,
+    "description": "Synthetic dataset: nothing is created on any host."
+   },
+   "limitations": [
+    "Synthetic telemetry shaped like the Windows collector's output; it shows the rule's logic, not how a real host behaves.",
+    "Names are lower-cased by the collector; the rule's server list is not exhaustive."
+   ]
+  },
+  {
+   "id": "SCN-WIN-PRC-002",
+   "title": "Interactive desktop command prompt",
+   "description": "explorer.exe starts cmd.exe and powershell.exe for a user.",
+   "objective": "An unusual-looking but normal desktop relationship is not flagged.",
+   "kind": "negative",
+   "platforms": [
+    "windows"
+   ],
+   "supported_versions": [
+    "any"
+   ],
+   "tags": [
+    "process",
+    "relationship",
+    "benign"
+   ],
+   "dataset": {
+    "platform": "windows",
+    "records": [
+     {
+      "category": "process",
+      "key": "pid:300:1",
+      "attributes": {
+       "pid": 300,
+       "ppid": 0,
+       "name": "explorer.exe",
+       "exe": "C:\\Windows\\explorer.exe",
+       "user": "CORP\\bob",
+       "cmdline": "C:\\Windows\\explorer.exe"
+      }
+     },
+     {
+      "category": "process",
+      "key": "pid:310:1",
+      "attributes": {
+       "pid": 310,
+       "ppid": 300,
+       "name": "cmd.exe",
+       "exe": "C:\\Windows\\System32\\cmd.exe",
+       "user": "CORP\\bob",
+       "cmdline": "C:\\Windows\\System32\\cmd.exe"
+      }
+     },
+     {
+      "category": "process",
+      "key": "pid:320:1",
+      "attributes": {
+       "pid": 320,
+       "ppid": 310,
+       "name": "powershell.exe",
+       "exe": "C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe",
+       "user": "CORP\\bob",
+       "cmdline": "powershell.exe -File C:\\ops\\backup.ps1"
+      }
+     }
+    ]
+   },
+   "expect": {
+    "absent": [
+     "DR-ANY-HPRC-001",
+     "DR-WIN-HPRC-005",
+     "DR-WIN-HPRC-006",
+     "DR-ANY-HPRC-002"
+    ]
+   },
+   "cleanup": {
+    "required": false,
+    "description": "Synthetic dataset: nothing is created on any host."
+   },
+   "limitations": [
+    "Synthetic telemetry shaped like the Windows collector's output; it shows the rule's logic, not how a real host behaves."
+   ]
+  },
+  {
+   "id": "SCN-WIN-PRC-003",
+   "title": "PowerShell started by Word",
+   "description": "winword.exe starts powershell.exe.",
+   "objective": "WIN-HPRC-005 flags a script host under an Office application.",
+   "kind": "positive",
+   "platforms": [
+    "windows"
+   ],
+   "supported_versions": [
+    "any"
+   ],
+   "tags": [
+    "process",
+    "relationship"
+   ],
+   "dataset": {
+    "platform": "windows",
+    "records": [
+     {
+      "category": "process",
+      "key": "pid:100:1",
+      "attributes": {
+       "pid": 100,
+       "ppid": 4,
+       "name": "winword.exe",
+       "exe": "C:\\Program Files\\Microsoft Office\\root\\Office16\\winword.exe",
+       "user": "CORP\\bob",
+       "cmdline": "C:\\Program Files\\Microsoft Office\\root\\Office16\\winword.exe"
+      }
+     },
+     {
+      "category": "process",
+      "key": "pid:200:1",
+      "attributes": {
+       "pid": 200,
+       "ppid": 100,
+       "name": "powershell.exe",
+       "exe": "C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe",
+       "user": "CORP\\bob",
+       "cmdline": "C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe"
+      }
+     }
+    ]
+   },
+   "expect": {
+    "detections": [
+     {
+      "rule": "DR-WIN-HPRC-005",
+      "count": 1
+     }
+    ]
+   },
+   "cleanup": {
+    "required": false,
+    "description": "Synthetic dataset: nothing is created on any host."
+   },
+   "limitations": [
+    "Synthetic telemetry shaped like the Windows collector's output; it shows the rule's logic, not how a real host behaves."
+   ]
+  },
+  {
+   "id": "SCN-WIN-PRC-004",
+   "title": "Encoded PowerShell command",
+   "description": "powershell.exe -enc with a long Base64 argument.",
+   "objective": "WIN-HPRC-006 flags an encoded command.",
+   "kind": "positive",
+   "platforms": [
+    "windows"
+   ],
+   "supported_versions": [
+    "any"
+   ],
+   "tags": [
+    "process",
+    "command-line"
+   ],
+   "dataset": {
+    "platform": "windows",
+    "records": [
+     {
+      "category": "process",
+      "key": "pid:200:1",
+      "attributes": {
+       "pid": 200,
+       "ppid": 4,
+       "name": "powershell.exe",
+       "exe": "C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe",
+       "user": "CORP\\bob",
+       "cmdline": "powershell.exe -NoP -enc SQBFAFgAIAAoAE4AZQB3AC0ATwBiAGoAZQBjAHQAIABOAGUAdAA="
+      }
+     }
+    ]
+   },
+   "expect": {
+    "detections": [
+     {
+      "rule": "DR-WIN-HPRC-006",
+      "count": 1
+     }
+    ]
+   },
+   "cleanup": {
+    "required": false,
+    "description": "Synthetic dataset: nothing is created on any host."
+   },
+   "limitations": [
+    "Synthetic telemetry shaped like the Windows collector's output; it shows the rule's logic, not how a real host behaves.",
+    "The content is not decoded; management tools use the same switch."
+   ]
+  },
+  {
+   "id": "SCN-WIN-PRC-005",
+   "title": "PowerShell running a script file",
+   "description": "powershell.exe -File with a short argument.",
+   "objective": "A plain script invocation and a short -e argument are not encoded payloads.",
+   "kind": "negative",
+   "platforms": [
+    "windows"
+   ],
+   "supported_versions": [
+    "any"
+   ],
+   "tags": [
+    "process",
+    "command-line",
+    "benign"
+   ],
+   "dataset": {
+    "platform": "windows",
+    "records": [
+     {
+      "category": "process",
+      "key": "pid:200:1",
+      "attributes": {
+       "pid": 200,
+       "ppid": 4,
+       "name": "powershell.exe",
+       "exe": "C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe",
+       "user": "CORP\\bob",
+       "cmdline": "powershell.exe -File C:\\ops\\backup.ps1 -e abc"
+      }
+     }
+    ]
+   },
+   "expect": {
+    "absent": [
+     "DR-WIN-HPRC-006"
+    ]
+   },
+   "cleanup": {
+    "required": false,
+    "description": "Synthetic dataset: nothing is created on any host."
+   },
+   "limitations": [
+    "Synthetic telemetry shaped like the Windows collector's output; it shows the rule's logic, not how a real host behaves."
+   ]
+  },
+  {
+   "id": "SCN-WIN-PRC-006",
+   "title": "Program running from the user's Temp directory",
+   "description": "An executable under AppData\\Local\\Temp is running.",
+   "objective": "HPRC-002 flags a temporary location on Windows.",
+   "kind": "positive",
+   "platforms": [
+    "windows"
+   ],
+   "supported_versions": [
+    "any"
+   ],
+   "tags": [
+    "process",
+    "executable"
+   ],
+   "dataset": {
+    "platform": "windows",
+    "records": [
+     {
+      "category": "process",
+      "key": "pid:300:1",
+      "attributes": {
+       "pid": 300,
+       "ppid": 4,
+       "name": "updater.exe",
+       "exe": "C:\\Users\\bob\\AppData\\Local\\Temp\\updater.exe",
+       "user": "CORP\\bob",
+       "cmdline": "C:\\Users\\bob\\AppData\\Local\\Temp\\updater.exe"
+      }
+     }
+    ]
+   },
+   "expect": {
+    "detections": [
+     {
+      "rule": "DR-ANY-HPRC-002",
+      "count": 1
+     }
+    ]
+   },
+   "cleanup": {
+    "required": false,
+    "description": "Synthetic dataset: nothing is created on any host."
+   },
+   "limitations": [
+    "Synthetic telemetry shaped like the Windows collector's output; it shows the rule's logic, not how a real host behaves."
+   ]
+  },
+  {
+   "id": "SCN-WIN-PRC-007",
+   "title": "Programs from Program Files",
+   "description": "Installed software running from protected locations.",
+   "objective": "Expected executable locations are not flagged.",
+   "kind": "negative",
+   "platforms": [
+    "windows"
+   ],
+   "supported_versions": [
+    "any"
+   ],
+   "tags": [
+    "process",
+    "executable",
+    "benign"
+   ],
+   "dataset": {
+    "platform": "windows",
+    "records": [
+     {
+      "category": "process",
+      "key": "pid:300:1",
+      "attributes": {
+       "pid": 300,
+       "ppid": 4,
+       "name": "chrome.exe",
+       "exe": "C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe",
+       "user": "CORP\\bob",
+       "cmdline": "C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe"
+      }
+     },
+     {
+      "category": "process",
+      "key": "pid:310:1",
+      "attributes": {
+       "pid": 310,
+       "ppid": 4,
+       "name": "svchost.exe",
+       "exe": "C:\\Windows\\System32\\svchost.exe",
+       "user": "NT AUTHORITY\\SYSTEM",
+       "cmdline": "C:\\Windows\\System32\\svchost.exe"
+      }
+     }
+    ]
+   },
+   "expect": {
+    "absent": [
+     "DR-ANY-HPRC-002"
+    ]
+   },
+   "cleanup": {
+    "required": false,
+    "description": "Synthetic dataset: nothing is created on any host."
+   },
+   "limitations": [
+    "Synthetic telemetry shaped like the Windows collector's output; it shows the rule's logic, not how a real host behaves."
+   ]
+  },
+  {
+   "id": "SCN-WIN-PRC-008",
+   "title": "Process owner and command line unknown",
+   "description": "Not elevated: owners are unknown (coverage partial).",
+   "objective": "A process rule says it cannot conclude when process telemetry is partial.",
+   "kind": "coverage",
+   "platforms": [
+    "windows"
+   ],
+   "supported_versions": [
+    "any"
+   ],
+   "tags": [
+    "process",
+    "coverage",
+    "permissions"
+   ],
+   "dataset": {
+    "platform": "windows",
+    "records": [
+     {
+      "category": "process",
+      "key": "pid:50:1",
+      "attributes": {
+       "pid": 50,
+       "ppid": 4,
+       "name": "svchost.exe",
+       "exe": null,
+       "user": null,
+       "cmdline": null
+      },
+      "unknown_attributes": [
+       "exe",
+       "user",
+       "cmdline"
+      ]
+     }
+    ],
+    "coverage": {
+     "process": "partial"
+    }
+   },
+   "expect": {
+    "indeterminate": [
+     {
+      "rule": "DR-WIN-HPRC-006",
+      "reason_contains": "partial"
+     },
+     {
+      "rule": "DR-WIN-HPRC-005",
+      "reason_contains": "partial"
+     }
+    ]
+   },
+   "cleanup": {
+    "required": false,
+    "description": "Synthetic dataset: nothing is created on any host."
+   },
+   "limitations": [
+    "Synthetic telemetry shaped like the Windows collector's output; it shows the rule's logic, not how a real host behaves."
+   ]
+  },
+  {
+   "id": "SCN-WIN-PER-001",
+   "title": "New service installed in a user-writable path",
+   "description": "A service-install event and a service whose binary is under Users\\Public.",
+   "objective": "SVC-002 correlates the install event with the writable path; SVC-001 flags the path itself.",
+   "kind": "positive",
+   "platforms": [
+    "windows"
+   ],
+   "supported_versions": [
+    "any"
+   ],
+   "tags": [
+    "persistence",
+    "service",
+    "correlation"
+   ],
+   "dataset": {
+    "platform": "windows",
+    "records": [
+     {
+      "category": "config_change",
+      "key": "w1",
+      "attributes": {
+       "object": "service",
+       "change": "added",
+       "name": "evilsvc",
+       "path": "C:\\Users\\Public\\evil.exe",
+       "actor": null
+      },
+      "event_time": "2026-03-01T09:00:00Z",
+      "unknown_attributes": [
+       "actor"
+      ]
+     },
+     {
+      "category": "service",
+      "key": "service:evilsvc",
+      "attributes": {
+       "name": "evilsvc",
+       "path": "C:\\Users\\Public\\evil.exe",
+       "state": "Running"
+      }
+     }
+    ]
+   },
+   "expect": {
+    "detections": [
+     {
+      "rule": "DR-ANY-HSVC-002",
+      "count": 1
+     },
+     {
+      "rule": "DR-ANY-HSVC-001",
+      "count": 1
+     }
+    ]
+   },
+   "cleanup": {
+    "required": false,
+    "description": "Synthetic dataset: nothing is created on any host."
+   },
+   "limitations": [
+    "Synthetic telemetry shaped like the Windows collector's output; it shows the rule's logic, not how a real host behaves."
+   ]
+  },
+  {
+   "id": "SCN-WIN-PER-002",
+   "title": "New service installed from Program Files",
+   "description": "An install event for a vendor agent whose binary is in Program Files.",
+   "objective": "A new service is not flagged unless its path is user-writable.",
+   "kind": "negative",
+   "platforms": [
+    "windows"
+   ],
+   "supported_versions": [
+    "any"
+   ],
+   "tags": [
+    "persistence",
+    "service",
+    "benign"
+   ],
+   "dataset": {
+    "platform": "windows",
+    "records": [
+     {
+      "category": "config_change",
+      "key": "w1",
+      "attributes": {
+       "object": "service",
+       "change": "added",
+       "name": "vendoragent",
+       "path": "C:\\Program Files\\Vendor\\agent.exe",
+       "actor": "SYSTEM"
+      },
+      "event_time": "2026-03-01T09:00:00Z"
+     },
+     {
+      "category": "service",
+      "key": "service:vendoragent",
+      "attributes": {
+       "name": "vendoragent",
+       "path": "C:\\Program Files\\Vendor\\agent.exe",
+       "state": "Running"
+      }
+     }
+    ]
+   },
+   "expect": {
+    "absent": [
+     "DR-ANY-HSVC-002",
+     "DR-ANY-HSVC-001"
+    ]
+   },
+   "cleanup": {
+    "required": false,
+    "description": "Synthetic dataset: nothing is created on any host."
+   },
+   "limitations": [
+    "Synthetic telemetry shaped like the Windows collector's output; it shows the rule's logic, not how a real host behaves."
+   ]
+  },
+  {
+   "id": "SCN-WIN-PER-003",
+   "title": "Run key pointing to Users\\Public",
+   "description": "A HKLM Run value starts a program from Users\\Public.",
+   "objective": "HPER-002 flags an autostart entry in a writable location.",
+   "kind": "positive",
+   "platforms": [
+    "windows"
+   ],
+   "supported_versions": [
+    "any"
+   ],
+   "tags": [
+    "persistence",
+    "configuration"
+   ],
+   "dataset": {
+    "platform": "windows",
+    "records": [
+     {
+      "category": "persistence",
+      "key": "per:run_key:HKLM\\Software\\Microsoft\\Windows\\CurrentVersion\\Run\\upd",
+      "attributes": {
+       "mechanism": "run_key",
+       "location": "HKLM\\Software\\Microsoft\\Windows\\CurrentVersion\\Run\\upd",
+       "value": "C:\\Users\\Public\\upd.exe"
+      }
+     }
+    ]
+   },
+   "expect": {
+    "detections": [
+     {
+      "rule": "DR-ANY-HPER-002",
+      "count": 1
+     }
+    ]
+   },
+   "cleanup": {
+    "required": false,
+    "description": "Synthetic dataset: nothing is created on any host."
+   },
+   "limitations": [
+    "Synthetic telemetry shaped like the Windows collector's output; it shows the rule's logic, not how a real host behaves."
+   ]
+  },
+  {
+   "id": "SCN-WIN-PER-004",
+   "title": "Run key for an installed application",
+   "description": "A Run value for a program in Program Files.",
+   "objective": "Legitimate startup configuration is not flagged.",
+   "kind": "negative",
+   "platforms": [
+    "windows"
+   ],
+   "supported_versions": [
+    "any"
+   ],
+   "tags": [
+    "persistence",
+    "configuration",
+    "benign"
+   ],
+   "dataset": {
+    "platform": "windows",
+    "records": [
+     {
+      "category": "persistence",
+      "key": "per:run_key:HKLM\\Software\\Microsoft\\Windows\\CurrentVersion\\Run\\agent",
+      "attributes": {
+       "mechanism": "run_key",
+       "location": "HKLM\\Software\\Microsoft\\Windows\\CurrentVersion\\Run\\agent",
+       "value": "C:\\Program Files\\Agent\\agent.exe"
+      }
+     }
+    ]
+   },
+   "expect": {
+    "absent": [
+     "DR-ANY-HPER-002"
+    ]
+   },
+   "cleanup": {
+    "required": false,
+    "description": "Synthetic dataset: nothing is created on any host."
+   },
+   "limitations": [
+    "Synthetic telemetry shaped like the Windows collector's output; it shows the rule's logic, not how a real host behaves."
+   ]
+  },
+  {
+   "id": "SCN-WIN-PER-005",
+   "title": "SYSTEM task running from a user profile",
+   "description": "A scheduled task as SYSTEM runs an executable from C:\\Users\\bob.",
+   "objective": "HTSK-002 flags privileged execution of a user-writable file.",
+   "kind": "positive",
+   "platforms": [
+    "windows"
+   ],
+   "supported_versions": [
+    "any"
+   ],
+   "tags": [
+    "persistence",
+    "scheduled-task",
+    "privilege"
+   ],
+   "dataset": {
+    "platform": "windows",
+    "records": [
+     {
+      "category": "scheduled_task",
+      "key": "task:\\Updater",
+      "attributes": {
+       "name": "\\Updater",
+       "command": "C:\\Users\\bob\\up.exe",
+       "user": "SYSTEM"
+      },
+      "scope": ""
+     }
+    ]
+   },
+   "expect": {
+    "detections": [
+     {
+      "rule": "DR-ANY-HTSK-002",
+      "count": 1
+     }
+    ]
+   },
+   "cleanup": {
+    "required": false,
+    "description": "Synthetic dataset: nothing is created on any host."
+   },
+   "limitations": [
+    "Synthetic telemetry shaped like the Windows collector's output; it shows the rule's logic, not how a real host behaves."
+   ]
+  },
+  {
+   "id": "SCN-WIN-PER-006",
+   "title": "Built-in maintenance task",
+   "description": "A Microsoft maintenance task running a system binary.",
+   "objective": "A normal scheduled task is not flagged.",
+   "kind": "negative",
+   "platforms": [
+    "windows"
+   ],
+   "supported_versions": [
+    "any"
+   ],
+   "tags": [
+    "persistence",
+    "scheduled-task",
+    "benign"
+   ],
+   "dataset": {
+    "platform": "windows",
+    "records": [
+     {
+      "category": "scheduled_task",
+      "key": "task:\\Microsoft\\Windows\\Defrag\\ScheduledDefrag",
+      "attributes": {
+       "name": "\\Microsoft\\Windows\\Defrag\\ScheduledDefrag",
+       "command": "%SystemRoot%\\system32\\defrag.exe -c -h -o -$",
+       "user": "SYSTEM"
+      },
+      "scope": ""
+     }
+    ]
+   },
+   "expect": {
+    "absent": [
+     "DR-ANY-HTSK-002",
+     "DR-ANY-HTSK-001"
+    ]
+   },
+   "cleanup": {
+    "required": false,
+    "description": "Synthetic dataset: nothing is created on any host."
+   },
+   "limitations": [
+    "Synthetic telemetry shaped like the Windows collector's output; it shows the rule's logic, not how a real host behaves."
+   ]
+  },
+  {
+   "id": "SCN-WIN-PER-007",
+   "title": "New service since the baseline",
+   "description": "A service the baseline did not have.",
+   "objective": "HCHG-002 reports a new service.",
+   "kind": "positive",
+   "platforms": [
+    "windows"
+   ],
+   "supported_versions": [
+    "any"
+   ],
+   "tags": [
+    "persistence",
+    "service",
+    "change"
+   ],
+   "dataset": {
+    "platform": "windows",
+    "records": [
+     {
+      "category": "service",
+      "key": "service:spooler",
+      "attributes": {
+       "name": "spooler",
+       "path": "C:\\Windows\\System32\\spoolsv.exe"
+      }
+     },
+     {
+      "category": "service",
+      "key": "service:newsvc",
+      "attributes": {
+       "name": "newsvc",
+       "path": "C:\\Program Files\\New\\n.exe"
+      }
+     }
+    ]
+   },
+   "expect": {
+    "detections": [
+     {
+      "rule": "DR-ANY-HCHG-002",
+      "count": 1
+     }
+    ]
+   },
+   "cleanup": {
+    "required": false,
+    "description": "Synthetic dataset: nothing is created on any host."
+   },
+   "limitations": [
+    "Synthetic telemetry shaped like the Windows collector's output; it shows the rule's logic, not how a real host behaves."
+   ],
+   "baseline_dataset": {
+    "platform": "windows",
+    "records": [
+     {
+      "category": "service",
+      "key": "service:spooler",
+      "attributes": {
+       "name": "spooler",
+       "path": "C:\\Windows\\System32\\spoolsv.exe"
+      }
+     }
+    ]
+   }
+  },
+  {
+   "id": "SCN-WIN-PER-008",
+   "title": "Scheduled task modified to encoded PowerShell",
+   "description": "An existing task now launches an encoded PowerShell command.",
+   "objective": "HTSK-001 detects the content of the modified task.",
+   "kind": "positive",
+   "platforms": [
+    "windows"
+   ],
+   "supported_versions": [
+    "any"
+   ],
+   "tags": [
+    "persistence",
+    "scheduled-task",
+    "change"
+   ],
+   "dataset": {
+    "platform": "windows",
+    "records": [
+     {
+      "category": "scheduled_task",
+      "key": "task:\\Backup",
+      "attributes": {
+       "name": "\\Backup",
+       "command": "powershell.exe -enc SQBFAFgAIAAoAE4AZQB3AC0ATwBiAGoAZQBjAHQAIABOAGUAdAA=",
+       "user": "SYSTEM"
+      },
+      "scope": ""
+     }
+    ]
+   },
+   "expect": {
+    "detections": [
+     {
+      "rule": "DR-ANY-HTSK-001",
+      "count": 1
+     }
+    ]
+   },
+   "cleanup": {
+    "required": false,
+    "description": "Synthetic dataset: nothing is created on any host."
+   },
+   "limitations": [
+    "Synthetic telemetry shaped like the Windows collector's output; it shows the rule's logic, not how a real host behaves.",
+    "Modification itself is not reported; only the new content is."
+   ],
+   "baseline_dataset": {
+    "platform": "windows",
+    "records": [
+     {
+      "category": "scheduled_task",
+      "key": "task:\\Backup",
+      "attributes": {
+       "name": "\\Backup",
+       "command": "C:\\ops\\backup.cmd",
+       "user": "SYSTEM"
+      },
+      "scope": ""
+     }
+    ]
+   }
+  },
+  {
+   "id": "SCN-WIN-AUT-001",
+   "title": "Successful interactive logon",
+   "description": "An administrator logs on (event 4624 type 2) from the console.",
+   "objective": "Normal successful authentication produces no detection.",
+   "kind": "negative",
+   "platforms": [
+    "windows"
+   ],
+   "supported_versions": [
+    "any"
+   ],
+   "tags": [
+    "authentication",
+    "benign",
+    "admin"
+   ],
+   "dataset": {
+    "platform": "windows",
+    "records": [
+     {
+      "category": "auth_event",
+      "key": "e1|2026-03-01T09:00:00Z|login_success|adminbob|10.0.0.9",
+      "attributes": {
+       "action": "login_success",
+       "result": "success",
+       "user": "adminbob",
+       "source_address": "10.0.0.9",
+       "service": "windows",
+       "logon_type": "10"
+      },
+      "event_time": "2026-03-01T09:00:00Z"
+     }
+    ]
+   },
+   "expect": {
+    "absent": [
+     "DR-ANY-HAUTH-001",
+     "DR-ANY-HAUTH-002",
+     "DR-ANY-HAUTH-003"
+    ]
+   },
+   "cleanup": {
+    "required": false,
+    "description": "Synthetic dataset: nothing is created on any host."
+   },
+   "limitations": [
+    "Synthetic telemetry shaped like the Windows collector's output; it shows the rule's logic, not how a real host behaves."
+   ]
+  },
+  {
+   "id": "SCN-WIN-AUT-002",
+   "title": "Failed network logons across accounts",
+   "description": "Twelve 4625 events from one address against three accounts.",
+   "objective": "HAUTH-001 reports the spraying pattern on Windows.",
+   "kind": "positive",
+   "platforms": [
+    "windows"
+   ],
+   "supported_versions": [
+    "any"
+   ],
+   "tags": [
+    "authentication",
+    "pattern"
+   ],
+   "dataset": {
+    "platform": "windows",
+    "records": [
+     {
+      "category": "auth_event",
+      "key": "e0|2026-03-01T09:00:00Z|login_failure|administrator|203.0.113.5",
+      "attributes": {
+       "action": "login_failure",
+       "result": "failure",
+       "user": "administrator",
+       "source_address": "203.0.113.5",
+       "service": "sshd"
+      },
+      "event_time": "2026-03-01T09:00:00Z"
+     },
+     {
+      "category": "auth_event",
+      "key": "e1|2026-03-01T09:01:00Z|login_failure|admin|203.0.113.5",
+      "attributes": {
+       "action": "login_failure",
+       "result": "failure",
+       "user": "admin",
+       "source_address": "203.0.113.5",
+       "service": "sshd"
+      },
+      "event_time": "2026-03-01T09:01:00Z"
+     },
+     {
+      "category": "auth_event",
+      "key": "e2|2026-03-01T09:02:00Z|login_failure|bob|203.0.113.5",
+      "attributes": {
+       "action": "login_failure",
+       "result": "failure",
+       "user": "bob",
+       "source_address": "203.0.113.5",
+       "service": "sshd"
+      },
+      "event_time": "2026-03-01T09:02:00Z"
+     },
+     {
+      "category": "auth_event",
+      "key": "e3|2026-03-01T09:03:00Z|login_failure|administrator|203.0.113.5",
+      "attributes": {
+       "action": "login_failure",
+       "result": "failure",
+       "user": "administrator",
+       "source_address": "203.0.113.5",
+       "service": "sshd"
+      },
+      "event_time": "2026-03-01T09:03:00Z"
+     },
+     {
+      "category": "auth_event",
+      "key": "e4|2026-03-01T09:04:00Z|login_failure|admin|203.0.113.5",
+      "attributes": {
+       "action": "login_failure",
+       "result": "failure",
+       "user": "admin",
+       "source_address": "203.0.113.5",
+       "service": "sshd"
+      },
+      "event_time": "2026-03-01T09:04:00Z"
+     },
+     {
+      "category": "auth_event",
+      "key": "e5|2026-03-01T09:05:00Z|login_failure|bob|203.0.113.5",
+      "attributes": {
+       "action": "login_failure",
+       "result": "failure",
+       "user": "bob",
+       "source_address": "203.0.113.5",
+       "service": "sshd"
+      },
+      "event_time": "2026-03-01T09:05:00Z"
+     },
+     {
+      "category": "auth_event",
+      "key": "e6|2026-03-01T09:06:00Z|login_failure|administrator|203.0.113.5",
+      "attributes": {
+       "action": "login_failure",
+       "result": "failure",
+       "user": "administrator",
+       "source_address": "203.0.113.5",
+       "service": "sshd"
+      },
+      "event_time": "2026-03-01T09:06:00Z"
+     },
+     {
+      "category": "auth_event",
+      "key": "e7|2026-03-01T09:07:00Z|login_failure|admin|203.0.113.5",
+      "attributes": {
+       "action": "login_failure",
+       "result": "failure",
+       "user": "admin",
+       "source_address": "203.0.113.5",
+       "service": "sshd"
+      },
+      "event_time": "2026-03-01T09:07:00Z"
+     },
+     {
+      "category": "auth_event",
+      "key": "e8|2026-03-01T09:08:00Z|login_failure|bob|203.0.113.5",
+      "attributes": {
+       "action": "login_failure",
+       "result": "failure",
+       "user": "bob",
+       "source_address": "203.0.113.5",
+       "service": "sshd"
+      },
+      "event_time": "2026-03-01T09:08:00Z"
+     },
+     {
+      "category": "auth_event",
+      "key": "e9|2026-03-01T09:09:00Z|login_failure|administrator|203.0.113.5",
+      "attributes": {
+       "action": "login_failure",
+       "result": "failure",
+       "user": "administrator",
+       "source_address": "203.0.113.5",
+       "service": "sshd"
+      },
+      "event_time": "2026-03-01T09:09:00Z"
+     },
+     {
+      "category": "auth_event",
+      "key": "e10|2026-03-01T09:10:00Z|login_failure|admin|203.0.113.5",
+      "attributes": {
+       "action": "login_failure",
+       "result": "failure",
+       "user": "admin",
+       "source_address": "203.0.113.5",
+       "service": "sshd"
+      },
+      "event_time": "2026-03-01T09:10:00Z"
+     },
+     {
+      "category": "auth_event",
+      "key": "e11|2026-03-01T09:11:00Z|login_failure|bob|203.0.113.5",
+      "attributes": {
+       "action": "login_failure",
+       "result": "failure",
+       "user": "bob",
+       "source_address": "203.0.113.5",
+       "service": "sshd"
+      },
+      "event_time": "2026-03-01T09:11:00Z"
+     }
+    ]
+   },
+   "expect": {
+    "detections": [
+     {
+      "rule": "DR-ANY-HAUTH-001",
+      "count": 1
+     }
+    ]
+   },
+   "cleanup": {
+    "required": false,
+    "description": "Synthetic dataset: nothing is created on any host."
+   },
+   "limitations": [
+    "Synthetic telemetry shaped like the Windows collector's output; it shows the rule's logic, not how a real host behaves."
+   ]
+  },
+  {
+   "id": "SCN-WIN-AUT-003",
+   "title": "Security log cleared",
+   "description": "Event 1102 is recorded.",
+   "objective": "WIN-HAUTH-005 reports a cleared audit log.",
+   "kind": "positive",
+   "platforms": [
+    "windows"
+   ],
+   "supported_versions": [
+    "any"
+   ],
+   "tags": [
+    "authentication",
+    "tamper"
+   ],
+   "dataset": {
+    "platform": "windows",
+    "records": [
+     {
+      "category": "security_event",
+      "key": "w1",
+      "attributes": {
+       "event_id": "1102",
+       "source": "Security",
+       "outcome": "success",
+       "summary": "event log cleared"
+      },
+      "event_time": "2026-03-01T09:00:00Z"
+     }
+    ]
+   },
+   "expect": {
+    "detections": [
+     {
+      "rule": "DR-WIN-HAUTH-005",
+      "count": 1,
+      "severity": {
+       "min": "high"
+      }
+     }
+    ]
+   },
+   "cleanup": {
+    "required": false,
+    "description": "Synthetic dataset: nothing is created on any host."
+   },
+   "limitations": [
+    "Synthetic telemetry shaped like the Windows collector's output; it shows the rule's logic, not how a real host behaves."
+   ]
+  },
+  {
+   "id": "SCN-WIN-AUT-004",
+   "title": "Ordinary security events",
+   "description": "Special-privilege logon (4672) events only.",
+   "objective": "Routine events do not trigger the log-cleared rule.",
+   "kind": "negative",
+   "platforms": [
+    "windows"
+   ],
+   "supported_versions": [
+    "any"
+   ],
+   "tags": [
+    "authentication",
+    "benign"
+   ],
+   "dataset": {
+    "platform": "windows",
+    "records": [
+     {
+      "category": "security_event",
+      "key": "w1",
+      "attributes": {
+       "event_id": "4672",
+       "source": "Security",
+       "outcome": "success",
+       "summary": ""
+      },
+      "event_time": "2026-03-01T09:00:00Z"
+     }
+    ]
+   },
+   "expect": {
+    "absent": [
+     "DR-WIN-HAUTH-005"
+    ]
+   },
+   "cleanup": {
+    "required": false,
+    "description": "Synthetic dataset: nothing is created on any host."
+   },
+   "limitations": [
+    "Synthetic telemetry shaped like the Windows collector's output; it shows the rule's logic, not how a real host behaves."
+   ]
+  },
+  {
+   "id": "SCN-WIN-AUT-005",
+   "title": "Security log unreadable without elevation",
+   "description": "The Security log could not be read (not elevated): auth, security events and config changes are unavailable.",
+   "objective": "Missing log access is reported as unavailable; absence of 'log cleared' is not claimed.",
+   "kind": "coverage",
+   "platforms": [
+    "windows"
+   ],
+   "supported_versions": [
+    "any"
+   ],
+   "tags": [
+    "authentication",
+    "coverage",
+    "permissions"
+   ],
+   "dataset": {
+    "platform": "windows",
+    "records": [
+     {
+      "category": "process",
+      "key": "pid:4:1",
+      "attributes": {
+       "pid": 4,
+       "ppid": 0,
+       "name": "system",
+       "exe": "",
+       "user": "CORP\\bob",
+       "cmdline": ""
+      }
+     }
+    ],
+    "coverage": {
+     "auth_event": "unavailable",
+     "security_event": "unavailable",
+     "config_change": "unavailable"
+    }
+   },
+   "expect": {
+    "indeterminate": [
+     {
+      "rule": "DR-WIN-HAUTH-005",
+      "reason_contains": "could not be collected"
+     },
+     {
+      "rule": "DR-ANY-HAUTH-001",
+      "reason_contains": "could not be collected"
+     }
+    ],
+    "coverage": {
+     "security_event": "unavailable"
+    }
+   },
+   "cleanup": {
+    "required": false,
+    "description": "Synthetic dataset: nothing is created on any host."
+   },
+   "limitations": [
+    "Synthetic telemetry shaped like the Windows collector's output; it shows the rule's logic, not how a real host behaves."
+   ]
+  },
+  {
+   "id": "SCN-WIN-AUT-006",
+   "title": "Account created and added to Administrators",
+   "description": "4720 then 4732 for the same resolved account name.",
+   "objective": "HAUTH-004 correlates creation with a privileged group addition.",
+   "kind": "positive",
+   "platforms": [
+    "windows"
+   ],
+   "supported_versions": [
+    "any"
+   ],
+   "tags": [
+    "authentication",
+    "privilege",
+    "correlation"
+   ],
+   "dataset": {
+    "platform": "windows",
+    "records": [
+     {
+      "category": "auth_event",
+      "key": "e1|2026-03-01T09:00:00Z|account_change|backdoor|",
+      "attributes": {
+       "action": "account_change",
+       "result": "success",
+       "user": "backdoor",
+       "source_address": null,
+       "service": "windows",
+       "change": "created"
+      },
+      "event_time": "2026-03-01T09:00:00Z"
+     },
+     {
+      "category": "auth_event",
+      "key": "e2|2026-03-01T09:00:05Z|group_change|backdoor|",
+      "attributes": {
+       "action": "group_change",
+       "result": "success",
+       "user": "backdoor",
+       "source_address": null,
+       "service": "windows",
+       "change": "member_added",
+       "group": "Administrators"
+      },
+      "event_time": "2026-03-01T09:00:05Z"
+     }
+    ]
+   },
+   "expect": {
+    "detections": [
+     {
+      "rule": "DR-ANY-HAUTH-004",
+      "count": 1
+     }
+    ]
+   },
+   "cleanup": {
+    "required": false,
+    "description": "Synthetic dataset: nothing is created on any host."
+   },
+   "limitations": [
+    "Synthetic telemetry shaped like the Windows collector's output; it shows the rule's logic, not how a real host behaves."
+   ]
+  },
+  {
+   "id": "SCN-WIN-AUT-007",
+   "title": "Group addition whose account could not be resolved",
+   "description": "The member SID could not be translated, so the account is unknown.",
+   "objective": "Without a name the creation and the addition cannot be correlated; the rule stays quiet rather than guessing.",
+   "kind": "negative",
+   "platforms": [
+    "windows"
+   ],
+   "supported_versions": [
+    "any"
+   ],
+   "tags": [
+    "authentication",
+    "coverage",
+    "gap"
+   ],
+   "dataset": {
+    "platform": "windows",
+    "records": [
+     {
+      "category": "auth_event",
+      "key": "e1|2026-03-01T09:00:00Z|account_change|backdoor|",
+      "attributes": {
+       "action": "account_change",
+       "result": "success",
+       "user": "backdoor",
+       "source_address": null,
+       "service": "windows",
+       "change": "created"
+      },
+      "event_time": "2026-03-01T09:00:00Z"
+     },
+     {
+      "category": "auth_event",
+      "key": "w2",
+      "attributes": {
+       "action": "group_change",
+       "result": "success",
+       "user": null,
+       "group": "Administrators",
+       "change": "member_added",
+       "service": "windows"
+      },
+      "event_time": "2026-03-01T09:00:05Z",
+      "unknown_attributes": [
+       "user"
+      ]
+     }
+    ]
+   },
+   "expect": {
+    "absent": [
+     "DR-ANY-HAUTH-004"
+    ]
+   },
+   "cleanup": {
+    "required": false,
+    "description": "Synthetic dataset: nothing is created on any host."
+   },
+   "limitations": [
+    "Synthetic telemetry shaped like the Windows collector's output; it shows the rule's logic, not how a real host behaves.",
+    "GAP: this is a missed detection by design: the correlation needs a resolvable account name."
+   ]
+  },
+  {
+   "id": "SCN-WIN-NET-001",
+   "title": "Expected Windows listeners",
+   "description": "RPC and SMB listeners owned by system processes.",
+   "objective": "Standard listeners are not flagged.",
+   "kind": "negative",
+   "platforms": [
+    "windows"
+   ],
+   "supported_versions": [
+    "any"
+   ],
+   "tags": [
+    "network",
+    "benign"
+   ],
+   "dataset": {
+    "platform": "windows",
+    "records": [
+     {
+      "category": "process",
+      "key": "pid:900:1",
+      "attributes": {
+       "pid": 900,
+       "ppid": 4,
+       "name": "svchost.exe",
+       "exe": "C:\\Windows\\System32\\svchost.exe",
+       "user": "NT AUTHORITY\\SYSTEM",
+       "cmdline": "C:\\Windows\\System32\\svchost.exe"
+      }
+     },
+     {
+      "category": "listener",
+      "key": "l:0.0.0.0:135",
+      "attributes": {
+       "protocol": "tcp",
+       "local_address": "0.0.0.0",
+       "local_port": 135,
+       "pid": 900,
+       "process": "svchost.exe"
+      }
+     },
+     {
+      "category": "listener",
+      "key": "l:0.0.0.0:445",
+      "attributes": {
+       "protocol": "tcp",
+       "local_address": "0.0.0.0",
+       "local_port": 445,
+       "pid": 4,
+       "process": "system"
+      }
+     }
+    ]
+   },
+   "expect": {
+    "absent": [
+     "DR-ANY-HNET-001"
+    ]
+   },
+   "cleanup": {
+    "required": false,
+    "description": "Synthetic dataset: nothing is created on any host."
+   },
+   "limitations": [
+    "Synthetic telemetry shaped like the Windows collector's output; it shows the rule's logic, not how a real host behaves."
+   ]
+  },
+  {
+   "id": "SCN-WIN-NET-002",
+   "title": "Listener owned by a program in a user profile",
+   "description": "A program in Users\\Public listens on 8080.",
+   "objective": "HNET-001 correlates a listener with a staged executable.",
+   "kind": "positive",
+   "platforms": [
+    "windows"
+   ],
+   "supported_versions": [
+    "any"
+   ],
+   "tags": [
+    "network",
+    "correlation"
+   ],
+   "dataset": {
+    "platform": "windows",
+    "records": [
+     {
+      "category": "process",
+      "key": "pid:700:1",
+      "attributes": {
+       "pid": 700,
+       "ppid": 4,
+       "name": "agent.exe",
+       "exe": "C:\\Users\\Public\\agent.exe",
+       "user": "CORP\\bob",
+       "cmdline": "C:\\Users\\Public\\agent.exe"
+      }
+     },
+     {
+      "category": "listener",
+      "key": "l:0.0.0.0:8080",
+      "attributes": {
+       "protocol": "tcp",
+       "local_address": "0.0.0.0",
+       "local_port": 8080,
+       "pid": 700,
+       "process": "agent.exe"
+      }
+     }
+    ]
+   },
+   "expect": {
+    "detections": [
+     {
+      "rule": "DR-ANY-HNET-001",
+      "count": 1
+     }
+    ]
+   },
+   "cleanup": {
+    "required": false,
+    "description": "Synthetic dataset: nothing is created on any host."
+   },
+   "limitations": [
+    "Synthetic telemetry shaped like the Windows collector's output; it shows the rule's logic, not how a real host behaves."
+   ]
+  },
+  {
+   "id": "SCN-WIN-NET-003",
+   "title": "Command shell with an external connection",
+   "description": "cmd.exe owns an established connection to an external address.",
+   "objective": "HPRC-004 detects the reverse-shell pattern on Windows.",
+   "kind": "positive",
+   "platforms": [
+    "windows"
+   ],
+   "supported_versions": [
+    "any"
+   ],
+   "tags": [
+    "network",
+    "process",
+    "correlation"
+   ],
+   "dataset": {
+    "platform": "windows",
+    "records": [
+     {
+      "category": "process",
+      "key": "pid:600:1",
+      "attributes": {
+       "pid": 600,
+       "ppid": 4,
+       "name": "cmd.exe",
+       "exe": "C:\\Windows\\System32\\cmd.exe",
+       "user": "CORP\\bob",
+       "cmdline": "C:\\Windows\\System32\\cmd.exe"
+      }
+     },
+     {
+      "category": "network_connection",
+      "key": "c:600:203.0.113.9:4444",
+      "attributes": {
+       "protocol": "tcp",
+       "state": "established",
+       "local_address": "10.0.0.5",
+       "local_port": 40600,
+       "remote_address": "203.0.113.9",
+       "remote_port": 4444,
+       "pid": 600,
+       "process": "cmd.exe"
+      }
+     }
+    ]
+   },
+   "expect": {
+    "detections": [
+     {
+      "rule": "DR-ANY-HPRC-004",
+      "count": 1
+     }
+    ]
+   },
+   "cleanup": {
+    "required": false,
+    "description": "Synthetic dataset: nothing is created on any host."
+   },
+   "limitations": [
+    "Synthetic telemetry shaped like the Windows collector's output; it shows the rule's logic, not how a real host behaves."
+   ]
+  },
+  {
+   "id": "SCN-WIN-NET-004",
+   "title": "Connection inventory from the netstat fallback",
+   "description": "Get-NetTCPConnection was unavailable; netstat gave TCP only with partial coverage.",
+   "objective": "A rule over incomplete network data says so.",
+   "kind": "coverage",
+   "platforms": [
+    "windows"
+   ],
+   "supported_versions": [
+    "any"
+   ],
+   "tags": [
+    "network",
+    "coverage"
+   ],
+   "dataset": {
+    "platform": "windows",
+    "records": [
+     {
+      "category": "process",
+      "key": "pid:600:1",
+      "attributes": {
+       "pid": 600,
+       "ppid": 4,
+       "name": "cmd.exe",
+       "exe": "C:\\Windows\\System32\\cmd.exe",
+       "user": "CORP\\bob",
+       "cmdline": "C:\\Windows\\System32\\cmd.exe"
+      }
+     }
+    ],
+    "coverage": {
+     "network_connection": "partial",
+     "listener": "partial"
+    }
+   },
+   "expect": {
+    "indeterminate": [
+     {
+      "rule": "DR-ANY-HPRC-004",
+      "reason_contains": "partial"
+     },
+     {
+      "rule": "DR-ANY-HNET-001",
+      "reason_contains": "partial"
+     }
+    ]
+   },
+   "cleanup": {
+    "required": false,
+    "description": "Synthetic dataset: nothing is created on any host."
+   },
+   "limitations": [
+    "Synthetic telemetry shaped like the Windows collector's output; it shows the rule's logic, not how a real host behaves."
+   ]
+  },
+  {
+   "id": "SCN-WIN-INT-001",
+   "title": "Hosts file unchanged",
+   "description": "The hosts file hash matches the baseline.",
+   "objective": "Expected configuration state produces no detection.",
+   "kind": "negative",
+   "platforms": [
+    "windows"
+   ],
+   "supported_versions": [
+    "any"
+   ],
+   "tags": [
+    "integrity",
+    "benign"
+   ],
+   "dataset": {
+    "platform": "windows",
+    "records": [
+     {
+      "category": "integrity",
+      "key": "i:C:\\Windows\\System32\\drivers\\etc\\hosts",
+      "attributes": {
+       "path": "C:\\Windows\\System32\\drivers\\etc\\hosts",
+       "sha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+       "mode": "644"
+      }
+     }
+    ]
+   },
+   "expect": {
+    "absent": [
+     "DR-ANY-HCHG-003"
+    ]
+   },
+   "cleanup": {
+    "required": false,
+    "description": "Synthetic dataset: nothing is created on any host."
+   },
+   "limitations": [
+    "Synthetic telemetry shaped like the Windows collector's output; it shows the rule's logic, not how a real host behaves."
+   ],
+   "baseline_dataset": {
+    "platform": "windows",
+    "records": [
+     {
+      "category": "integrity",
+      "key": "i:C:\\Windows\\System32\\drivers\\etc\\hosts",
+      "attributes": {
+       "path": "C:\\Windows\\System32\\drivers\\etc\\hosts",
+       "sha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+       "mode": "644"
+      }
+     }
+    ]
+   }
+  },
+  {
+   "id": "SCN-WIN-INT-002",
+   "title": "Hosts file drift",
+   "description": "The hosts file hash differs from the baseline.",
+   "objective": "HCHG-003 reports drift of a monitored file.",
+   "kind": "positive",
+   "platforms": [
+    "windows"
+   ],
+   "supported_versions": [
+    "any"
+   ],
+   "tags": [
+    "integrity",
+    "change"
+   ],
+   "dataset": {
+    "platform": "windows",
+    "records": [
+     {
+      "category": "integrity",
+      "key": "i:C:\\Windows\\System32\\drivers\\etc\\hosts",
+      "attributes": {
+       "path": "C:\\Windows\\System32\\drivers\\etc\\hosts",
+       "sha256": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+       "mode": "644"
+      }
+     }
+    ]
+   },
+   "expect": {
+    "detections": [
+     {
+      "rule": "DR-ANY-HCHG-003",
+      "count": 1
+     }
+    ]
+   },
+   "cleanup": {
+    "required": false,
+    "description": "Synthetic dataset: nothing is created on any host."
+   },
+   "limitations": [
+    "Synthetic telemetry shaped like the Windows collector's output; it shows the rule's logic, not how a real host behaves."
+   ],
+   "baseline_dataset": {
+    "platform": "windows",
+    "records": [
+     {
+      "category": "integrity",
+      "key": "i:C:\\Windows\\System32\\drivers\\etc\\hosts",
+      "attributes": {
+       "path": "C:\\Windows\\System32\\drivers\\etc\\hosts",
+       "sha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+       "mode": "644"
+      }
+     }
+    ]
+   }
+  },
+  {
+   "id": "SCN-WIN-INT-003",
+   "title": "Administrators group membership changed",
+   "description": "Administrators gained a member.",
+   "objective": "HCHG-004 reports a change in privileged group membership.",
+   "kind": "positive",
+   "platforms": [
+    "windows"
+   ],
+   "supported_versions": [
+    "any"
+   ],
+   "tags": [
+    "integrity",
+    "privilege",
+    "change"
+   ],
+   "dataset": {
+    "platform": "windows",
+    "records": [
+     {
+      "category": "group",
+      "key": "g:Administrators",
+      "attributes": {
+       "name": "Administrators",
+       "members": [
+        "Administrator",
+        "mallory"
+       ]
+      }
+     }
+    ]
+   },
+   "expect": {
+    "detections": [
+     {
+      "rule": "DR-ANY-HCHG-004",
+      "count": 1
+     }
+    ]
+   },
+   "cleanup": {
+    "required": false,
+    "description": "Synthetic dataset: nothing is created on any host."
+   },
+   "limitations": [
+    "Synthetic telemetry shaped like the Windows collector's output; it shows the rule's logic, not how a real host behaves."
+   ],
+   "baseline_dataset": {
+    "platform": "windows",
+    "records": [
+     {
+      "category": "group",
+      "key": "g:Administrators",
+      "attributes": {
+       "name": "Administrators",
+       "members": [
+        "Administrator"
+       ]
+      }
+     }
+    ]
+   }
+  },
+  {
+   "id": "SCN-WIN-INT-004",
+   "title": "New scheduled task since the baseline",
+   "description": "A task the baseline did not have.",
+   "objective": "HCHG-005 reports a new scheduled task.",
+   "kind": "positive",
+   "platforms": [
+    "windows"
+   ],
+   "supported_versions": [
+    "any"
+   ],
+   "tags": [
+    "persistence",
+    "scheduled-task",
+    "change"
+   ],
+   "dataset": {
+    "platform": "windows",
+    "records": [
+     {
+      "category": "scheduled_task",
+      "key": "task:\\Existing",
+      "attributes": {
+       "name": "\\Existing",
+       "command": "C:\\Windows\\System32\\a.exe",
+       "user": "SYSTEM"
+      },
+      "scope": ""
+     },
+     {
+      "category": "scheduled_task",
+      "key": "task:\\NewTask",
+      "attributes": {
+       "name": "\\NewTask",
+       "command": "C:\\Program Files\\App\\b.exe",
+       "user": "SYSTEM"
+      },
+      "scope": ""
+     }
+    ]
+   },
+   "expect": {
+    "detections": [
+     {
+      "rule": "DR-ANY-HCHG-005",
+      "count": 1
+     }
+    ]
+   },
+   "cleanup": {
+    "required": false,
+    "description": "Synthetic dataset: nothing is created on any host."
+   },
+   "limitations": [
+    "Synthetic telemetry shaped like the Windows collector's output; it shows the rule's logic, not how a real host behaves."
+   ],
+   "baseline_dataset": {
+    "platform": "windows",
+    "records": [
+     {
+      "category": "scheduled_task",
+      "key": "task:\\Existing",
+      "attributes": {
+       "name": "\\Existing",
+       "command": "C:\\Windows\\System32\\a.exe",
+       "user": "SYSTEM"
+      },
+      "scope": ""
+     }
+    ]
+   }
+  },
+  {
+   "id": "SCN-WIN-INT-005",
+   "title": "Security settings baseline unchanged",
+   "description": "Listeners and services are the same as the baseline.",
+   "objective": "An unchanged Windows environment yields no change detections.",
+   "kind": "negative",
+   "platforms": [
+    "windows"
+   ],
+   "supported_versions": [
+    "any"
+   ],
+   "tags": [
+    "integrity",
+    "change",
+    "benign"
+   ],
+   "dataset": {
+    "platform": "windows",
+    "records": [
+     {
+      "category": "listener",
+      "key": "l:0.0.0.0:135",
+      "attributes": {
+       "protocol": "tcp",
+       "local_address": "0.0.0.0",
+       "local_port": 135,
+       "pid": 900,
+       "process": "svchost.exe"
+      }
+     },
+     {
+      "category": "service",
+      "key": "service:spooler",
+      "attributes": {
+       "name": "spooler",
+       "path": "C:\\Windows\\System32\\spoolsv.exe"
+      }
+     }
+    ]
+   },
+   "expect": {
+    "absent": [
+     "DR-ANY-HCHG-001",
+     "DR-ANY-HCHG-002"
+    ]
+   },
+   "cleanup": {
+    "required": false,
+    "description": "Synthetic dataset: nothing is created on any host."
+   },
+   "limitations": [
+    "Synthetic telemetry shaped like the Windows collector's output; it shows the rule's logic, not how a real host behaves."
+   ],
+   "baseline_dataset": {
+    "platform": "windows",
+    "records": [
+     {
+      "category": "listener",
+      "key": "l:0.0.0.0:135",
+      "attributes": {
+       "protocol": "tcp",
+       "local_address": "0.0.0.0",
+       "local_port": 135,
+       "pid": 900,
+       "process": "svchost.exe"
+      }
+     },
+     {
+      "category": "service",
+      "key": "service:spooler",
+      "attributes": {
+       "name": "spooler",
+       "path": "C:\\Windows\\System32\\spoolsv.exe"
+      }
+     }
+    ]
+   }
+  },
+  {
+   "id": "SCN-WIN-INT-006",
+   "title": "New listener since the baseline",
+   "description": "A new TCP listener on 8443.",
+   "objective": "HCHG-001 reports a new non-loopback listener on Windows.",
+   "kind": "positive",
+   "platforms": [
+    "windows"
+   ],
+   "supported_versions": [
+    "any"
+   ],
+   "tags": [
+    "network",
+    "change"
+   ],
+   "dataset": {
+    "platform": "windows",
+    "records": [
+     {
+      "category": "listener",
+      "key": "l:0.0.0.0:135",
+      "attributes": {
+       "protocol": "tcp",
+       "local_address": "0.0.0.0",
+       "local_port": 135,
+       "pid": 900,
+       "process": "svchost.exe"
+      }
+     },
+     {
+      "category": "listener",
+      "key": "l:0.0.0.0:8443",
+      "attributes": {
+       "protocol": "tcp",
+       "local_address": "0.0.0.0",
+       "local_port": 8443,
+       "pid": 1200,
+       "process": "app.exe"
+      }
+     }
+    ]
+   },
+   "expect": {
+    "detections": [
+     {
+      "rule": "DR-ANY-HCHG-001",
+      "count": 1
+     }
+    ]
+   },
+   "cleanup": {
+    "required": false,
+    "description": "Synthetic dataset: nothing is created on any host."
+   },
+   "limitations": [
+    "Synthetic telemetry shaped like the Windows collector's output; it shows the rule's logic, not how a real host behaves."
+   ],
+   "baseline_dataset": {
+    "platform": "windows",
+    "records": [
+     {
+      "category": "listener",
+      "key": "l:0.0.0.0:135",
+      "attributes": {
+       "protocol": "tcp",
+       "local_address": "0.0.0.0",
+       "local_port": 135,
+       "pid": 900,
+       "process": "svchost.exe"
+      }
+     }
+    ]
+   }
+  }
+ ]
+}

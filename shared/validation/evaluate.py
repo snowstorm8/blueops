@@ -12,9 +12,10 @@ from pathlib import Path
 from typing import Any
 
 from shared.rules.conditions import compile_condition
-from shared.rules.engine import detect
+from shared.rules.engine import Context, _clause_matches, detect
 from shared.rules.loader import RuleSet
 from shared.rules.telemetry_subjects import ProcessIndex, telemetry_subject
+from shared.telemetry.compare import CompareError, compare_telemetry
 from shared.telemetry.fixtures import build_telemetry
 from shared.telemetry.hunt import shell_assessment
 from shared.telemetry.ingest import IngestError, load_telemetry
@@ -368,9 +369,18 @@ def evaluate_scenario(  # noqa: PLR0912, PLR0915 - one linear classification pas
         )
 
     out["detections"] = [
-        {"rule": d["rule"]["id"], "id": d["id"], "severity": d["severity"], "confidence": d["confidence"], "nature": d["nature"], "title": d["title"][:160]}
+        {
+            "rule": d["rule"]["id"], "id": d["id"], "severity": d["severity"],
+            "confidence": d["confidence"], "nature": d["nature"], "title": d["title"][:160],
+            "matched": [{"clause": m["clause"], "conditions": m["conditions"][:6]} for m in d["matched_conditions"]],
+        }
         for d in results["detections"]
     ]  # fmt: skip
+    misses = sorted({o["rule"] for o in outcomes if o["outcome"] == M.FN})
+    if misses:
+        out["miss_analysis"] = {
+            r: _clause_hits(rule_set, r, tel, base, generated_at) for r in misses
+        }
     out["indeterminate"] = [
         {"rule": r, "reason": why[:300]} for r, why in sorted(ind_by_rule.items())
     ]
@@ -382,6 +392,7 @@ def evaluate_scenario(  # noqa: PLR0912, PLR0915 - one linear classification pas
 
     failed = [c for c in checks if not c["ok"] and not c.get("untestable")]
     kinds = {o["outcome"] for o in outcomes}
+    known = scenario.known_issue
     if M.RULE_ERROR in kinds:
         out["status"], out["reason"] = "error", "a rule raised an error while executing"
     elif failed:
@@ -393,7 +404,41 @@ def evaluate_scenario(  # noqa: PLR0912, PLR0915 - one linear classification pas
         out["status"], out["reason"] = "inconclusive", "an asserted rule could not be evaluated"
     else:
         out["status"], out["reason"] = "pass", ""
+    if known:
+        out["known_issue"] = known["description"]
+        if out["status"] == "fail":
+            out["status"] = "known_issue"
+        elif out["status"] == "pass":
+            out["status"] = "fail"
+            out["reason"] = "the documented known issue no longer reproduces; remove known_issue"
     return out
+
+
+def _clause_hits(
+    rule_set: RuleSet, rule_id: str, tel: dict[str, Any], base: dict[str, Any] | None, stamp: str
+) -> list[dict[str, Any]]:
+    """For a rule that missed: how many items each clause matched, to show which condition kept
+    it from firing (evidence for a calibration review, not a verdict)."""
+    rule = rule_set.rules[rule_id]
+    cmp_doc = None
+    if base is not None:
+        try:
+            cmp_doc = compare_telemetry(base, tel, generated_at=stamp)
+        except CompareError:
+            cmp_doc = None
+    ctx = Context(
+        shell_assessment(tel), [], None, "", telemetry=tel, telemetry_base=base,
+        telemetry_comparison=cmp_doc,
+    )  # fmt: skip
+    notes: list[str] = []
+    return [
+        {
+            "clause": c.id, "description": c.description,
+            "matched_items": len(_clause_matches(c, ctx, notes)), "optional": c.optional,
+            "condition": c.where.text[:300],
+        }
+        for c in rule.clauses
+    ]  # fmt: skip
 
 
 def _substitute(node: Any, values: dict[str, Any] | None) -> Any:

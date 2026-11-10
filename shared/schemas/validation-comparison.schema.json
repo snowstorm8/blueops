@@ -1,0 +1,22 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://blueops.invalid/schemas/validation-comparison/1.0.0",
+  "title": "BlueOps validation comparison",
+  "description": "Differences between two validation runs: scenario status changes, per-rule metric changes, and regressions with the evidence for each. Runs with different scenario definitions or modes are only partly comparable and say so.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema_version", "kind", "generated_at", "baseline", "current", "comparable", "scenarios", "rules", "regressions", "improvements", "summary"],
+  "properties": {
+    "schema_version": {"type": "string", "pattern": "^1\\.\\d+\\.\\d+$"},
+    "kind": {"const": "validation-comparison"},
+    "generated_at": {"type": "string"},
+    "baseline": {"type": "object", "required": ["run_id", "digest"]},
+    "current": {"type": "object", "required": ["run_id", "digest"]},
+    "comparable": {"type": "object", "required": ["ok", "issues"], "properties": {"ok": {"type": "boolean"}, "issues": {"type": "array", "items": {"type": "string"}}}},
+    "scenarios": {"type": "object", "required": ["regressed", "fixed", "added", "removed", "changed_definition"]},
+    "rules": {"type": "object"},
+    "regressions": {"type": "array", "items": {"type": "object", "required": ["kind", "rule", "message"]}},
+    "improvements": {"type": "array", "items": {"type": "object", "required": ["kind", "message"]}},
+    "summary": {"type": "object", "required": ["regressions", "improvements", "exit_status"], "properties": {"exit_status": {"enum": ["ok", "regressions", "not_comparable"]}}}
+  }
+}
