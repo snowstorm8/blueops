@@ -17,7 +17,10 @@ from jsonschema import Draft202012Validator
 
 from shared.reporting import detect as detect_cli
 from shared.reporting.accepted import load
-from shared.reporting.contracts import SCHEMA_VERSION
+from shared.reporting.contracts import (
+    AUDIT_REPORT_SCHEMA_VERSION,
+    SCHEMA_VERSION,
+)
 from shared.reporting.detection import RULES
 
 ROOT = Path(__file__).resolve().parents[2]
@@ -43,9 +46,15 @@ def test_schema_versions_agree_across_producers_and_consumers() -> None:
     )
     assert linux and windows
     assert linux.group(1) == windows.group(1) == SCHEMA_VERSION
-    for name in ("audit-report", "baseline-diff", "detections"):
+    for name in ("baseline-diff", "detections"):
         schema = _json(ROOT / "shared" / "schemas" / f"{name}.schema.json")
         assert schema["$id"].endswith(f"/{name}/{SCHEMA_VERSION}"), name
+    # audit-report is one minor ahead: 0.3.0 only adds optional provenance, so the 0.2.0 reports
+    # the collectors emit still validate against it (see the next test)
+    report = _json(ROOT / "shared" / "schemas" / "audit-report.schema.json")
+    assert report["$id"].endswith(f"/audit-report/{AUDIT_REPORT_SCHEMA_VERSION}")
+    assert AUDIT_REPORT_SCHEMA_VERSION.split(".")[:1] == SCHEMA_VERSION.split(".")[:1]
+    assert AUDIT_REPORT_SCHEMA_VERSION > SCHEMA_VERSION
     manifest = _json(ROOT / "shared" / "schemas" / "run-manifest.schema.json")
     assert manifest["$id"].endswith("/run-manifest/0.1.0")
     for producer in ("linux/lib/common.sh", "windows/lib/Common.ps1"):
@@ -149,3 +158,20 @@ def test_example_allowlist_does_not_apply_to_a_different_host_family(
     doc = _run(capsys, "2026-03-02T00:00:00Z", host="windows")
     assert doc["summary"]["accepted"] == 0
     assert doc["allowlist"]["entries"][0]["status"] == "unused"
+
+
+def test_older_documents_still_validate_against_the_new_minor_schemas() -> None:
+    """Additive change: a 0.2.0 report and a 1.0.0 telemetry document stay valid."""
+    from shared.reporting.schema_lite import validate  # noqa: PLC0415
+
+    report = _json(ROOT / "examples" / "audit-report.example.json")
+    assert report["schema_version"] == "0.2.0"
+    assert validate(report, "audit-report.schema.json", limit=3) == []
+    report["schema_version"] = "0.3.0"
+    report["inputs_verified"], report["inputs"] = (
+        False,
+        [{"role": "report", "path": "x", "verified": False, "reason": "bare file"}],
+    )
+    assert validate(report, "audit-report.schema.json", limit=3) == []
+    report["schema_version"] = "1.0.0"  # a different major is still refused
+    assert validate(report, "audit-report.schema.json", limit=3)

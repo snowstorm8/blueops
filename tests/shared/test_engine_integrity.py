@@ -189,8 +189,10 @@ def test_symlinked_manifest_is_refused(tmp_path: Path) -> None:
     real.write_text((d / MANIFEST_NAME).read_text("utf-8"), encoding="utf-8")
     (d / MANIFEST_NAME).unlink()
     (d / MANIFEST_NAME).symlink_to(real)
-    with pytest.raises(LoadError, match="no manifest.json"):
+    with pytest.raises(LoadError, match="symbolic link"):
         load_assessment(d)
+    with pytest.raises(LoadError, match="symbolic link"):  # invalid, so not overridable either
+        load_assessment(d, verify=False)
 
 
 # 6 ------------------------------------------------------------------- missing files
@@ -279,12 +281,14 @@ def test_explicit_unverified_loading_still_validates_the_document(tmp_path: Path
         load_assessment(d, verify=False)
 
 
-def test_unverified_loading_tolerates_a_tampered_directory_by_design(tmp_path: Path) -> None:
+def test_the_opt_out_never_accepts_a_directory_whose_verification_failed(tmp_path: Path) -> None:
+    """`--allow-unverified` covers "nothing to verify against", not "verification failed": a
+    manifest that exists and does not match is invalid data under every option."""
     d, _, doc = build(tmp_path)
     (d / "assessment.json").write_text(json.dumps({**doc, "findings": []}), encoding="utf-8")
-    assert load_assessment(d, verify=False)["findings"] == []
-    with pytest.raises(LoadError):
-        load_assessment(d)
+    for verify in (True, False):
+        with pytest.raises(LoadError, match="content differs"):
+            load_assessment(d, verify=verify)
 
 
 # telemetry stores share the contract -------------------------------------------------------
@@ -294,7 +298,9 @@ def test_telemetry_store_without_a_manifest_is_refused(tmp_path: Path) -> None:
     src = tmp_path / "s.jsonl"
     src.write_bytes(stream([proc(1, 0, "init")]))
     store = ingest.write_store(
-        ingest.ingest_paths([src]), tmp_path / "out", [("s.jsonl", src.read_bytes())]
+        ingest.ingest_paths([src], allow_unverified=True),
+        tmp_path / "out",
+        [("s.jsonl", src.read_bytes())],
     )
     assert ingest.load_telemetry(store)["kind"] == "telemetry"
     (store / MANIFEST_NAME).unlink()

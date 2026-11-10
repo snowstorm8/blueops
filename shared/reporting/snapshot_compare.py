@@ -22,6 +22,7 @@ from typing import Any
 from shared.engine import ASSESSMENT_SCHEMA_VERSION, ENGINE_VERSION
 from shared.engine.assessment import AssessmentError, assessment_to_report
 from shared.engine.module import OK
+from shared.engine.provenance import entries, stamp
 from shared.reporting.baseline import IncompatibleReportsError
 from shared.reporting.baseline import compare as compare_inventory
 from shared.reporting.baseline import exit_code_for as inventory_exit_code
@@ -351,7 +352,7 @@ def compare_snapshots(
         "weighted_index": {"baseline": bi, "current": ci, "delta": ci - bi},
         "trend": _trend(findings, config, ci - bi),
     }
-    return {
+    out = {
         "schema_version": ASSESSMENT_SCHEMA_VERSION,
         "kind": "snapshot-comparison",
         "generated_at": generated_at or _now(),
@@ -364,6 +365,7 @@ def compare_snapshots(
         "coverage": coverage,
         "summary": summary,
     }
+    return stamp(out, entries("baseline", base), entries("current", cur))
 
 
 def _meta(doc: dict[str, Any]) -> dict[str, Any]:

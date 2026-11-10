@@ -24,6 +24,7 @@ from shared.reporting.render_common import (
     remediation_plan,
 )
 from shared.reporting.render_detections import DET_CSS, DET_JS, detections_section
+from shared.reporting.render_provenance import html as provenance_html
 
 CSS = """
 :root{--bg:#f5f6f8;--surface:#fff;--ink:#1b2430;--muted:#5b6675;--line:#d9dee6;--accent:#1d4ed8;
@@ -53,6 +54,7 @@ section{margin-top:28px}h2{font-size:1.2rem;margin:0 0 12px;scroll-margin-top:56
 .posture h3{margin:0;font-size:1.25rem}.posture ul{margin:4px 0 0;padding-left:20px}
 .caveat{margin-top:12px;padding:12px 14px;border-radius:8px;background:var(--medium-bg);color:var(--ink);border:1px solid var(--line)}
 .caveat strong{display:block;margin-bottom:4px}.caveat ul{margin:0;padding-left:20px}
+.prov-bad{border:2px solid #c62828}.caveat.prov-bad{background:var(--critical-bg,var(--medium-bg))}td.prov-bad{font-weight:700}
 .kpis{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:12px;margin-top:14px}
 .kpi{padding:14px}.kpi b{display:block;font-size:1.8rem;line-height:1.1}.kpi span{color:var(--muted);font-size:.85rem}
 .grid2{display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:14px}
@@ -308,6 +310,11 @@ def render_html(  # noqa: PLR0912, PLR0915 - one linear sequence of report secti
     cases: dict[str, dict[str, Any]] | None = None,
 ) -> str:
     ex = executive_summary(doc, comparisons)
+    prov_banner, prov_section = provenance_html(
+        ("assessment", doc),
+        *[(f"comparison {i}", c) for i, c in enumerate(comparisons or [], 1)],
+        *([("detections", detections)] if detections else []),
+    )
     a, s = doc["assessment"], doc["summary"]
     host = doc.get("host")
     ev = {x["id"]: x for x in doc["evidence"]}
@@ -467,6 +474,7 @@ def render_html(  # noqa: PLR0912, PLR0915 - one linear sequence of report secti
 </div></header>
 <nav class="toc" aria-label="Sections"><div class="wrap">{nav}</div></nav>
 <main class="wrap">
+{prov_banner}
 <section id="summary"><h2>Executive summary</h2>
 <div class="card posture {e(ex["key"])}"><h3>{e(ex["headline"])}</h3><ul>{bullets}</ul></div>
 {caveat}
@@ -476,6 +484,7 @@ def render_html(  # noqa: PLR0912, PLR0915 - one linear sequence of report secti
 <section id="metadata"><h2>Assessment metadata and host</h2>
 <div class="grid2"><div class="card"><dl class="meta">{meta_html}</dl></div><div class="card"><dl class="meta">{host_html}</dl></div></div>
 </section>
+{prov_section}
 <section id="modules"><h2>Module results</h2>{modules}</section>
 <section id="priorities"><h2>Remediation priorities</h2><div class="prio">{prio_block}</div></section>
 <section id="findings"><h2>Findings breakdown (<span id="shown">{s["total"]}</span> of {s["total"]} shown)</h2>

@@ -4,13 +4,22 @@ All notable changes are documented here. Format: [Keep a Changelog](https://keep
 
 ## [Unreleased]
 
-### Added
+### Changed (unverified-input policy, case provenance, versions)
+- Schema versions: `audit-report` 0.2.0 -> 0.3.0 (`READABLE_REPORT_VERSIONS` gains `0.3`; engine reports are emitted as 0.3.0, collectors and the legacy documents stay 0.2.0). Older tools refuse 0.3.x reports.
+
+### Added (input provenance)
+- Every derived output records which inputs it came from and whether each was verified: `inputs_verified` (true only if all were) and `inputs` (`role`, `path`, `verified`, `reason`, `via`) on assessments, audit reports, snapshot comparisons, detection results, detection comparisons, telemetry documents and telemetry comparisons. Status is per input and survives conversion, saving and later verified loads; an input of unknown provenance counts as unverified. Markdown, HTML and text reports warn at the top when any input is unverified and list each input; JSONL and CSV detection exports carry `inputs_verified` on every row (CSV: a new trailing column).
+- `engine run --allow-unverified` for `--compare` and `--history` inputs (default stays fail-closed). The record and its rendering live in `shared/engine/provenance.py` and `shared/reporting/render_provenance.py`.
 - `docs/adr/0001-detection-engine-coexistence.md`: the legacy detection tool and the detection engine coexist; no replacement before rule parity, an engine allowlist and documented output semantics.
 
-### Changed
+### Changed (input provenance)
+- Verification has three outcomes. `--allow-unverified` / `verify=False` now *tries* verification and records the result: inputs that verify are *verified*; inputs with nothing to verify against (no manifest, a bare file) are accepted as *unverified* with the reason; inputs whose manifest exists but fails (mismatch, malformed, missing or unlisted file, symlink, wrong digest) are *invalid* and refused even with the flag. Before this change `verify=False` skipped the check, so a tampered directory loaded silently.
+- A stored comparison JSON passed to `--compare` is a bare file and now needs `--allow-unverified` (it could never be verified; previously it was read without any check).
+- Schemas gain the optional `inputs_verified`, `inputs` and `inputs_omitted` properties without a version bump (additive, optional). Consumers that validate these documents against an older copy of the strict (`additionalProperties: false`) schemas will reject documents that carry the fields; update the schema copy first.
+- Documentation of input verification, `--allow-unverified`, manifest limits, the TOCTOU window, plugin trust limits, environment sanitization and the plugin environment change is now identical in `security-model.md`, `assessment-engine.md`, `telemetry.md` and `plugins.md`.
 - **Breaking (plugins):** plugins and `telemetry collect` no longer inherit the caller's environment; variables a plugin needs must be named `BLUEOPS_*` (see `docs/plugins.md`).
 
-### Fixed
+### Fixed (input provenance)
 - Removed `PSMODULEPATH_OVERRIDE` from the Windows environment denylist: it is not a variable PowerShell defines.
 
 ### Fixed (Bash version requirement)

@@ -10,9 +10,16 @@ import enum
 
 SCHEMA_VERSION = "0.2.0"
 
+# The audit-report schema line the *engine* emits (``assessment_to_report``): 0.3.0 adds the
+# optional provenance fields (``inputs_verified``, ``inputs``, ``inputs_omitted``). Collectors
+# and the legacy baseline-diff/detections documents stay on ``SCHEMA_VERSION`` (0.2.0): their
+# output contract is unchanged, and a 0.3 report is a 0.2 report plus optional fields.
+AUDIT_REPORT_SCHEMA_VERSION = "0.3.0"
+
 # Report schema versions (major.minor) that the baseline-diff engine can read.
-# 0.1 reports have no ``inventory`` and are compared at findings level only.
-READABLE_REPORT_VERSIONS = ("0.1", "0.2")
+# 0.1 reports have no ``inventory`` and are compared at findings level only; 0.3 adds optional
+# provenance fields and is otherwise a 0.2 report.
+READABLE_REPORT_VERSIONS = ("0.1", "0.2", "0.3")
 
 # Inventory record domains, in report order (see docs/baseline-diff.md).
 INVENTORY_DOMAINS = (
