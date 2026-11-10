@@ -100,7 +100,9 @@ jobs:
         run: |
           set -e
           work="$(mktemp -d)"
-          python -m shared.engine telemetry import examples/telemetry/web01-compromised.jsonl --output-dir "$work/store" --quiet
+          # The example is a bare, repository-owned synthetic file with no manifest; the input
+          # policy refuses it by default (exit 3), so the opt-in is explicit here.
+          python -m shared.engine telemetry import examples/telemetry/web01-compromised.jsonl --allow-unverified --output-dir "$work/store" --quiet
           store="$(ls -d "$work"/store/blueops-telemetry-*)"
           python -m shared.engine telemetry show "$store" > /dev/null
           set +e
@@ -109,7 +111,8 @@ jobs:
           test "$code" -eq 4 || { echo "expected exit 4 for the compromised example, got $code"; exit 1; }
           set -e
           python -m shared.engine validate "$work/hunt.json"
-          python -m shared.engine telemetry report "$store" --detections "$work/hunt.json" --format html --output "$work/r.html"
+          # hunt.json was written by this step a moment ago and is a bare file too.
+          python -m shared.engine telemetry report "$store" --allow-unverified --detections "$work/hunt.json" --format html --output "$work/r.html"
           grep -q "Content-Security-Policy" "$work/r.html"
       - name: Live telemetry collection on this runner (real OS interfaces)
         shell: bash
