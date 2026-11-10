@@ -31,7 +31,10 @@ from shared.rules.history import HistoryError, HistoryStore, Snap
 from shared.rules.investigation import STATUSES, CaseStore, CaseStoreError, case_summaries
 from shared.rules.loader import RuleSet, load_rule_set
 from shared.rules.selftest import run_all
+from shared.rules.subjects import TELEMETRY_SOURCES
 from shared.rules.timeline import TimelineError, compare_detections
+from shared.telemetry.hunt import shell_assessment
+from shared.telemetry.ingest import IngestError, load_telemetry
 
 SEVERITIES = [s.label for s in Severity]
 MAX_RESULTS_BYTES = 128 * 1024 * 1024
@@ -116,9 +119,30 @@ def register(sub: argparse._SubParsersAction[argparse.ArgumentParser]) -> None: 
         "detect", help="run detections, compare them across snapshots, report and export"
     )
     dsub = det.add_subparsers(dest="detect_cmd", required=True)
-    p = dsub.add_parser("run", help="evaluate rules over an assessment")
+    p = dsub.add_parser("run", help="evaluate rules over an assessment (and optional telemetry)")
     _rule_args(p)
-    p.add_argument("assessment", help="assessment directory/file, or an audit report")
+    p.add_argument(
+        "assessment",
+        nargs="?",
+        help="assessment directory/file, or an audit report (optional with --telemetry)",
+    )
+    detect_run_args(p)
+    _register_rest(dsub, sub)
+
+
+def detect_run_args(p: argparse.ArgumentParser, *, telemetry_option: bool = True) -> None:
+    """The options shared by ``detect run`` and ``telemetry hunt``."""
+    if telemetry_option:
+        p.add_argument(
+            "--telemetry",
+            metavar="PATH",
+            help="telemetry store or document: enables the hunting rules (shared/telemetry)",
+        )
+    p.add_argument(
+        "--telemetry-baseline",
+        metavar="PATH",
+        help="an earlier telemetry snapshot of the same host: enables change rules",
+    )
     p.add_argument(
         "--previous",
         action="append",
@@ -139,6 +163,9 @@ def register(sub: argparse._SubParsersAction[argparse.ArgumentParser]) -> None: 
     p.add_argument("--fail-on", choices=SEVERITIES, default="medium")
     p.add_argument("--generated-at", metavar="TIMESTAMP")
     p.add_argument("--quiet", action="store_true")
+
+
+def _register_rest(dsub: Any, sub: Any) -> None:
     p = dsub.add_parser("compare", help="compare detections across two or more snapshots")
     _rule_args(p)
     p.add_argument("snapshots", nargs="+", metavar="SNAPSHOT")
@@ -406,46 +433,91 @@ def run_detection(
     previous: list[Snap],
     notes: list[dict[str, str]],
     generated_at: str,
+    telemetry: dict[str, Any] | None = None,
+    telemetry_baseline: dict[str, Any] | None = None,
 ) -> dict[str, Any]:
-    return detect(current, rs, previous=previous, generated_at=generated_at, history_notes=notes)
+    return detect(
+        current,
+        rs,
+        previous=previous,
+        generated_at=generated_at,
+        history_notes=notes,
+        telemetry=telemetry,
+        telemetry_baseline=telemetry_baseline,
+    )
+
+
+def _telemetry_inputs(
+    args: argparse.Namespace,
+) -> tuple[dict[str, Any] | None, dict[str, Any] | None]:
+    if not getattr(args, "telemetry", None):
+        if getattr(args, "telemetry_baseline", None):
+            raise LoadError("--telemetry-baseline needs --telemetry")
+        return None, None
+    try:
+        tel = load_telemetry(args.telemetry)
+        base = load_telemetry(args.telemetry_baseline) if args.telemetry_baseline else None
+    except IngestError as exc:
+        raise LoadError(str(exc)) from None
+    return tel, base
+
+
+def run_command(args: argparse.Namespace) -> int:
+    """``detect run`` and ``telemetry hunt``: evaluate rules, record cases, render, set the exit code."""
+    rs = _rule_set(args)
+    tel, base = _telemetry_inputs(args)
+    if args.assessment:
+        current = load_assessment(args.assessment)
+    elif tel is not None:
+        current = shell_assessment(tel)
+        # With no assessment there is nothing for the assessment rules to read; evaluating them
+        # would only list dozens of rules as "module not run".
+        rs = rs.only(lambda r: r.sources <= set(TELEMETRY_SOURCES))
+    else:
+        # Same observable behavior as an argparse usage error (message on stderr, exit 2).
+        _err("detect run needs an assessment, or --telemetry")
+        raise SystemExit(int(ExitCode.USAGE))
+    prev, notes = _history(args, current)
+    stamp = args.generated_at or _now()
+    try:
+        results = run_detection(current, rs, prev, notes, stamp, tel, base)
+    except ValueError as exc:  # telemetry for another host
+        _err(str(exc))
+        return int(ExitCode.PRECONDITION)
+    problems = validate(results, "detection-results.schema.json", limit=5)
+    if problems:
+        _err("internal error: detection results violate their schema: " + "; ".join(problems))
+        return int(ExitCode.ERROR)
+    store = CaseStore(args.state_dir, args.actor) if args.state_dir else None
+    if store:
+        reg = store.observe(results)
+        if not args.quiet:
+            _err(
+                f"cases: {len(reg['new'])} new, {len(reg['reappeared'])} observed again after being closed"
+            )
+    view = _filter(results, args.min_severity)
+    cases = case_summaries(store, view)
+    if args.format == "json":
+        text = _json(view)
+    elif args.format == "text":
+        text = render_text(view, cases)
+    elif args.format == "markdown":
+        text = render_detections_markdown(view, cases)
+    else:
+        text = render_html(current, None, stamp, detections=view, cases=cases)
+    _emit(text, args.output)
+    if not args.quiet:
+        s = results["summary"]
+        _err(
+            f"{s['total']} detection(s), {s['indeterminate']} rule(s) indeterminate, {s['rule_errors']} rule error(s)"
+        )
+    return int(exit_code_for(results, args.fail_on))
 
 
 def _cmd_detect(args: argparse.Namespace) -> int:  # noqa: PLR0911, PLR0912, PLR0915
     cmd = args.detect_cmd
     if cmd == "run":
-        rs = _rule_set(args)
-        current = load_assessment(args.assessment)
-        prev, notes = _history(args, current)
-        stamp = args.generated_at or _now()
-        results = run_detection(current, rs, prev, notes, stamp)
-        problems = validate(results, "detection-results.schema.json", limit=5)
-        if problems:
-            _err("internal error: detection results violate their schema: " + "; ".join(problems))
-            return int(ExitCode.ERROR)
-        store = CaseStore(args.state_dir, args.actor) if args.state_dir else None
-        if store:
-            reg = store.observe(results)
-            if not args.quiet:
-                _err(
-                    f"cases: {len(reg['new'])} new, {len(reg['reappeared'])} observed again after being closed"
-                )
-        view = _filter(results, args.min_severity)
-        cases = case_summaries(store, view)
-        if args.format == "json":
-            text = _json(view)
-        elif args.format == "text":
-            text = render_text(view, cases)
-        elif args.format == "markdown":
-            text = render_detections_markdown(view, cases)
-        else:
-            text = render_html(current, None, stamp, detections=view, cases=cases)
-        _emit(text, args.output)
-        if not args.quiet:
-            s = results["summary"]
-            _err(
-                f"{s['total']} detection(s), {s['indeterminate']} rule(s) indeterminate, {s['rule_errors']} rule error(s)"
-            )
-        return int(exit_code_for(results, args.fail_on))
+        return run_command(args)
     if cmd == "compare":
         rs = _rule_set(args)
         snaps = [Snap(load_assessment(p), p) for p in args.snapshots]

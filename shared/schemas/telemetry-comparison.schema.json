@@ -1,0 +1,79 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://blueops.invalid/schemas/telemetry-comparison/1.0.0",
+  "title": "BlueOps telemetry comparison",
+  "description": "Differences between two telemetry snapshots of one host. A removal or change is reported only for categories that were completely collected in both snapshots; otherwise the category is listed as indeterminate. Event categories are append-only logs: new events are reported, absent events are not treated as removed.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema_version", "kind", "generated_at", "host", "baseline", "current", "categories", "indeterminate", "summary"],
+  "properties": {
+    "schema_version": {"type": "string", "pattern": "^1\\.\\d+\\.\\d+$"},
+    "kind": {"const": "telemetry-comparison"},
+    "generated_at": {"type": "string", "pattern": "^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}(\\.\\d+)?Z$"},
+    "host": {"type": "object", "required": ["host_id", "hostname"], "properties": {"host_id": {"type": "string"}, "hostname": {"type": "string"}}},
+    "baseline": {"type": "object", "required": ["id", "started_at"], "properties": {"id": {"type": "string"}, "started_at": {"type": "string"}}},
+    "current": {"type": "object", "required": ["id", "started_at"], "properties": {"id": {"type": "string"}, "started_at": {"type": "string"}}},
+    "categories": {
+      "type": "object",
+      "additionalProperties": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["determinate", "added", "removed", "changed"],
+        "properties": {
+          "determinate": {"type": "boolean"},
+          "added": {"type": "array", "items": {"$ref": "#/$defs/item"}},
+          "removed": {"type": "array", "items": {"$ref": "#/$defs/item"}},
+          "changed": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": ["identity", "record_id", "attributes"],
+              "properties": {
+                "identity": {"type": "string"},
+                "record_id": {"type": "string"},
+                "attributes": {
+                  "type": "array",
+                  "items": {
+                    "type": "object",
+                    "required": ["name"],
+                    "properties": {"name": {"type": "string"}, "before": {}, "after": {}}
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "indeterminate": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["category", "reason"],
+        "properties": {"category": {"type": "string"}, "reason": {"type": "string"}}
+      }
+    },
+    "summary": {
+      "type": "object",
+      "required": ["added", "removed", "changed", "indeterminate_categories"],
+      "properties": {
+        "added": {"type": "integer"}, "removed": {"type": "integer"},
+        "changed": {"type": "integer"}, "indeterminate_categories": {"type": "integer"}
+      }
+    }
+  },
+  "$defs": {
+    "item": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["identity", "record_id"],
+      "properties": {
+        "identity": {"type": "string"},
+        "record_id": {"type": "string"},
+        "summary": {"type": "string"}
+      }
+    }
+  }
+}

@@ -42,6 +42,10 @@ The assessment platform (engine, findings, comparison, reports) is described in 
 
 Details in [detection-engine.md](detection-engine.md#design-decisions). In short: rules are JSON data validated and compiled once; one clause/`require` model covers single and correlated rules; severity changes only through explicit, explained rules (never by count); absence-based conclusions need declared coverage and otherwise end *indeterminate*; analyst state lives in a separate append-only, hash-chained file; history is a directory of assessments, not a database. The v0.3 detection tool over baseline diffs (`shared.reporting.detect`) is kept unchanged beside it.
 
+### Decisions (telemetry and hunting)
+
+Details in [telemetry.md](telemetry.md#architecture-and-data-flow). Hunting is **not** a second engine: telemetry becomes two new sources (`telemetry`, `telemetry_changes`) of the detection engine, so hunting rules share the condition language, explanations, coverage handling, ids, cases and reports. Collectors are Bash/PowerShell emitting JSON Lines (Python stays optional on targets); the ingestion layer treats every stream as untrusted and rebuilds each record; record ids are derived (host, category, key) so snapshots align; derived aggregates (authentication summaries) are labelled `derived` and carry the ids they summarize; a category that could not be collected is `unavailable` and makes dependent rules *indeterminate* instead of silently clean. The telemetry schema line (1.x) is independent of the 0.x lines of the other documents.
+
 ### Decisions (assessment platform)
 
 - **A central document derived from, not replacing, the collector reports.** Old tooling (`diff`, `detect`, `verify`) keeps working on report files; an assessment projects back onto the report shape (`assessment_to_report`) so the inventory engine can be reused unchanged.
