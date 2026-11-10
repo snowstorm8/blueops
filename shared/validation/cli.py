@@ -407,6 +407,23 @@ def _cmd_run(args: argparse.Namespace) -> int:  # noqa: PLR0911, PLR0912
     if not chosen:
         _err("no scenario matches the selection")
         return int(ExitCode.PRECONDITION)
+    if args.live:
+        explicit = [s.id for s in chosen if not s.live_capable and s.id in args.scenario]
+        if explicit:
+            _err("not live scenarios (no lab section): " + ", ".join(explicit))
+            return int(ExitCode.PRECONDITION)
+        chosen = [s for s in chosen if s.live_capable]  # live runs never list the synthetic ones
+    if not args.live:
+        skipped = [s for s in chosen if s.live_only]
+        chosen = [s for s in chosen if not s.live_only]
+        if skipped:
+            _err(
+                f"{len(skipped)} live-only scenario(s) not evaluated (they need --live in a verified lab): "
+                + ", ".join(s.id for s in skipped)
+            )
+        if not chosen:
+            _err("every selected scenario is live-only; use --live")
+            return int(ExitCode.PRECONDITION)
     if args.dry_run:
         return _dry_run(chosen, args, rs)
     command = "validate " + " ".join(sys.argv[2:])[:900]

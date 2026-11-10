@@ -41,3 +41,4 @@ ignore = ["PLR2004"]
 testpaths = ["tests/shared"]
 pythonpath = ["."]
 addopts = "-ra --strict-markers"
+markers = ["live: starts real (harmless) child processes; runs only when BLUEOPS_LIVE_LAB=1 inside a disposable lab"]

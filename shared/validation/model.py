@@ -54,6 +54,7 @@ class Scenario:
     expect: dict[str, Any]
     cleanup: dict[str, Any]
     lab: dict[str, Any] | None
+    live_only: bool
     known_issue: dict[str, Any] | None
     limitations: tuple[str, ...]
     pack: str = ""
@@ -78,6 +79,7 @@ class Scenario:
             "pack": self.pack,
             "rules": list(self.rules_under_test),
             "live": self.live_capable,
+            "live_only": self.live_only,
             "tags": list(self.tags),
         }
 
@@ -197,6 +199,8 @@ def _check_scenario(raw: dict[str, Any], where: str) -> list[Diagnostic]:  # noq
         if cat not in CATEGORIES:
             err(f"expect.coverage: unknown category {cat!r}")
     lab = raw.get("lab")
+    if raw.get("live_only") and lab is None:
+        err("a live_only scenario needs a lab section")
     if lab is not None and not lab.get("actions") and not lab.get("collect_categories"):
         err("a lab section needs actions or collect_categories")
     return out
@@ -240,7 +244,7 @@ def load_pack_file(path: Path) -> tuple[list[Scenario], list[Diagnostic], dict[s
                 tags=tuple(raw.get("tags", [])), preconditions=tuple(raw.get("preconditions", [])),
                 dataset=raw["dataset"], baseline_dataset=raw.get("baseline_dataset"),
                 rules_under_test=tuple(under), expect=exp, cleanup=raw.get("cleanup", {}),
-                lab=raw.get("lab"), known_issue=raw.get("known_issue"), limitations=tuple(raw["limitations"]), pack=pack,
+                lab=raw.get("lab"), known_issue=raw.get("known_issue"), live_only=bool(raw.get("live_only")), limitations=tuple(raw["limitations"]), pack=pack,
                 sha256=canonical_sha256(raw), raw=raw, source_dir=str(path.parent),
             )
         )  # fmt: skip

@@ -124,6 +124,7 @@ def evaluate_scenario(  # noqa: PLR0912, PLR0915 - one linear classification pas
     substitutions: dict[str, Any] | None = None,
     tel: dict[str, Any] | None = None,
     base: dict[str, Any] | None = None,
+    scope_record_ids: set[str] | None = None,
 ) -> dict[str, Any]:
     """Run one scenario. Never raises: failures become ``status: error`` with the reason."""
     out: dict[str, Any] = {
@@ -154,8 +155,17 @@ def evaluate_scenario(  # noqa: PLR0912, PLR0915 - one linear classification pas
 
     status = _rule_status(results)
     dets_by_rule: dict[str, list[dict[str, Any]]] = {}
+    unrelated = 0
     for d in results["detections"]:
+        # In a live lab the host has its own activity: only detections that involve records the
+        # lab created are judged; the rest are counted and reported, never silently dropped.
+        if scope_record_ids is not None and not any(
+            c.get("id") in scope_record_ids for c in d["contributing"]
+        ):
+            unrelated += 1
+            continue
         dets_by_rule.setdefault(d["rule"]["id"], []).append(d)
+    out["unrelated_detections"] = unrelated
     ind_by_rule = {i["rule"]["id"]: i["reason"] for i in results["indeterminate"]}
     errs = {e["rule"]: e["message"] for e in results["rule_errors"] if e.get("rule")}
     checks = out["checks"]

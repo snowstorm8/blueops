@@ -51,7 +51,7 @@
             "additionalProperties": false,
             "required": ["kind"],
             "properties": {
-              "kind": {"enum": ["os_family", "tool", "python", "privilege", "loopback", "lab"]},
+              "kind": {"enum": ["os_family", "tool", "python", "privilege", "loopback", "lab", "interpreter"]},
               "value": {"type": "string", "maxLength": 60},
               "description": {"type": "string", "maxLength": 300}
             }
@@ -73,6 +73,7 @@
             "allow_rejected": {"type": "boolean"}
           }
         },
+        "live_only": {"type": "boolean", "description": "Only meaningful against a real host in a verified lab: synthetic runs skip it."},
         "baseline_dataset": {"type": "object"},
         "rules_under_test": {"type": "array", "maxItems": 60, "items": {"type": "string", "pattern": "^DR-[A-Z]{2,4}-[A-Z0-9]{2,8}-\\d{3}$"}},
         "expect": {

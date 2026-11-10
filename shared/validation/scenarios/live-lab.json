@@ -1,0 +1,328 @@
+{
+ "schema_version": "1.0.0",
+ "kind": "scenario-pack",
+ "pack": {
+  "name": "live-lab",
+  "version": "1.0.0",
+  "description": "Live lab scenarios: harmless child processes and a loopback listener observed by the real collector. Skipped by synthetic runs; executed only with --live in a verified lab."
+ },
+ "scenarios": [
+  {
+   "id": "SCN-ANY-LAB-001",
+   "title": "Parent-child chain observed on a live host",
+   "description": "The lab starts a chain of three sleeping Python processes. The collector must record the root as a child of the runner and a descendant under the root.",
+   "objective": "The real collector reports the expected process relationships, and no rule fires on harmless sleeping processes.",
+   "kind": "negative",
+   "platforms": [
+    "linux",
+    "windows"
+   ],
+   "supported_versions": [
+    "any"
+   ],
+   "tags": [
+    "live",
+    "lab"
+   ],
+   "live_only": true,
+   "preconditions": [
+    {
+     "kind": "lab"
+    },
+    {
+     "kind": "interpreter"
+    }
+   ],
+   "dataset": {
+    "records": []
+   },
+   "expect": {
+    "no_other_detections": true,
+    "telemetry": [
+     {
+      "category": "process",
+      "where": {
+       "all": [
+        {
+         "field": "attrs.pid",
+         "op": "eq",
+         "value": "${chain_pid}"
+        },
+        {
+         "field": "attrs.ppid",
+         "op": "eq",
+         "value": "${runner_pid}"
+        }
+       ]
+      },
+      "count": 1,
+      "description": "the chain root is a child of the validation runner"
+     },
+     {
+      "category": "process",
+      "where": {
+       "field": "attrs.ppid",
+       "op": "eq",
+       "value": "${chain_pid}"
+      },
+      "count": {
+       "min": 1
+      },
+      "description": "a child exists under the chain root"
+     }
+    ]
+   },
+   "lab": {
+    "collect_categories": [
+     "process"
+    ],
+    "actions": [
+     {
+      "action": "spawn_chain",
+      "name": "chain",
+      "depth": 2,
+      "seconds": 90
+     }
+    ]
+   },
+   "cleanup": {
+    "required": true,
+    "description": "Every child process the run started is terminated and its exit verified; only files below the lab directory were created (evidence is kept there)."
+   },
+   "limitations": [
+    "Runs on a real host, so the collected telemetry also contains whatever else that host is doing; only detections that involve records the lab created are judged, and the number of others is reported.",
+    "A pass shows the collector and engine handled these harmless activities on this host and OS version; it does not generalise to other hosts.",
+    "Unprivileged collection leaves coverage partial by design (see the coverage fields)."
+   ]
+  },
+  {
+   "id": "SCN-ANY-LAB-002",
+   "title": "Loopback listener observed with its owner",
+   "description": "The lab starts a child that listens on an ephemeral 127.0.0.1 port. The collector must record the listener, its address and its owning process.",
+   "objective": "Listener ownership is resolved by the real collector on this host, and nothing fires on a loopback listener.",
+   "kind": "negative",
+   "platforms": [
+    "linux",
+    "windows"
+   ],
+   "supported_versions": [
+    "any"
+   ],
+   "tags": [
+    "live",
+    "lab"
+   ],
+   "live_only": true,
+   "preconditions": [
+    {
+     "kind": "lab"
+    },
+    {
+     "kind": "interpreter"
+    },
+    {
+     "kind": "loopback"
+    }
+   ],
+   "dataset": {
+    "records": []
+   },
+   "expect": {
+    "no_other_detections": true,
+    "telemetry": [
+     {
+      "category": "listener",
+      "where": {
+       "all": [
+        {
+         "field": "attrs.local_port",
+         "op": "eq",
+         "value": "${svc_port}"
+        },
+        {
+         "field": "attrs.local_address",
+         "op": "in",
+         "value": [
+          "127.0.0.1"
+         ]
+        }
+       ]
+      },
+      "count": 1,
+      "description": "the loopback listener is recorded"
+     },
+     {
+      "category": "listener",
+      "where": {
+       "all": [
+        {
+         "field": "attrs.local_port",
+         "op": "eq",
+         "value": "${svc_port}"
+        },
+        {
+         "field": "attrs.pid",
+         "op": "eq",
+         "value": "${svc_pid}"
+        }
+       ]
+      },
+      "count": 1,
+      "description": "its owner is the lab child"
+     }
+    ]
+   },
+   "lab": {
+    "collect_categories": [
+     "process",
+     "listener"
+    ],
+    "actions": [
+     {
+      "action": "listen_loopback",
+      "name": "svc",
+      "seconds": 90
+     }
+    ]
+   },
+   "cleanup": {
+    "required": true,
+    "description": "Every child process the run started is terminated and its exit verified; only files below the lab directory were created (evidence is kept there)."
+   },
+   "limitations": [
+    "Runs on a real host, so the collected telemetry also contains whatever else that host is doing; only detections that involve records the lab created are judged, and the number of others is reported.",
+    "A pass shows the collector and engine handled these harmless activities on this host and OS version; it does not generalise to other hosts.",
+    "Unprivileged collection leaves coverage partial by design (see the coverage fields)."
+   ]
+  },
+  {
+   "id": "SCN-ANY-LAB-003",
+   "title": "Harmless sleeper triggers nothing",
+   "description": "One sleeping child process.",
+   "objective": "No detection involves a harmless child process of the runner.",
+   "kind": "negative",
+   "platforms": [
+    "linux",
+    "windows"
+   ],
+   "supported_versions": [
+    "any"
+   ],
+   "tags": [
+    "live",
+    "lab"
+   ],
+   "live_only": true,
+   "preconditions": [
+    {
+     "kind": "lab"
+    },
+    {
+     "kind": "interpreter"
+    }
+   ],
+   "dataset": {
+    "records": []
+   },
+   "expect": {
+    "no_other_detections": true,
+    "telemetry": [
+     {
+      "category": "process",
+      "where": {
+       "field": "attrs.pid",
+       "op": "eq",
+       "value": "${s_pid}"
+      },
+      "count": 1,
+      "description": "the sleeper is recorded"
+     }
+    ]
+   },
+   "lab": {
+    "collect_categories": [
+     "process",
+     "listener",
+     "network_connection"
+    ],
+    "actions": [
+     {
+      "action": "spawn_sleeper",
+      "name": "s",
+      "seconds": 90
+     }
+    ]
+   },
+   "cleanup": {
+    "required": true,
+    "description": "Every child process the run started is terminated and its exit verified; only files below the lab directory were created (evidence is kept there)."
+   },
+   "limitations": [
+    "Runs on a real host, so the collected telemetry also contains whatever else that host is doing; only detections that involve records the lab created are judged, and the number of others is reported.",
+    "A pass shows the collector and engine handled these harmless activities on this host and OS version; it does not generalise to other hosts.",
+    "Unprivileged collection leaves coverage partial by design (see the coverage fields)."
+   ]
+  },
+  {
+   "id": "SCN-ANY-LAB-004",
+   "title": "Categories that were not collected are reported as not collected",
+   "description": "Collection is restricted to processes. Rules that need authentication events or listeners must say they were not collected.",
+   "objective": "The real collector's coverage statements drive honest 'inconclusive' results instead of a clean report.",
+   "kind": "coverage",
+   "platforms": [
+    "linux",
+    "windows"
+   ],
+   "supported_versions": [
+    "any"
+   ],
+   "tags": [
+    "live",
+    "lab"
+   ],
+   "live_only": true,
+   "preconditions": [
+    {
+     "kind": "lab"
+    },
+    {
+     "kind": "interpreter"
+    }
+   ],
+   "dataset": {
+    "records": []
+   },
+   "expect": {
+    "coverage": {
+     "process": "complete",
+     "auth_event": "absent",
+     "listener": "absent"
+    },
+    "indeterminate": [
+     {
+      "rule": "DR-ANY-HAUTH-001",
+      "reason_contains": "not collected"
+     },
+     {
+      "rule": "DR-ANY-HNET-001",
+      "reason_contains": "not collected"
+     }
+    ]
+   },
+   "lab": {
+    "collect_categories": [
+     "process"
+    ],
+    "actions": []
+   },
+   "cleanup": {
+    "required": true,
+    "description": "Every child process the run started is terminated and its exit verified; only files below the lab directory were created (evidence is kept there)."
+   },
+   "limitations": [
+    "Runs on a real host, so the collected telemetry also contains whatever else that host is doing; only detections that involve records the lab created are judged, and the number of others is reported.",
+    "Process coverage is complete only when every executable link is readable (root or an elevated shell); otherwise it is partial and this scenario reports that difference as a failure of its first coverage check."
+   ]
+  }
+ ]
+}

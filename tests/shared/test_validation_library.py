@@ -13,7 +13,9 @@ from shared.validation.runner import run_scenarios, telemetry_rule_set
 
 SS = load_scenarios()
 RULES = telemetry_rule_set()
-RESULTS = run_scenarios(SS.ordered(), SS, RULES, recommend=recommend)
+# Live-only scenarios are never evaluated synthetically (the CLI excludes them the same way).
+SYNTHETIC = [s for s in SS.ordered() if not s.live_only]
+RESULTS = run_scenarios(SYNTHETIC, SS, RULES, recommend=recommend)
 KNOWN = {"SCN-LNX-PRC-004": "DR-ANY-HPRC-001", "SCN-LNX-PRC-006": "DR-ANY-HPRC-002"}
 
 
@@ -23,12 +25,10 @@ def test_the_library_loads_without_diagnostics_and_names_only_real_rules():
 
 
 def test_both_platforms_and_all_three_kinds_are_represented_with_unique_ids():
-    kinds = collections.Counter(s.kind for s in SS.ordered())
-    plats = collections.Counter(p for s in SS.ordered() for p in s.platforms)
+    kinds = collections.Counter(s.kind for s in SYNTHETIC)
+    plats = collections.Counter(p for s in SYNTHETIC for p in s.platforms)
     assert set(kinds) == {"positive", "negative", "coverage"} and min(kinds.values()) >= 8
-    assert (
-        plats["linux"] >= 30 and plats["windows"] >= 25 and len(SS.scenarios) == sum(kinds.values())
-    )
+    assert plats["linux"] >= 30 and plats["windows"] >= 25 and len(SYNTHETIC) == sum(kinds.values())
 
 
 def test_every_hunting_rule_has_an_evaluated_positive_and_negative_scenario():
@@ -37,8 +37,13 @@ def test_every_hunting_rule_has_an_evaluated_positive_and_negative_scenario():
     assert cov["coverage"]["value"] == 1.0 and cov["rules_in_scope"] == len(RULES.rules) == 24
 
 
+def test_live_only_scenarios_are_kept_out_of_synthetic_results():
+    live = {s.id for s in SS.ordered() if s.live_only}
+    assert live and live.isdisjoint(s["id"] for s in RESULTS["scenarios"])
+
+
 def test_the_requested_topics_are_covered():
-    tags = {t for s in SS.ordered() for t in s.tags}
+    tags = {t for s in SYNTHETIC for t in s.tags}
     assert {
         "process",
         "relationship",
@@ -115,7 +120,7 @@ def test_results_validate_and_state_what_they_do_not_prove():
 
 
 def test_the_run_is_deterministic():
-    again = run_scenarios(SS.ordered(), SS, RULES)
+    again = run_scenarios(SYNTHETIC, SS, RULES)
     assert again["reproducibility"]["digest"] == RESULTS["reproducibility"]["digest"]
     assert again["scenarios"] == RESULTS["scenarios"] and again["metrics"] == RESULTS["metrics"]
 
@@ -125,7 +130,7 @@ def test_reproducibility_metadata_identifies_rules_scenarios_and_versions():
     assert len(r["rules"]) == 24 and all(
         len(x["sha256"]) == 64 and x["version"] for x in r["rules"]
     )
-    assert {p["name"] for p in r["scenario_packs"]} == {"linux-lab", "windows-lab"}
+    assert {"linux-lab", "windows-lab"} <= {p["name"] for p in r["scenario_packs"]}
     assert r["versions"]["validation_schema"] == "1.0.0" and r["versions"]["python"]
     assert "hostname" not in str(RESULTS["run"]["host"]).lower()
 
@@ -164,7 +169,7 @@ def test_the_library_detects_a_deliberately_broken_rule():
     broken = Rule(**{**rule.__dict__, "clauses": (broken_clause,)})
     mutated = RULES.only(lambda r: True)
     mutated.rules["DR-ANY-HPRC-002"] = broken
-    res = run_scenarios(SS.ordered(), SS, mutated)
+    res = run_scenarios(SYNTHETIC, SS, mutated)
     fp = [
         s["id"]
         for s in res["scenarios"]
