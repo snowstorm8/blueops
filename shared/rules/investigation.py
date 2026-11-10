@@ -12,6 +12,14 @@ names. Nothing else is needed: no database, no server, easy to copy, diff and ar
   observed again is flagged ``reappeared``; the analyst's decision is not silently reverted.
 * **Explained decisions.** Resolving or dismissing requires a note.
 * Never stores evidence content, only references (detection ids), titles and analyst text.
+* **Provenance.** Each observation records whether the detection results it came from were
+  verified (``verified``), not verified (``unverified``: the analyst opted in with
+  ``--allow-unverified``) or carried no provenance at all (``unknown``, which counts as
+  unverified: an event written before this field existed, or a results document from which the
+  record was stripped). A case is shown as verified only if **every** observation of it was; one
+  unverified or unknown contributing source makes the case unverified for good, and a later
+  verified observation does not wash it out. Data whose verification *failed* (invalid) is
+  refused by the loaders and never reaches the store, so there is no "invalid" state here.
 """
 
 from __future__ import annotations
@@ -29,6 +37,7 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
 
+from shared.engine.provenance import status as provenance_status
 from shared.rules import RULES_SCHEMA_VERSION
 
 STATUSES = ("new", "acknowledged", "investigating", "resolved", "dismissed")
@@ -47,6 +56,7 @@ GENESIS = "0" * 64
 MAX_LINE = 16 * 1024
 MAX_EVENTS = 200_000
 MAX_NOTE = 2000
+MAX_REASONS = 10
 _DT = re.compile(r"^DT-[a-f0-9]{16}$")
 _CONTROL = re.compile(r"[\x00-\x08\x0b\x0c\x0e-\x1f\x7f]")
 _TS = re.compile(r"^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}Z$")
@@ -62,6 +72,28 @@ def _now() -> str:
 
 def _clean(text: Any, limit: int) -> str:
     return _CONTROL.sub("?", str(text)).strip()[:limit]
+
+
+def source_provenance(results: dict[str, Any]) -> dict[str, Any]:
+    """How trustworthy the results being registered are, for the ``observed`` event.
+
+    Computed from what the document records about its inputs (``provenance.status``): a document
+    that records nothing is ``unknown`` and counts as unverified, so stripping the record can
+    only lower the standing of a case, never raise it.
+    """
+    ok, inputs = provenance_status(results)
+    if ok is None:
+        return {"verification": "unknown", "unverified": []}
+    bad = [i for i in inputs if i.get("verified") is not True]
+    reasons = [
+        {
+            "role": _clean(i.get("role", "input"), 40),
+            "path": _clean(i.get("path", "(unknown)"), 200),
+            "reason": _clean(i.get("reason") or "not verified", 160),
+        }
+        for i in bad[:MAX_REASONS]
+    ]
+    return {"verification": "verified" if ok else "unverified", "unverified": reasons}
 
 
 @dataclass
@@ -80,6 +112,35 @@ class Case:
     notes: list[dict[str, str]] = field(default_factory=list)
     linked: list[str] = field(default_factory=list)
     reappeared: bool = False
+    observations: list[dict[str, Any]] = field(default_factory=list)
+
+    @property
+    def verification(self) -> str:
+        """``verified`` only if every observation was; ``unknown`` if none recorded any."""
+        states = [o["verification"] for o in self.observations]
+        if not states:
+            return "unknown"
+        if all(x == "verified" for x in states):
+            return "verified"
+        return "unverified"
+
+    def provenance(self) -> dict[str, Any]:
+        obs = self.observations
+        reasons: list[dict[str, str]] = []
+        for o in obs:
+            for r in o.get("unverified", []):
+                if r not in reasons and len(reasons) < MAX_REASONS:
+                    reasons.append(r)
+        return {
+            "verification": self.verification,
+            "inputs_verified": self.verification == "verified",
+            "observations": len(obs),
+            "verified_observations": sum(o["verification"] == "verified" for o in obs),
+            "unverified_observations": sum(o["verification"] == "unverified" for o in obs),
+            "unknown_observations": sum(o["verification"] == "unknown" for o in obs),
+            "sources": sorted({o["assessment_id"] for o in obs if o.get("assessment_id")}),
+            "unverified_inputs": reasons,
+        }
 
     def to_json(self) -> dict[str, Any]:
         return {
@@ -87,7 +148,7 @@ class Case:
             "confidence": self.confidence, "hostname": self.hostname, "status": self.status,
             "first_seen": self.first_seen, "last_seen": self.last_seen, "assessments": list(self.assessments),
             "status_history": list(self.status_history), "notes": list(self.notes),
-            "linked": list(self.linked), "reappeared": self.reappeared,
+            "linked": list(self.linked), "reappeared": self.reappeared, "provenance": self.provenance(),
         }  # fmt: skip
 
 
@@ -112,6 +173,22 @@ def _locked(directory: Path) -> Iterator[None]:
     finally:
         with contextlib.suppress(FileNotFoundError):
             lock.unlink()
+
+
+def _observation(ts: str, d: dict[str, Any]) -> dict[str, Any]:
+    """One ``observed`` event's provenance; anything malformed or missing is ``unknown``."""
+    state = d.get("verification")
+    unver = d.get("unverified")
+    return {
+        "ts": ts,
+        "assessment_id": d.get("assessment_id", ""),
+        "verification": state if state in ("verified", "unverified") else "unknown",
+        "unverified": [
+            {k: _clean(v, 200) for k, v in r.items() if k in ("role", "path", "reason")}
+            for r in (unver if isinstance(unver, list) else [])
+            if isinstance(r, dict)
+        ][:MAX_REASONS],
+    }
 
 
 class CaseStore:
@@ -183,6 +260,7 @@ class CaseStore:
                 c.last_seen = ev["ts"]
                 if d.get("assessment_id") and d["assessment_id"] not in c.assessments:
                     c.assessments.append(d["assessment_id"])
+                c.observations.append(_observation(ev["ts"], d))
             elif a == "reappeared":
                 c.reappeared = True
                 c.last_seen = ev["ts"]
@@ -241,6 +319,7 @@ class CaseStore:
     def observe(self, results: dict[str, Any]) -> dict[str, list[str]]:
         """Register the detections of a run. Returns ``{"new": [...], "reappeared": [...]}``."""
         known = self.cases()
+        prov = source_provenance(results)
         batch: list[tuple[str, str, dict[str, Any]]] = []
         new: list[str] = []
         back: list[str] = []
@@ -249,7 +328,7 @@ class CaseStore:
             batch.append(("observed", did, {
                 "rule_id": d["rule"]["id"], "title": _clean(d["title"], 200), "severity": d["severity"],
                 "confidence": d["confidence"], "hostname": _clean(d["host"]["hostname"], 120),
-                "assessment_id": _clean(results["assessment"]["id"], 120),
+                "assessment_id": _clean(results["assessment"]["id"], 120), **prov,
             }))  # fmt: skip
             c = known.get(did)
             if c is None:
@@ -358,5 +437,12 @@ def case_summaries(store: CaseStore | None, results: dict[str, Any]) -> dict[str
                 c.status_history[-1]["ts"] if c and c.status_history else (c.last_seen if c else "")
             ),
             "related": sorted(set(related.get(d["id"], [])) | set(c.linked if c else [])),
+            # A case is verified only if every source it was observed from was; an untracked
+            # detection takes the standing of the results it is shown with.
+            "verification": c.verification if c else source_provenance(results)["verification"],
+            "unverified_inputs": c.provenance()["unverified_inputs"]
+            if c
+            else source_provenance(results)["unverified"],
         }
+        out[d["id"]]["verified"] = out[d["id"]]["verification"] == "verified"
     return out

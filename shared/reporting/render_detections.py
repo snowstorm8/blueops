@@ -10,6 +10,7 @@ from __future__ import annotations
 from html import escape
 from typing import Any
 
+from shared.reporting.render_provenance import markdown as provenance_markdown
 from shared.rules.render_util import md_code, md_text
 
 SEV_ORDER = ("critical", "high", "medium", "low", "info")
@@ -170,7 +171,8 @@ def _card(
         f"<h4>Framework references</h4>{refs or '<p class=pill>None.</p>'}"
         f'<h4>Investigation</h4><p><span class="dstat {e(status)}">{e(status)}</span>'
         f"{' &middot; ' + str(case.get('notes', 0)) + ' note(s)' if case.get('notes') else ''}"
-        f"{' &middot; <strong>observed again after being closed</strong>' if case.get('reappeared') else ''}</p>{notes}"
+        f"{' &middot; <strong>observed again after being closed</strong>' if case.get('reappeared') else ''}"
+        f"{' &middot; <strong>case sources UNVERIFIED</strong>' if case.get('verification', 'verified') != 'verified' else ''}</p>{notes}"
         + (f"<p class='pill'>Related detections: {related}</p>" if related else "")
         + f'<p class="pill">Detection <code>{e(d["id"])}</code> &middot; rule {e(d["rule"]["name"])} v{e(d["rule"]["version"])} &middot; {e(d["detected_at"])}</p>'
         "</div></details>"
@@ -275,8 +277,10 @@ def render_detections_markdown(  # noqa: PLR0912 - one linear sequence of report
     cases = cases or {}
     s = results["summary"]
     h = results["host"]
+    prov = provenance_markdown(("detections", results))
     lines = [
         "# BlueOps detection report", "",
+        *(prov[:2] if prov and prov[0].startswith("> **WARNING") else []),
         f"_Generated {md_text(results['generated_at'])}_ · host **{md_text(h['hostname'])}** ({md_text(h['os_family'])}) · assessment {md_code(results['assessment']['id'])}", "",
         "> A detection is a lead for investigation, not a verdict. See each detection's *nature* and disclaimer.", "",
         "## Overview", "",
@@ -287,6 +291,7 @@ def render_detections_markdown(  # noqa: PLR0912 - one linear sequence of report
         f"- History: {results['history']['snapshots']} earlier snapshot(s)" + (f", compared with {md_code(results['history']['compared_with'])}" if results["history"]["compared_with"] else ""),
         "",
     ]  # fmt: skip
+    lines += prov[2:] if prov and prov[0].startswith("> **WARNING") else prov
     if s["by_category"]:
         lines += (
             ["| Category | Detections |", "|---|---|"]
@@ -302,7 +307,12 @@ def render_detections_markdown(  # noqa: PLR0912 - one linear sequence of report
         lines += [
             f"### {md_text(d['severity']).upper()} · {md_text(d['title'], 200)}", "",
             f"- Detection {md_code(d['id'])} · rule {md_code(d['rule']['id'])} v{md_text(d['rule']['version'])} · **{md_text(NATURE_LABEL[d['nature']])}**",
-            f"- Confidence: {md_text(d['confidence'])} · category {md_text(d['category'])} · status **{md_text(c.get('status', 'new'))}**" + (" · observed again after being closed" if c.get("reappeared") else ""),
+            f"- Confidence: {md_text(d['confidence'])} · category {md_text(d['category'])} · status **{md_text(c.get('status', 'new'))}**" + (" · observed again after being closed" if c.get("reappeared") else "")
+            + (
+                ""
+                if c.get("verification", "verified") == "verified"
+                else " · **case sources UNVERIFIED**"
+            ),
             f"- Why flagged: {md_text(x['why_flagged'], 800)}",
             f"- How it matched: {md_text(x['why_correlated'], 800)}",
             f"- Severity: {md_text(x['severity_rationale'], 600)}",

@@ -6,6 +6,7 @@ All notable changes are documented here. Format: [Keep a Changelog](https://keep
 
 ### Changed (unverified-input policy, case provenance, versions)
 - One policy for every manifest-less input: verified is accepted, unverified is refused unless `--allow-unverified`, invalid is refused always. **Behaviour change:** raw telemetry streams, bare `telemetry.json`, stored detection-results files and the telemetry baseline are now refused by default (`telemetry import|show|query|tree|compare|report|hunt`, `detect run|show|export|report` gained `--allow-unverified`). A lone file inside a directory whose manifest matches is verified by that manifest. Telemetry stores keep no opt-out.
+- Case store: every observation records whether its source results were `verified`, `unverified` or `unknown`; a case is verified only if all of them were (shown by `case show`, `case list --json`, and the detection reports). Older case files read as `unknown`.
 - Schema versions: `telemetry` and `telemetry-comparison` 1.0.0 -> 1.1.0; `audit-report` 0.2.0 -> 0.3.0 (`READABLE_REPORT_VERSIONS` gains `0.3`; engine reports are emitted as 0.3.0, collectors and the legacy documents stay 0.2.0).
 
 ### Added (input provenance)

@@ -16,6 +16,7 @@ from __future__ import annotations
 import copy
 import json
 import shutil
+import time
 from pathlib import Path
 from typing import Any
 
@@ -34,6 +35,9 @@ from shared.reporting.render_html import render_html
 from shared.reporting.render_markdown import render_comparison_markdown, render_markdown
 from shared.reporting.schema_lite import validate
 from shared.reporting.snapshot_compare import compare_snapshots
+from shared.rules.engine import detect
+from shared.rules.export import to_csv, to_jsonl
+from shared.rules.history import Snap
 from shared.rules.loader import load_rule_set
 from shared.telemetry import ingest, render
 from shared.telemetry.compare import compare_telemetry
@@ -195,6 +199,40 @@ def test_a_collector_report_loaded_without_verification_is_marked(tmp_path: Path
 
 
 # --------------------------------------------------------------------- detection results
+
+
+def test_detection_results_record_each_input_including_history(tmp_path: Path) -> None:
+    a, b = _two(tmp_path)
+    cur, prev_ok, prev_bad = (
+        load_assessment(b),
+        Snap(load_assessment(a), str(a)),
+        Snap(_noverify(a), "other-history"),
+    )
+    res = detect(cur, RS, previous=[prev_ok], generated_at=STAMP)
+    assert res["inputs_verified"] is True
+    assert {e["role"] for e in res["inputs"]} == {"assessment", "history"}
+    mixed = detect(cur, RS, previous=[prev_ok, prev_bad], generated_at=STAMP)
+    assert mixed["inputs_verified"] is False
+    unverified = [e for e in mixed["inputs"] if not e["verified"]]
+    assert unverified and all(e["role"] in ("history", "source") for e in unverified)
+    assert validate(mixed, "detection-results.schema.json") == []
+
+
+def test_flat_exports_repeat_the_status_on_every_row(tmp_path: Path) -> None:
+    _, b = _two(tmp_path)
+    res = detect(_noverify(b), RS, generated_at=STAMP)
+    res["detections"] = res["detections"] or [
+        {  # the fixture has no detections; exercise the writers with one synthetic row
+            "id": "d1", "rule": {"id": "R"}, "title": "t", "severity": "low", "confidence": "low",
+            "nature": "observation", "category": "c", "host": {"hostname": "h"},
+            "references": {"attack": [], "nist": []}, "contributing": [], "evidence": [],
+            "remediation": "r",
+        }
+    ]  # fmt: skip
+    csv_text = to_csv(res)
+    assert csv_text.splitlines()[0].endswith("inputs_verified")
+    assert csv_text.splitlines()[1].endswith(",false")
+    assert json.loads(to_jsonl(res).splitlines()[0])["inputs_verified"] is False
 
 
 # ------------------------------------------------------------------------- rendering
@@ -409,3 +447,28 @@ def test_a_stored_comparison_file_is_a_bare_file_and_needs_the_opt_in(
     doc = json.loads((d / "comparison-1.json").read_text("utf-8"))
     assert doc["inputs_verified"] is False
     assert any("no manifest" in e.get("reason", "") for e in doc["inputs"])
+
+
+def test_run_history_is_skipped_by_default_and_used_with_the_opt_in(
+    tmp_path: Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    a, b = _two_runs(tmp_path, capsys)
+    time.sleep(1.1)  # started_at has one-second resolution; history must be strictly earlier
+    hist = tmp_path / "hist"
+    hist.mkdir()
+    shutil.copytree(a, hist / "good")
+    _unverifiable_copy(b, hist / "bad")
+    assert _run_main(*_run_args(tmp_path, 8, "--detect", "--history", str(hist))) in (0, 4, 6)
+    capsys.readouterr()
+    res = json.loads((_assessment_dir(tmp_path / "out8") / "detections.json").read_text("utf-8"))
+    assert res["history"]["snapshots"] == 1 and res["history"]["excluded"]
+    assert res["inputs_verified"] is True
+    args = _run_args(tmp_path, 9, "--detect", "--history", str(hist), "--allow-unverified")
+    assert _run_main(*args) in (0, 4, 6)
+    d = _assessment_dir(tmp_path / "out9")
+    res = json.loads((d / "detections.json").read_text("utf-8"))
+    doc = json.loads((d / "assessment.json").read_text("utf-8"))
+    assert res["history"]["snapshots"] == 2
+    assert res["inputs_verified"] is False and doc["inputs_verified"] is False
+    assert sorted(e["verified"] for e in res["inputs"] if e["role"] == "history") == [False, True]
+    assert validate(res, "detection-results.schema.json") == []
