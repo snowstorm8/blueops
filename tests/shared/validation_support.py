@@ -8,6 +8,8 @@ from pathlib import Path
 from typing import Any
 
 from shared.rules.loader import RuleSet, load_rule_set
+from shared.telemetry.fixtures import build_telemetry
+from shared.telemetry.ingest import write_store
 
 HUNT_RULES = load_rule_set().only(lambda r: any(s.startswith("telemetry") for s in r.sources))
 
@@ -114,3 +116,27 @@ def write_pack(tmp: Path, scenarios: list[dict[str, Any]], name: str = "pk") -> 
     path = tmp / f"{name}.json"
     path.write_text(json.dumps(pack(scenarios, name=name.replace("_", "-"))), encoding="utf-8")
     return path
+
+
+def make_store(
+    tmp: Path,
+    records: list[dict[str, Any]],
+    *,
+    host: str = "lab-host",
+    platform: str = "linux",
+    started: str = "2026-03-01T10:00:00Z",
+    cid: str = "snap",
+    coverage: dict[str, str] | None = None,
+    name: str = "store",
+) -> Path:
+    """A verified telemetry store built from a compact spec (the real ingestion path)."""
+    spec: dict[str, Any] = {
+        "records": records,
+        "started_at": started,
+        "ended_at": started,
+        "host": host,
+    }
+    if coverage:
+        spec["coverage"] = coverage
+    doc = build_telemetry(spec, platform=platform, hostname=host, cid=cid)
+    return write_store(doc, tmp / name)

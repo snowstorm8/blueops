@@ -1,0 +1,29 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://blueops.invalid/schemas/validation-baseline-diff/1.0.0",
+  "title": "BlueOps baseline comparison",
+  "description": "Differences between a known-good baseline and a later telemetry capture. A difference is classified expected or unexpected relative to the baseline's declared allowances; neither classification says anything about intent, and every difference carries an explanation of why it matters and how to review it.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema_version", "kind", "generated_at", "mode", "baseline", "current", "compatibility", "differences", "indeterminate", "summary"],
+  "properties": {
+    "schema_version": {"type": "string", "pattern": "^1\\.\\d+\\.\\d+$"},
+    "kind": {"const": "validation-baseline-diff"},
+    "generated_at": {"type": "string"},
+    "mode": {"enum": ["same_platform", "cross_platform"]},
+    "baseline": {"type": "object"},
+    "current": {"type": "object"},
+    "compatibility": {"type": "array", "items": {"type": "object", "required": ["code", "severity", "message"], "properties": {"severity": {"enum": ["error", "warning", "info"]}}}},
+    "differences": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["category", "change", "identity", "classification", "why_it_matters", "how_to_review"],
+        "properties": {"classification": {"enum": ["expected", "unexpected"]}, "change": {"enum": ["added", "removed", "changed"]}}
+      }
+    },
+    "indeterminate": {"type": "array", "items": {"type": "object", "required": ["category", "reason"]}},
+    "parity": {"type": "array", "items": {"type": "object"}},
+    "summary": {"type": "object", "required": ["total", "expected", "unexpected", "indeterminate_categories", "exit_status"], "properties": {"exit_status": {"enum": ["ok", "unexpected_differences", "incomplete", "incompatible"]}}}
+  }
+}

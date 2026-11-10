@@ -48,6 +48,8 @@ from shared.rules.investigation import CaseStore, case_summaries
 from shared.rules.loader import load_rule_set
 from shared.telemetry.cli import dispatch as telemetry_dispatch
 from shared.telemetry.cli import register as telemetry_register
+from shared.validation.cli import VERBS as VALIDATION_VERBS
+from shared.validation.cli import main as validation_main
 
 REPO_ROOT = Path(__file__).resolve().parent.parent.parent
 DOC_SCHEMAS = {
@@ -205,7 +207,13 @@ def _parser() -> argparse.ArgumentParser:
     rep.add_argument("--allow-unverified", action="store_true", help=ALLOW_UNVERIFIED_HELP)
     rep.add_argument("--generated-at", metavar="TIMESTAMP")
 
-    val = sub.add_parser("validate", help="validate a document against its schema")
+    val = sub.add_parser(
+        "validate",
+        help=(
+            "validate a document against its schema "
+            "(or: validate list|show|run|evaluate|compare|baseline|report|calibrate|lab)"
+        ),
+    )
     val.add_argument("file")
 
     ver = sub.add_parser("verify", help="verify an assessment directory against its manifest")
@@ -482,8 +490,12 @@ _COMMANDS = {
 }
 
 
-def main(argv: list[str] | None = None) -> int:
-    args = _parser().parse_args(argv)
+def main(argv: list[str] | None = None) -> int:  # noqa: PLR0911 - one return per handler
+    raw = sys.argv[1:] if argv is None else list(argv)
+    # `validate list|run|...` is the validation lab; `validate FILE` (schema check) is unchanged.
+    if raw[:1] == ["validate"] and raw[1:2] and raw[1] in VALIDATION_VERBS:
+        return validation_main(raw[1:])
+    args = _parser().parse_args(raw)
     try:
         handled = rules_dispatch(args)
         if handled is None:

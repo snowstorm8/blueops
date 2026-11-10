@@ -1,0 +1,57 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://blueops.invalid/schemas/validation-baseline/1.0.0",
+  "title": "BlueOps validation baseline",
+  "description": "Metadata of a known-good telemetry capture. 'Known good' is the operator's claim about the environment when it was captured; the metadata records what BlueOps can verify (host, versions, coverage, age) and what it cannot.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema_version", "kind", "name", "captured_at", "purpose", "max_age_days", "host", "source", "expected_changes", "lab_attested", "tool_versions"],
+  "properties": {
+    "schema_version": {"type": "string", "pattern": "^1\\.\\d+\\.\\d+$"},
+    "kind": {"const": "validation-baseline"},
+    "name": {"type": "string", "pattern": "^[A-Za-z0-9][A-Za-z0-9._-]{0,60}$"},
+    "captured_at": {"type": "string", "pattern": "^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}(\\.\\d+)?Z$"},
+    "purpose": {"type": "string", "maxLength": 300},
+    "max_age_days": {"type": "integer", "minimum": 1, "maximum": 3650},
+    "host": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["host_id", "hostname", "os"],
+      "properties": {"host_id": {"type": "string"}, "hostname": {"type": "string"}, "os": {"type": "object"}, "arch": {"type": "string"}}
+    },
+    "source": {
+      "type": "object",
+      "required": ["collection_id", "mode", "records", "complete", "coverage", "collectors", "telemetry_schema", "errors"],
+      "properties": {
+        "collection_id": {"type": "string"},
+        "mode": {"type": "string"},
+        "started_at": {"type": "string"},
+        "ended_at": {"type": "string"},
+        "records": {"type": "integer"},
+        "complete": {"type": "boolean"},
+        "coverage": {"type": "object"},
+        "collectors": {"type": "array", "items": {"type": "object"}},
+        "telemetry_schema": {"type": "string"},
+        "errors": {"type": "array", "items": {"type": "string"}}
+      }
+    },
+    "expected_changes": {
+      "type": "array",
+      "maxItems": 100,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["category", "reason"],
+        "properties": {
+          "category": {"type": "string", "maxLength": 40},
+          "change": {"enum": ["added", "removed", "changed"]},
+          "identity_pattern": {"type": "string", "maxLength": 200},
+          "attributes": {"type": "array", "maxItems": 20, "items": {"type": "string", "maxLength": 64}},
+          "reason": {"type": "string", "minLength": 1, "maxLength": 300}
+        }
+      }
+    },
+    "lab_attested": {"type": "boolean"},
+    "tool_versions": {"type": "object"}
+  }
+}
