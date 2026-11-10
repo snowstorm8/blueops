@@ -87,11 +87,13 @@ jobs:
           set -e
           python -m shared.engine rules validate --examples
           python -m shared.engine rules test
+          # The fixture is a bare, repository-owned synthetic file with no manifest; the loader
+          # refuses it by default (exit 3), so the opt-in is explicit here.
           set +e
-          python -m shared.engine detect run tests/fixtures/rules/linux-compromised.assessment.json --quiet > detections.json
+          python -m shared.engine detect run tests/fixtures/rules/linux-compromised.assessment.json --allow-unverified --quiet > detections.json
           code=$?
           test "$code" -eq 4 || { echo "expected exit 4 for the compromised fixture, got $code"; exit 1; }
-          python -m shared.engine detect run tests/fixtures/rules/linux-compromised.assessment.json --quiet --fail-on critical --min-severity critical > /dev/null
+          python -m shared.engine detect run tests/fixtures/rules/linux-compromised.assessment.json --allow-unverified --quiet --fail-on critical --min-severity critical > /dev/null
           python -m shared.engine validate detections.json
       - name: Telemetry smoke test (offline import, hunt, report)
         shell: bash
