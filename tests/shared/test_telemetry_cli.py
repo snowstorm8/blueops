@@ -6,6 +6,7 @@ import json
 from pathlib import Path
 
 import pytest
+from engine_support import trust_fixtures
 from telemetry_support import auth, coverage, proc, rec, stream
 
 from shared.engine.cli import main
@@ -17,7 +18,7 @@ ROOT = Path(__file__).resolve().parents[2]
 def call(capsys, *argv):
     capsys.readouterr()
     try:
-        rc = main([str(a) for a in argv])
+        rc = main(trust_fixtures([str(a) for a in argv]))
     except SystemExit as exc:
         rc = int(exc.code)
     cap = capsys.readouterr()

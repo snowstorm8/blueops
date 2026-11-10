@@ -139,9 +139,9 @@ def _coverage(c: dict[str, Any]) -> dict[str, Any] | None:
     return out
 
 
-def raw_from_assessment(path: Path, data: bytes) -> RawInput:
+def raw_from_assessment(path: Path, data: bytes, verify: bool = True) -> RawInput:
     try:
-        doc = load_assessment(path)
+        doc = load_assessment(path, verify=verify)
     except LoadError as exc:
         raise IngestError(str(exc)) from None
     return raw_from_assessment_doc(

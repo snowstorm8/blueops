@@ -35,8 +35,8 @@ def _check(name: str, text: str) -> None:
 
 @pytest.fixture(scope="module")
 def snapshots() -> tuple[dict[str, Any], dict[str, Any]]:
-    return load_assessment(GOLD / "baseline.assessment.json"), load_assessment(
-        GOLD / "current.assessment.json"
+    return load_assessment(GOLD / "baseline.assessment.json", verify=False), load_assessment(
+        GOLD / "current.assessment.json", verify=False
     )
 
 

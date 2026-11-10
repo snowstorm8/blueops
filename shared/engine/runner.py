@@ -16,7 +16,6 @@ from __future__ import annotations
 
 import hashlib
 import os
-import shutil
 import signal
 import subprocess  # noqa: S404 - the engine's job is to run collectors (argv only, no shell)
 import sys
@@ -28,6 +27,7 @@ from pathlib import Path
 from typing import Any
 
 from shared.engine.builtin import collector_module_name
+from shared.engine.environment import sanitized_environment, trusted_which
 from shared.engine.module import (
     FAILED,
     INVALID_OUTPUT,
@@ -38,6 +38,7 @@ from shared.engine.module import (
     ModuleResult,
     ModuleSpec,
 )
+from shared.engine.trust import plugin_launch_problems
 from shared.findings.model import clean
 from shared.reporting.contracts import ExitCode
 from shared.reporting.jsonio import JsonInputError, load_json_strict
@@ -117,10 +118,12 @@ class RunContext:
     out_root: Path  # the assessment directory; modules write beneath modules/<id>/
     options: dict[str, Any] = field(default_factory=dict)
     timeout_override: int | None = None
-    env: dict[str, str] = field(default_factory=lambda: dict(os.environ))
+    # Children get an allowlisted environment and a trusted PATH, not a copy of the caller's
+    # (shared/engine/environment.py). A caller that passes ``env`` explicitly is trusted.
+    env: dict[str, str] = field(default_factory=lambda: sanitized_environment()[0])
     executor: Executor = default_executor
     platform_name: str = ""  # "linux" | "windows"; defaults to the running OS
-    which: Callable[[str], str | None] = shutil.which
+    which: Callable[[str], str | None] = trusted_which
     clock: Callable[[], str] = utc_now
 
     def __post_init__(self) -> None:
@@ -243,6 +246,11 @@ def _run(  # noqa: PLR0911, PLR0912 - each early return is one distinct failure 
     if isinstance(built, str):
         return _failure(result, SKIPPED, built)
     result.command = built
+    if spec.source != "builtin":
+        # As late as possible before the exec: the plugin's own files must still be trustworthy.
+        untrusted = plugin_launch_problems(built, spec.plugin_dir)
+        if untrusted:
+            return _failure(result, FAILED, f"plugin files are not trusted: {untrusted[0]}")
     timeout = ctx.timeout_override or spec.timeout_seconds
     stdout_path, stderr_path = mod_dir / "stdout.txt", mod_dir / "stderr.txt"
     ex = ctx.executor(built, timeout, ctx.env, stdout_path, stderr_path)

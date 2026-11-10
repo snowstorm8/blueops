@@ -99,7 +99,7 @@ JSON Lines, ASCII, one object per line: `header` (collector, host, collection id
 
 ### Linux (`linux/telemetry/collect-telemetry.sh`)
 
-Bash ≥ 4.2, coreutils, awk (POSIX features only, so mawk/gawk/busybox work), no network, no writes. Options: `--since-hours N` (default 24), `--max-events N` (default 5000), `--categories LIST`. Exit `0`, `2` usage, `6` collected with gaps.
+Bash ≥ 4.2, coreutils, awk (POSIX features only, so mawk/gawk/busybox work), no network, no writes. Options: `--since-hours N` (default 24), `--max-events N` (default 5000), `--categories LIST`. Exit `0`, `2` usage, `3` Bash older than 4.2 (checked first by `linux/lib/bashcheck.sh`, before any newer syntax is parsed; nothing is collected), `6` collected with gaps.
 
 | Category | Source | Notes |
 |---|---|---|

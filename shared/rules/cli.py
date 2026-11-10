@@ -18,7 +18,7 @@ import sys
 from datetime import datetime, timezone
 from typing import Any
 
-from shared.engine.loader import LoadError, load_assessment
+from shared.engine.loader import ALLOW_UNVERIFIED_HELP, LoadError, load_assessment
 from shared.reporting.contracts import ExitCode, Severity
 from shared.reporting.jsonio import JsonInputError, load_json_strict
 from shared.reporting.render_detections import render_detections_markdown
@@ -132,6 +132,7 @@ def register(sub: argparse._SubParsersAction[argparse.ArgumentParser]) -> None: 
 
 def detect_run_args(p: argparse.ArgumentParser, *, telemetry_option: bool = True) -> None:
     """The options shared by ``detect run`` and ``telemetry hunt``."""
+    p.add_argument("--allow-unverified", action="store_true", help=ALLOW_UNVERIFIED_HELP)
     if telemetry_option:
         p.add_argument(
             "--telemetry",
@@ -165,10 +166,11 @@ def detect_run_args(p: argparse.ArgumentParser, *, telemetry_option: bool = True
     p.add_argument("--quiet", action="store_true")
 
 
-def _register_rest(dsub: Any, sub: Any) -> None:
+def _register_rest(dsub: Any, sub: Any) -> None:  # noqa: PLR0915 - one flat list of subparsers
     p = dsub.add_parser("compare", help="compare detections across two or more snapshots")
     _rule_args(p)
     p.add_argument("snapshots", nargs="+", metavar="SNAPSHOT")
+    p.add_argument("--allow-unverified", action="store_true", help=ALLOW_UNVERIFIED_HELP)
     p.add_argument("--format", choices=("json", "text"), default="json")
     p.add_argument("--output", metavar="FILE")
     p.add_argument("--generated-at", metavar="TIMESTAMP")
@@ -184,6 +186,7 @@ def _register_rest(dsub: Any, sub: Any) -> None:
         metavar="PATH",
         help="required for --format html: the report embeds the detections",
     )
+    p.add_argument("--allow-unverified", action="store_true", help=ALLOW_UNVERIFIED_HELP)
     p.add_argument("--format", choices=("markdown", "html"), default="markdown")
     p.add_argument("--state-dir", metavar="DIR")
     p.add_argument("--output", metavar="FILE")
@@ -260,10 +263,11 @@ def _history(
     args: argparse.Namespace, current: dict[str, Any]
 ) -> tuple[list[Snap], list[dict[str, str]]]:
     snaps: list[Snap] = []
-    store = HistoryStore.scan(args.history) if args.history else HistoryStore([])
+    verify = not getattr(args, "allow_unverified", False)
+    store = HistoryStore.scan(args.history, verify) if args.history else HistoryStore([])
     snaps += store.snaps
     if args.previous:
-        snaps += HistoryStore.from_paths(args.previous).snaps
+        snaps += HistoryStore.from_paths(args.previous, verify).snaps
     uniq: dict[str, Snap] = {}
     for s in snaps:
         uniq.setdefault(s.doc["assessment"]["id"], s)
@@ -467,7 +471,7 @@ def run_command(args: argparse.Namespace) -> int:
     rs = _rule_set(args)
     tel, base = _telemetry_inputs(args)
     if args.assessment:
-        current = load_assessment(args.assessment)
+        current = load_assessment(args.assessment, verify=not args.allow_unverified)
     elif tel is not None:
         current = shell_assessment(tel)
         # With no assessment there is nothing for the assessment rules to read; evaluating them
@@ -520,7 +524,9 @@ def _cmd_detect(args: argparse.Namespace) -> int:  # noqa: PLR0911, PLR0912, PLR
         return run_command(args)
     if cmd == "compare":
         rs = _rule_set(args)
-        snaps = [Snap(load_assessment(p), p) for p in args.snapshots]
+        snaps = [
+            Snap(load_assessment(p, verify=not args.allow_unverified), p) for p in args.snapshots
+        ]
         doc = compare_detections(snaps, rs, args.generated_at or _now())
         problems = validate(doc, "detection-comparison.schema.json", limit=5)
         if problems:
@@ -580,7 +586,7 @@ def _cmd_detect(args: argparse.Namespace) -> int:  # noqa: PLR0911, PLR0912, PLR
             )
             return int(ExitCode.USAGE)
         text = render_html(
-            load_assessment(args.assessment),
+            load_assessment(args.assessment, verify=not args.allow_unverified),
             None,
             args.generated_at or _now(),
             detections=results,

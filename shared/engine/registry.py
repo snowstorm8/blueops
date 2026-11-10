@@ -9,12 +9,11 @@ whoever can edit it can make the assessment run their command.
 
 from __future__ import annotations
 
-import os
-import stat
 from pathlib import Path
 
 from shared.engine.builtin import builtin_modules
 from shared.engine.module import DEFAULT_TIMEOUT, ModuleError, ModuleSpec
+from shared.engine.trust import path_problems
 from shared.reporting.jsonio import JsonInputError, load_json_strict
 from shared.reporting.schema_lite import validate
 
@@ -27,19 +26,12 @@ class PluginError(ModuleError):
     """A plugin directory or manifest was rejected."""
 
 
-def _world_writable(path: Path) -> bool:
-    if os.name != "posix":
-        return False  # NTFS ACLs are not inspected here; documented in docs/plugins.md
-    return bool(path.stat().st_mode & (stat.S_IWGRP | stat.S_IWOTH))
-
-
 def load_manifest(path: Path) -> ModuleSpec:
     """Parse and validate one plugin manifest."""
     try:
-        if path.is_symlink():
-            raise PluginError(f"{path}: manifest is a symbolic link")
-        if _world_writable(path):
-            raise PluginError(f"{path}: manifest is writable by group/other; refusing to load")
+        problems = path_problems(path, want="file")  # NTFS ACLs are not inspected (docs/plugins.md)
+        if problems:
+            raise PluginError(f"{path}: manifest is not trusted, refusing to load: {problems[0]}")
         doc, _ = load_json_strict(path, MAX_MANIFEST_BYTES, "module manifest")
     except JsonInputError as exc:
         raise PluginError(str(exc)) from None
@@ -96,8 +88,9 @@ class Registry:
         root = Path(plugin_dir)
         if not root.is_dir():
             raise PluginError(f"plugin directory not found: {root}")
-        if root.is_symlink() or _world_writable(root):
-            raise PluginError(f"{root}: plugin directory is a symlink or writable by group/other")
+        problems = path_problems(root, want="dir")
+        if problems:
+            raise PluginError(f"{root}: plugin directory is not trusted: {problems[0]}")
         manifests = sorted(p for p in root.iterdir() if p.name.endswith(MANIFEST_SUFFIX))
         if len(manifests) > MAX_PLUGINS:
             raise PluginError(f"{root}: more than {MAX_PLUGINS} manifests")

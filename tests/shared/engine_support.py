@@ -159,3 +159,27 @@ def collector_env(root: Path) -> dict[str, str]:
         "BO_FORCE_MISSING_TOOLS": "ip route ifconfig netstat systemd-detect-virt",
         "PATH": f"{FIXTURES / 'linux-bin'}{os.pathsep}{os.environ['PATH']}",
     }
+
+
+_LOADS_ASSESSMENTS = {
+    ("compare",),
+    ("report",),
+    ("detect", "run"),
+    ("detect", "compare"),
+    ("detect", "report"),
+    ("telemetry", "hunt"),
+    ("telemetry", "import"),
+}
+
+
+def trust_fixtures(argv: list[str]) -> list[str]:
+    """Add ``--allow-unverified`` to commands that load assessments.
+
+    The synthetic fixtures these tests use are bare JSON files with no manifest, which the CLIs
+    refuse by default (that default is tested in test_engine_integrity.py). Opting in here is
+    the explicit, documented way to load data the test itself wrote.
+    """
+    words = tuple(a for a in argv[:2] if not a.startswith("-"))
+    if "--allow-unverified" in argv or not any(words[: len(k)] == k for k in _LOADS_ASSESSMENTS):
+        return argv
+    return [*argv, "--allow-unverified"]

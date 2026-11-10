@@ -136,7 +136,9 @@ def test_detections_trace_back_to_exact_telemetry_records(tmp_path):
 
 
 def test_missing_telemetry_makes_hunting_rules_not_applicable_not_indeterminate(tmp_path):
-    cur = load_assessment(ROOT / "tests/fixtures/rules/linux-compromised.assessment.json")
+    cur = load_assessment(
+        ROOT / "tests/fixtures/rules/linux-compromised.assessment.json", verify=False
+    )
     res = detect(cur, load_rule_set(), generated_at=STAMP)
     hunting = [r for r in res["rule_results"] if "-H" in r["rule"] and r["rule"].startswith("DR-")]
     hunting = [r for r in hunting if r["rule"].split("-")[2].startswith("H")]
@@ -189,14 +191,18 @@ def test_partial_coverage_lowers_confidence_and_says_why(tmp_path):
 
 
 def test_hunting_requires_the_telemetry_to_be_for_the_same_host(tmp_path):
-    cur = load_assessment(ROOT / "tests/fixtures/rules/linux-compromised.assessment.json")
+    cur = load_assessment(
+        ROOT / "tests/fixtures/rules/linux-compromised.assessment.json", verify=False
+    )
     doc = make(tmp_path, [proc(1, 0, "systemd")], host="some-other-host")
     with pytest.raises(ValueError, match="different host"):
         detect(cur, TEL_RULES, generated_at=STAMP, telemetry=doc)
 
 
 def test_assessment_and_telemetry_of_one_host_join(tmp_path):
-    cur = load_assessment(ROOT / "tests/fixtures/rules/linux-compromised.assessment.json")
+    cur = load_assessment(
+        ROOT / "tests/fixtures/rules/linux-compromised.assessment.json", verify=False
+    )
     doc = ingest.build_document([raw_from_assessment_doc(cur)], mode="assessment")
     res = detect(cur, load_rule_set(), generated_at=STAMP, telemetry=doc)
     assert res["telemetry"]["records"] == doc["summary"]["records"]

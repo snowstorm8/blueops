@@ -10,7 +10,7 @@ from pathlib import Path
 from typing import Any
 
 import pytest
-from engine_support import POSIX_BASH, collector_env, linux_fixture_root
+from engine_support import POSIX_BASH, collector_env, linux_fixture_root, trust_fixtures
 from rules_support import doc, finding, make_rule, record
 
 from shared.engine.cli import main
@@ -39,7 +39,7 @@ CLEAN = {
 
 
 def call(capsys: pytest.CaptureFixture[str], *argv: str) -> tuple[int, str, str]:
-    rc = main(list(argv))
+    rc = main(trust_fixtures(list(argv)))
     cap = capsys.readouterr()
     return rc, cap.out, cap.err
 

@@ -209,14 +209,17 @@ def _from_document(name: str, doc: dict[str, Any], data: bytes, fmt: str) -> Raw
     return raw
 
 
-def read_path(path: str | Path) -> RawInput:
+def read_path(path: str | Path, allow_unverified: bool = False) -> RawInput:
     """Read a stream file, a telemetry document, or a telemetry store directory."""
     p = Path(path)
     if p.is_dir():
-        if (p / MANIFEST_NAME).is_file():
-            problems = verify_directory(p)
-            if problems:
-                raise IngestError(f"{p} failed manifest verification: {'; '.join(problems[:3])}")
+        # A store directory is something we wrote and always carries a manifest; a missing one
+        # must not turn a verified read into an unverified one.
+        if not (p / MANIFEST_NAME).is_file() or (p / MANIFEST_NAME).is_symlink():
+            raise IngestError(f"{p}: no {MANIFEST_NAME}; the store's integrity cannot be verified")
+        problems = verify_directory(p)
+        if problems:
+            raise IngestError(f"{p} failed manifest verification: {'; '.join(problems[:3])}")
         p = p / DOC_NAME
     try:
         size = p.stat().st_size
@@ -245,7 +248,7 @@ def read_path(path: str | Path) -> RawInput:
     if kind in ("assessment",) or "findings" in doc:
         from shared.telemetry.adapter import raw_from_assessment  # noqa: PLC0415 - avoid a cycle
 
-        return raw_from_assessment(p, data)
+        return raw_from_assessment(p, data, verify=not allow_unverified)
     raise IngestError(f"{p}: unsupported document (kind={clean(str(kind), 40)!r})")
 
 
@@ -519,9 +522,14 @@ def build_document(  # noqa: PLR0912, PLR0915
 
 
 def ingest_paths(
-    paths: list[str | Path], *, mode: str = "import", generated_at: str | None = None
+    paths: list[str | Path],
+    *,
+    mode: str = "import",
+    generated_at: str | None = None,
+    allow_unverified: bool = False,
 ) -> dict[str, Any]:
-    return build_document([read_path(p) for p in paths], mode=mode, generated_at=generated_at)
+    raws = [read_path(p, allow_unverified) for p in paths]
+    return build_document(raws, mode=mode, generated_at=generated_at)
 
 
 # ------------------------------------------------------------------------------ storage
@@ -588,7 +596,9 @@ def write_store(
 def load_telemetry(path: str | Path) -> dict[str, Any]:
     """Load a telemetry store directory or ``telemetry.json``, verified and re-normalized."""
     p = Path(path)
-    if p.is_dir() and (p / MANIFEST_NAME).is_file():
+    if p.is_dir():
+        if not (p / MANIFEST_NAME).is_file() or (p / MANIFEST_NAME).is_symlink():
+            raise IngestError(f"{p}: no {MANIFEST_NAME}; the store's integrity cannot be verified")
         problems = verify_directory(p)  # a store we wrote: integrity-checked, then schema-checked
         if problems:
             raise IngestError(f"{p} failed manifest verification: {'; '.join(problems[:3])}")
