@@ -45,7 +45,7 @@ def live(tmp_path_factory):
     assert run.returncode in (0, 6), run.stderr[-2000:]
     p = out / "live.jsonl"
     p.write_text(run.stdout, encoding="utf-8")
-    return ingest.ingest_paths([p]), run
+    return ingest.ingest_paths([p], allow_unverified=True), run
 
 
 def test_live_stream_is_valid_and_has_no_rejections(live):
@@ -106,7 +106,7 @@ def test_live_collection_is_repeatable_and_comparable(live, tmp_path):
     )
     p = tmp_path / "again.jsonl"
     p.write_text(again.stdout, encoding="utf-8")
-    d2 = ingest.ingest_paths([p])
+    d2 = ingest.ingest_paths([p], allow_unverified=True)
     # The same host gives the same host id, and users/groups/integrity records keep stable ids.
     assert d2["host"]["host_id"] == doc["host"]["host_id"]
     stable = {"user", "group", "integrity"}

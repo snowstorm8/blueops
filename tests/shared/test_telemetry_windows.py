@@ -64,7 +64,7 @@ def build(records, cov=None):
 def hunt(tmp_path, records, cov=None):
     p = tmp_path / "w.jsonl"
     p.write_bytes(build(records, cov))
-    doc = ingest.ingest_paths([p], generated_at="2026-03-02T00:00:00Z")
+    doc = ingest.ingest_paths([p], generated_at="2026-03-02T00:00:00Z", allow_unverified=True)
     rs = load_rule_set().only(lambda r: any(s.startswith("telemetry") for s in r.sources))
     res = detect(shell_assessment(doc), rs, generated_at="2026-03-02T00:00:00Z", telemetry=doc)
     assert validate(res, "detection-results.schema.json") == []
@@ -334,7 +334,7 @@ def test_live_collector_stream_ingests_cleanly_and_reports_gaps_honestly(tmp_pat
     assert all(b < 128 for b in out), "the stream must be ASCII"
     p = tmp_path / "live.jsonl"
     p.write_bytes(out)
-    doc = ingest.ingest_paths([p])
+    doc = ingest.ingest_paths([p], allow_unverified=True)
     assert validate(doc, "telemetry.schema.json") == []
     assert doc["summary"]["rejected"] == 0, doc["rejected"][:3]
     cats = set(doc["summary"]["by_category"])

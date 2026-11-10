@@ -16,9 +16,16 @@ import json
 import os
 import sys
 from datetime import datetime, timezone
+from pathlib import Path
 from typing import Any
 
-from shared.engine.loader import ALLOW_UNVERIFIED_HELP, LoadError, load_assessment
+from shared.engine.loader import (
+    ALLOW_UNVERIFIED_HELP,
+    LoadError,
+    load_assessment,
+    stored_file_status,
+)
+from shared.engine.provenance import stamp_load
 from shared.reporting.contracts import ExitCode, Severity
 from shared.reporting.jsonio import JsonInputError, load_json_strict
 from shared.reporting.render_detections import render_detections_markdown
@@ -177,6 +184,7 @@ def _register_rest(dsub: Any, sub: Any) -> None:  # noqa: PLR0915 - one flat lis
     p = dsub.add_parser("show", help="show one detection from a results file")
     p.add_argument("results")
     p.add_argument("detection_id", help="DT- id or a unique prefix")
+    p.add_argument("--allow-unverified", action="store_true", help=ALLOW_UNVERIFIED_HELP)
     p.add_argument("--state-dir", metavar="DIR")
     p.add_argument("--json", action="store_true")
     p = dsub.add_parser("report", help="render saved detection results")
@@ -193,6 +201,7 @@ def _register_rest(dsub: Any, sub: Any) -> None:  # noqa: PLR0915 - one flat lis
     p.add_argument("--generated-at", metavar="TIMESTAMP")
     p = dsub.add_parser("export", help="export saved detection results")
     p.add_argument("results")
+    p.add_argument("--allow-unverified", action="store_true", help=ALLOW_UNVERIFIED_HELP)
     p.add_argument("--format", choices=("json", "jsonl", "csv"), default="json")
     p.add_argument("--state-dir", metavar="DIR")
     p.add_argument("--output", metavar="FILE")
@@ -248,7 +257,7 @@ def _report_diags(rs: RuleSet) -> None:
         _err(str(d))
 
 
-def _load_results(path: str) -> dict[str, Any]:
+def _load_results(path: str, allow_unverified: bool = False) -> dict[str, Any]:
     try:
         doc, _ = load_json_strict(path, MAX_RESULTS_BYTES, "detection results")
     except JsonInputError as exc:
@@ -256,7 +265,10 @@ def _load_results(path: str) -> dict[str, Any]:
     problems = validate(doc, "detection-results.schema.json", limit=5)
     if problems:
         raise LoadError(f"{path}: not valid detection results: {'; '.join(problems)}")
-    return doc  # type: ignore[no-any-return]
+    verified, why = stored_file_status(Path(path))
+    if not verified and not allow_unverified:
+        raise LoadError(f"{path}: {why}. Pass --allow-unverified to use it anyway.")
+    return stamp_load(doc, verified=verified, source=str(path), reason=why)
 
 
 def _history(
@@ -459,8 +471,12 @@ def _telemetry_inputs(
             raise LoadError("--telemetry-baseline needs --telemetry")
         return None, None
     try:
-        tel = load_telemetry(args.telemetry)
-        base = load_telemetry(args.telemetry_baseline) if args.telemetry_baseline else None
+        tel = load_telemetry(args.telemetry, args.allow_unverified)
+        base = (
+            load_telemetry(args.telemetry_baseline, args.allow_unverified)
+            if args.telemetry_baseline
+            else None
+        )
     except IngestError as exc:
         raise LoadError(str(exc)) from None
     return tel, base
@@ -556,7 +572,7 @@ def _cmd_detect(args: argparse.Namespace) -> int:  # noqa: PLR0911, PLR0912, PLR
             if changed
             else (ExitCode.PARTIAL if st.get("unverified") else ExitCode.OK)
         )
-    results = _load_results(args.results)
+    results = _load_results(args.results, args.allow_unverified)
     cases = _cases_for(results, getattr(args, "state_dir", None))
     if cmd == "show":
         matches = [d for d in results["detections"] if d["id"].startswith(args.detection_id)]

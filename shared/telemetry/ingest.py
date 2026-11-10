@@ -20,7 +20,16 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any
 
+from shared.engine.loader import InvalidIntegrityError, stored_file_status
 from shared.engine.manifest import MANIFEST_NAME, verify_directory, write_manifest
+from shared.engine.provenance import (
+    REASON_BARE,
+    REASON_UNKNOWN,
+    Loaded,
+    entries,
+    mark,
+    stamp,
+)
 from shared.findings.model import clean, host_id
 from shared.reporting.jsonio import (
     JsonInputError,
@@ -67,6 +76,9 @@ class RawInput:
     rejected: list[dict[str, Any]] = field(default_factory=list)
     ended: bool = True
     collector: dict[str, str] = field(default_factory=lambda: {"name": "unknown", "version": "0"})
+    # Provenance entries (see shared/engine/provenance.py). Empty means "never recorded", which
+    # build_document treats as unverified rather than as verified.
+    provenance: list[dict[str, Any]] = field(default_factory=list)
 
 
 def _err(code: str, message: str, **extra: str) -> dict[str, str]:
@@ -209,9 +221,26 @@ def _from_document(name: str, doc: dict[str, Any], data: bytes, fmt: str) -> Raw
     return raw
 
 
+def _file_status(path: str | Path, allow_unverified: bool) -> bool:
+    """Whether a lone stream/telemetry file is verified: true if the directory it sits in has a
+    manifest that matches. A manifest that does not match is refused whatever the caller says;
+    with no manifest the file is refused unless ``--allow-unverified`` (then: unverified)."""
+    try:
+        verified, _ = stored_file_status(Path(path))
+    except InvalidIntegrityError as exc:
+        raise IngestError(f"{path}: {exc}") from None
+    if not verified and not allow_unverified:
+        raise IngestError(
+            f"{path}: {REASON_BARE}. Import a verified store instead, or pass --allow-unverified "
+            "to accept it (outputs derived from it are marked unverified)"
+        )
+    return verified
+
+
 def read_path(path: str | Path, allow_unverified: bool = False) -> RawInput:
     """Read a stream file, a telemetry document, or a telemetry store directory."""
     p = Path(path)
+    is_store = p.is_dir()
     if p.is_dir():
         # A store directory is something we wrote and always carries a manifest; a missing one
         # must not turn a verified read into an unverified one.
@@ -231,11 +260,16 @@ def read_path(path: str | Path, allow_unverified: bool = False) -> RawInput:
         data = p.read_bytes()
     except OSError as exc:
         raise IngestError(f"cannot read {p}: {exc.strerror or exc}") from None
+    file_ok = True if is_store else _file_status(path, allow_unverified)
     stripped = data.lstrip(b"\xef\xbb\xbf \t\r\n")
     first_line = stripped.split(b"\n", 1)[0]
     # A JSON document is one (possibly multi-line) object; a stream's first line is a header.
     if first_line.startswith(b"{") and b'"type"' in first_line and b'"header"' in first_line:
-        return read_stream(p.name, data)
+        stream = read_stream(p.name, data)
+        stream.provenance = entries(
+            "stream", mark({}, verified=file_ok, source=str(path), reason=REASON_BARE)
+        )
+        return stream
     try:
         doc, _ = load_json_strict(p, MAX_INPUT_BYTES, "telemetry")
     except JsonInputError as exc:
@@ -244,7 +278,10 @@ def read_path(path: str | Path, allow_unverified: bool = False) -> RawInput:
         raise IngestError(f"{p}: top level must be a JSON object")
     kind = doc.get("kind")
     if kind == "telemetry":
-        return _from_document(p.name, doc, data, "json")
+        tdoc = _from_document(p.name, doc, data, "json")
+        loaded = mark(doc, verified=file_ok, source=str(path), reason=REASON_BARE)
+        tdoc.provenance = entries("telemetry", loaded, source=str(path))
+        return tdoc
     if kind in ("assessment",) or "findings" in doc:
         from shared.telemetry.adapter import raw_from_assessment  # noqa: PLC0415 - avoid a cycle
 
@@ -518,7 +555,19 @@ def build_document(  # noqa: PLR0912, PLR0915
         raise IngestError(
             "internal error: normalized telemetry violates its schema: " + "; ".join(problems)
         )
-    return doc
+    groups = [
+        r.provenance
+        or [
+            {
+                "role": "input",
+                "path": clean(r.name, 255),
+                "verified": False,
+                "reason": REASON_UNKNOWN,
+            }
+        ]
+        for r in inputs
+    ]
+    return stamp(doc, *groups)
 
 
 def ingest_paths(
@@ -593,7 +642,7 @@ def write_store(
     return root
 
 
-def load_telemetry(path: str | Path) -> dict[str, Any]:
+def load_telemetry(path: str | Path, allow_unverified: bool = False) -> Loaded:
     """Load a telemetry store directory or ``telemetry.json``, verified and re-normalized."""
     p = Path(path)
     if p.is_dir():
@@ -609,8 +658,9 @@ def load_telemetry(path: str | Path) -> dict[str, Any]:
         bad = validate(doc, "telemetry.schema.json", limit=5)
         if bad:
             raise IngestError(f"{p}: not a valid telemetry document: {'; '.join(bad)}")
-        return doc  # type: ignore[no-any-return]
-    raw = read_path(path)
+        return mark(doc, verified=True, source=str(p))
+    raw = read_path(path, allow_unverified)
     if raw.fmt == "jsonl":
         raise IngestError(f"{path}: a raw collector stream; use 'telemetry import' first")
-    return build_document([raw], mode="import", generated_at=None)
+    built = build_document([raw], mode="import", generated_at=None)
+    return mark(built, verified=bool(built["inputs_verified"]), source=str(path))

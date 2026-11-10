@@ -48,7 +48,7 @@ def stream_text(tmp_path_factory: pytest.TempPathFactory) -> str:
 def doc(stream_text: str, tmp_path_factory: pytest.TempPathFactory):
     p = tmp_path_factory.mktemp("in") / "s.jsonl"
     p.write_text(stream_text, encoding="utf-8")
-    return ingest.ingest_paths([p], generated_at="2026-03-02T00:00:00Z")
+    return ingest.ingest_paths([p], generated_at="2026-03-02T00:00:00Z", allow_unverified=True)
 
 
 def rows(stream_text: str, kind: str) -> list[dict]:
@@ -247,7 +247,7 @@ def test_traditional_syslog_lines_have_no_guessed_time(tmp_path):
     )
     p = tmp_path / "s.jsonl"
     p.write_text(run.stdout, encoding="utf-8")
-    d = ingest.ingest_paths([p])
+    d = ingest.ingest_paths([p], allow_unverified=True)
     ev = next(r for r in d["records"] if r["category"] == "auth_event")
     assert "event_time" not in ev and ev["status"] == "partial"
     cov = next(c for c in d["coverage"] if c["category"] == "auth_event")
@@ -510,4 +510,4 @@ def _assert_gaps_are_visible(root, tmp_path):
 def ingest_text(text, tmp_path):
     p = tmp_path / "unpriv.jsonl"
     p.write_text(text, encoding="utf-8")
-    return ingest.ingest_paths([p])
+    return ingest.ingest_paths([p], allow_unverified=True)

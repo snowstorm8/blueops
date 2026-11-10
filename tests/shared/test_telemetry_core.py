@@ -16,7 +16,7 @@ from shared.telemetry.model import normalise_record, parse_time, record_id
 def doc_from(data: bytes, tmp_path: Path, name: str = "a.jsonl") -> dict:
     p = tmp_path / name
     p.write_bytes(data)
-    return ingest.ingest_paths([p], generated_at="2026-03-01T11:00:00Z")
+    return ingest.ingest_paths([p], generated_at="2026-03-01T11:00:00Z", allow_unverified=True)
 
 
 # ------------------------------------------------------------------ time and ids
@@ -262,19 +262,19 @@ def test_stream_without_header_is_refused(tmp_path):
     p = tmp_path / "x.jsonl"
     p.write_text(json.dumps(proc(1, 0, "init")) + "\n")
     with pytest.raises(ingest.IngestError):
-        ingest.ingest_paths([p])
+        ingest.ingest_paths([p], allow_unverified=True)
 
 
 def test_wrong_document_kinds_are_refused(tmp_path):
     p = tmp_path / "x.json"
     p.write_text(json.dumps({"kind": "something-else"}))
     with pytest.raises(ingest.IngestError):
-        ingest.ingest_paths([p])
+        ingest.ingest_paths([p], allow_unverified=True)
     p.write_text("[1,2]")
     with pytest.raises(ingest.IngestError):
-        ingest.ingest_paths([p])
+        ingest.ingest_paths([p], allow_unverified=True)
     with pytest.raises(ingest.IngestError):
-        ingest.ingest_paths([tmp_path / "missing.json"])
+        ingest.ingest_paths([tmp_path / "missing.json"], allow_unverified=True)
 
 
 # ------------------------------------------------------------------ duplicates and conflicts
@@ -312,7 +312,7 @@ def test_conflicting_observations_keep_newest_and_report_the_difference(tmp_path
     )
     (tmp_path / "a.jsonl").write_bytes(a)
     (tmp_path / "b.jsonl").write_bytes(b)
-    d = ingest.ingest_paths([tmp_path / "a.jsonl", tmp_path / "b.jsonl"])
+    d = ingest.ingest_paths([tmp_path / "a.jsonl", tmp_path / "b.jsonl"], allow_unverified=True)
     svc = [r for r in d["records"] if r["category"] == "service"]
     assert len(svc) == 1 and svc[0]["attributes"]["state"] == "stopped"
     assert d["conflicts"] == [
@@ -329,7 +329,7 @@ def test_inputs_for_different_hosts_are_refused(tmp_path):
     (tmp_path / "a.jsonl").write_bytes(stream([proc(1, 0, "init")], host="h1"))
     (tmp_path / "b.jsonl").write_bytes(stream([proc(1, 0, "init")], host="h2"))
     with pytest.raises(ingest.IngestError, match="different host"):
-        ingest.ingest_paths([tmp_path / "a.jsonl", tmp_path / "b.jsonl"])
+        ingest.ingest_paths([tmp_path / "a.jsonl", tmp_path / "b.jsonl"], allow_unverified=True)
 
 
 def test_best_coverage_across_inputs_wins(tmp_path):
@@ -337,7 +337,7 @@ def test_best_coverage_across_inputs_wins(tmp_path):
     (tmp_path / "b.jsonl").write_bytes(
         stream([rec("service", "s", {"name": "s"})], coverage(["service"]))
     )
-    d = ingest.ingest_paths([tmp_path / "a.jsonl", tmp_path / "b.jsonl"])
+    d = ingest.ingest_paths([tmp_path / "a.jsonl", tmp_path / "b.jsonl"], allow_unverified=True)
     assert [c["status"] for c in d["coverage"] if c["category"] == "service"] == ["complete"]
 
 
@@ -383,7 +383,7 @@ def test_summaries_are_recomputed_not_trusted_from_a_document(tmp_path):
             r["attributes"]["failures"] = 9999
     p = tmp_path / "forged.json"
     p.write_text(json.dumps(forged))
-    again = ingest.ingest_paths([p])
+    again = ingest.ingest_paths([p], allow_unverified=True)
     s = next(
         r
         for r in again["records"]
@@ -398,7 +398,7 @@ def test_summaries_are_recomputed_not_trusted_from_a_document(tmp_path):
 def test_store_roundtrip_and_tamper_detection(tmp_path):
     src = tmp_path / "a.jsonl"
     src.write_bytes(stream([proc(1, 0, "init")]))
-    d = ingest.ingest_paths([src])
+    d = ingest.ingest_paths([src], allow_unverified=True)
     root = ingest.write_store(d, tmp_path / "out", [("a.jsonl", src.read_bytes())])
     assert (root / "sources").is_dir() and (root / "manifest.json").is_file()
     assert (root.stat().st_mode & 0o777) == 0o700 or __import__("os").name != "posix"
@@ -428,7 +428,7 @@ def test_store_accepts_fractional_second_timestamps_from_the_windows_collector(t
     )
     p = tmp_path / "w.jsonl"
     p.write_bytes(data)
-    d = ingest.ingest_paths([p])
+    d = ingest.ingest_paths([p], allow_unverified=True)
     assert d["collection"]["started_at"] == "2026-03-01T10:00:00.93Z"
     root = ingest.write_store(d, tmp_path / "out", [("w.jsonl", data)])
     assert ".93" not in root.name

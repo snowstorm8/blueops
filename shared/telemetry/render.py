@@ -6,6 +6,7 @@ import html
 from typing import Any
 
 from shared.findings.model import clean
+from shared.reporting import render_provenance as prov
 from shared.rules.render_util import md_code, md_text
 from shared.telemetry.hunt import CLASS_TEXT, classification
 
@@ -35,6 +36,7 @@ def summary_lines(doc: dict[str, Any]) -> list[str]:
         lines.append(f"  error {e['code']}: {clean(e['message'], 160)}")
     for r in doc["rejected"][:10]:
         lines.append(f"  rejected {r['origin']}: {clean('; '.join(r['reasons']), 160)}")
+    lines += [clean(x, 400) for x in prov.text(("telemetry", doc))]
     return lines
 
 
@@ -88,9 +90,11 @@ def _detections_md(results: dict[str, Any]) -> list[str]:
 
 def render_markdown(doc: dict[str, Any], results: dict[str, Any] | None = None) -> str:
     h, c, s = doc["host"], doc["collection"], doc["summary"]
+    pm = prov.markdown(("telemetry", doc), *([("hunting", results)] if results else []))
     out = [
         f"# Endpoint telemetry: {md_text(h['hostname'])}",
         "",
+        *(pm[:2] if pm and pm[0].startswith("> **WARNING") else []),
         f"_{_HEAD_NOTE}_",
         "",
         f"- Host: {md_text(h['hostname'])} ({h['os']['family']}), id {md_code(h['host_id'])}",
@@ -108,6 +112,7 @@ def render_markdown(doc: dict[str, Any], results: dict[str, Any] | None = None) 
             f"| {cov['category']} | {md_text(cov.get('scope', ''))} | {cov['status']} | {cov['records']} | {md_text(cov.get('reason', ''), 200)} |"
         )
     out.append("")
+    out += pm[2:] if pm and pm[0].startswith("> **WARNING") else pm
     if doc["errors"] or doc["rejected"] or doc["conflicts"]:
         out += ["## Collection problems", ""]
         out += [
@@ -142,6 +147,9 @@ def render_html(doc: dict[str, Any], results: dict[str, Any] | None = None) -> s
     probs += "".join(
         f"<li>rejected <code>{e(x['origin'])}</code>: {e(clean('; '.join(x['reasons']), 300))}</li>"
         for x in doc["rejected"][:50]
+    )
+    p_banner, p_section = prov.html(
+        ("telemetry", doc), *([("hunting", results)] if results else [])
     )
     det = ""
     if results is not None:
@@ -181,13 +189,14 @@ def render_html(doc: dict[str, Any], results: dict[str, Any] | None = None) -> s
         "<style>body{font:15px/1.5 system-ui,sans-serif;margin:0 auto;max-width:960px;padding:16px;color:#1b1f24;background:#fff}"
         "table{border-collapse:collapse;width:100%}td,th{border:1px solid #ccd;padding:4px 8px;text-align:left}"
         ".unavailable{color:#a40000;font-weight:600}.partial{color:#8a5a00;font-weight:600}.complete{color:#1a6b2a}"
-        "code{background:#eef;padding:0 3px}details{margin:8px 0;padding:6px;border:1px solid #ccd}"
+        "code{background:#eef;padding:0 3px}.prov-bad{border:2px solid #c62828;padding:6px}td.prov-bad{font-weight:700}details{margin:8px 0;padding:6px;border:1px solid #ccd}"
         "@media (prefers-color-scheme:dark){body{background:#12151a;color:#e6e9ee}td,th,details{border-color:#445}code{background:#223}}</style></head><body>"
-        f"<h1>Endpoint telemetry: {e(h['hostname'])}</h1><p><em>{e(_HEAD_NOTE)}</em></p>"
+        f"<h1>Endpoint telemetry: {e(h['hostname'])}</h1>{p_banner}<p><em>{e(_HEAD_NOTE)}</em></p>"
         f"<p>Host <code>{e(h['host_id'])}</code> ({e(h['os']['family'])}); collection <code>{e(clean(c['id'], 80))}</code>, {e(c['started_at'])} to {e(c['ended_at'])}, mode {e(c['mode'])}.<br>"
         f"{s['records']} records; rejected {s['rejected']}; duplicates merged {s['duplicates_merged']}; conflicts {s['conflicts']}. Complete: <strong>{'yes' if s['complete'] else 'no'}</strong></p>"
         f"<h2>Coverage</h2><table><tr><th>Category</th><th>Scope</th><th>Status</th><th>Records</th><th>Reason</th></tr>{rows}</table>"
         + (f"<h2>Collection problems</h2><ul>{probs}</ul>" if probs else "")
+        + p_section
         + det
         + "</body></html>\n"
     )

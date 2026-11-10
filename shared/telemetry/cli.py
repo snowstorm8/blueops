@@ -16,12 +16,21 @@ from pathlib import Path
 from typing import Any
 
 from shared.engine.environment import sanitized_environment
-from shared.engine.loader import ALLOW_UNVERIFIED_HELP
+from shared.engine.loader import ALLOW_UNVERIFIED_HELP, LoadError
+from shared.engine.provenance import THIS_RUN, status
 from shared.engine.runner import current_platform
+from shared.reporting import render_provenance as prov
 from shared.reporting.contracts import ExitCode
 from shared.reporting.jsonio import JsonInputError, load_json_strict
-from shared.reporting.schema_lite import validate
-from shared.rules.cli import _emit, _err, _now, _rule_args, detect_run_args, run_command
+from shared.rules.cli import (
+    _emit,
+    _err,
+    _load_results,
+    _now,
+    _rule_args,
+    detect_run_args,
+    run_command,
+)
 from shared.telemetry import render
 from shared.telemetry.compare import CompareError, compare_telemetry
 from shared.telemetry.ingest import (
@@ -80,10 +89,12 @@ def register(sub: argparse._SubParsersAction[argparse.ArgumentParser]) -> None: 
 
     p = t.add_parser("show", help="summary and coverage of a telemetry store")
     p.add_argument("store")
+    p.add_argument("--allow-unverified", action="store_true", help=ALLOW_UNVERIFIED_HELP)
     p.add_argument("--format", choices=("text", "json"), default="text")
 
     p = t.add_parser("query", help="filter telemetry records")
     p.add_argument("store")
+    p.add_argument("--allow-unverified", action="store_true", help=ALLOW_UNVERIFIED_HELP)
     p.add_argument(
         "--category", action="append", default=[], choices=CATEGORIES, metavar="CATEGORY"
     )
@@ -109,6 +120,7 @@ def register(sub: argparse._SubParsersAction[argparse.ArgumentParser]) -> None: 
 
     p = t.add_parser("tree", help="show process ancestors and descendants")
     p.add_argument("store")
+    p.add_argument("--allow-unverified", action="store_true", help=ALLOW_UNVERIFIED_HELP)
     g = p.add_mutually_exclusive_group(required=True)
     g.add_argument("--pid", type=int)
     g.add_argument("--name")
@@ -117,6 +129,7 @@ def register(sub: argparse._SubParsersAction[argparse.ArgumentParser]) -> None: 
     p = t.add_parser("compare", help="compare two telemetry snapshots of one host")
     p.add_argument("baseline")
     p.add_argument("current")
+    p.add_argument("--allow-unverified", action="store_true", help=ALLOW_UNVERIFIED_HELP)
     p.add_argument("--format", choices=("text", "json"), default="json")
     p.add_argument("--output", metavar="FILE")
     p.add_argument("--generated-at", metavar="TIMESTAMP")
@@ -135,6 +148,7 @@ def register(sub: argparse._SubParsersAction[argparse.ArgumentParser]) -> None: 
 
     p = t.add_parser("report", help="render a telemetry store (and optionally hunting results)")
     p.add_argument("store")
+    p.add_argument("--allow-unverified", action="store_true", help=ALLOW_UNVERIFIED_HELP)
     p.add_argument(
         "--detections", metavar="RESULTS", help="detection results JSON from 'telemetry hunt'"
     )
@@ -224,6 +238,8 @@ def _cmd_collect(args: argparse.Namespace) -> int:  # noqa: PLR0911 - one early 
     except IngestError as exc:
         _err(f"the collector produced no usable telemetry (exit {proc.returncode}): {exc}")
         return int(ExitCode.PRECONDITION)
+    # The stream came from a collector this process just ran: trusted by construction.
+    raw.provenance = [{"role": "collector", "path": THIS_RUN, "verified": True}]
     if proc.returncode not in (0, 6):
         raw.errors.append(
             {"code": "COLLECTOR_EXIT", "message": f"collector exited with status {proc.returncode}"}
@@ -231,6 +247,12 @@ def _cmd_collect(args: argparse.Namespace) -> int:  # noqa: PLR0911 - one early 
     doc = build_document([raw], mode="live")
     root = write_store(doc, args.output_dir, [("collector-stream.jsonl", proc.stdout)])
     return _finish_ingest(doc, root, args)
+
+
+def _provenance_of(doc: dict[str, Any]) -> dict[str, Any]:
+    """The provenance fields of ``doc`` (``inputs_verified`` is false if none is recorded)."""
+    ok, inputs = status(doc)
+    return {"inputs_verified": bool(ok), "inputs": inputs}
 
 
 def _finish_ingest(doc: dict[str, Any], root: Path, args: argparse.Namespace) -> int:
@@ -243,6 +265,7 @@ def _finish_ingest(doc: dict[str, Any], root: Path, args: argparse.Namespace) ->
                     "coverage": doc["coverage"],
                     "errors": doc["errors"],
                     "rejected": len(doc["rejected"]),
+                    **_provenance_of(doc),
                 }
             )
         )
@@ -260,7 +283,7 @@ def _cmd_import(args: argparse.Namespace) -> int:
 
 
 def _cmd_query(args: argparse.Namespace) -> int:
-    doc = load_telemetry(args.store)
+    doc = load_telemetry(args.store, args.allow_unverified)
     if args.query:
         try:
             raw = (
@@ -288,16 +311,27 @@ def _cmd_query(args: argparse.Namespace) -> int:
     raw.setdefault("limit", args.limit)
     recs, total = select(doc, parse_query(raw))
     if args.format == "json":
-        sys.stdout.write(_json({"total": total, "returned": len(recs), "records": recs}))
+        sys.stdout.write(
+            _json(
+                {
+                    "total": total,
+                    "returned": len(recs),
+                    "records": recs,
+                    **_provenance_of(doc),
+                }
+            )
+        )
     else:
         for r in recs:
             sys.stdout.write(render.record_line(r) + "\n")
         sys.stdout.write(f"{len(recs)} of {total} matching record(s)\n")
+        sys.stdout.write("".join(x + "\n" for x in prov.text(("telemetry", doc))))
     return int(ExitCode.OK)
 
 
 def _cmd_compare(args: argparse.Namespace) -> int:
-    base, cur = load_telemetry(args.baseline), load_telemetry(args.current)
+    base = load_telemetry(args.baseline, args.allow_unverified)
+    cur = load_telemetry(args.current, args.allow_unverified)
     doc = compare_telemetry(base, cur, generated_at=args.generated_at or _now())
     if args.format == "json":
         _emit(_json(doc), args.output)
@@ -316,6 +350,7 @@ def _cmd_compare(args: argparse.Namespace) -> int:
                 + [f"    ~ {x['identity']}" for x in blk["changed"][:20]]
             )
         lines += [f"  indeterminate {i['category']}: {i['reason']}" for i in doc["indeterminate"]]
+        lines += prov.text(("comparison", doc))
         _emit("\n".join(lines) + "\n", args.output)
     s = doc["summary"]
     if s["added"] or s["removed"] or s["changed"]:
@@ -324,14 +359,10 @@ def _cmd_compare(args: argparse.Namespace) -> int:
 
 
 def _cmd_report(args: argparse.Namespace) -> int:
-    doc = load_telemetry(args.store)
+    doc = load_telemetry(args.store, args.allow_unverified)
     results = None
     if args.detections:
-        results, _ = load_json_strict(args.detections, 128 * 1024 * 1024, "detection results")
-        problems = validate(results, "detection-results.schema.json", limit=3)
-        if problems:
-            _err(f"{args.detections}: not valid detection results: {'; '.join(problems)}")
-            return int(ExitCode.PRECONDITION)
+        results = _load_results(args.detections, args.allow_unverified)
     text = (
         render.render_markdown(doc, results)
         if args.format == "markdown"
@@ -351,7 +382,7 @@ def dispatch(args: argparse.Namespace) -> int | None:  # noqa: PLR0911, PLR0912
         if cmd == "import":
             return _cmd_import(args)
         if cmd == "show":
-            doc = load_telemetry(args.store)
+            doc = load_telemetry(args.store, args.allow_unverified)
             sys.stdout.write(
                 _json(doc) if args.format == "json" else "\n".join(render.summary_lines(doc)) + "\n"
             )
@@ -359,10 +390,10 @@ def dispatch(args: argparse.Namespace) -> int | None:  # noqa: PLR0911, PLR0912
         if cmd == "query":
             return _cmd_query(args)
         if cmd == "tree":
-            lines = process_tree(
-                load_telemetry(args.store), pid=args.pid, name=args.name, depth=args.depth
-            )
+            tel = load_telemetry(args.store, args.allow_unverified)
+            lines = process_tree(tel, pid=args.pid, name=args.name, depth=args.depth)
             sys.stdout.write("\n".join(lines) + ("\n" if lines else "no matching process\n"))
+            sys.stdout.write("".join(x + "\n" for x in prov.text(("telemetry", tel))))
             return int(ExitCode.OK if lines else ExitCode.PARTIAL)
         if cmd == "compare":
             return _cmd_compare(args)
@@ -371,7 +402,7 @@ def dispatch(args: argparse.Namespace) -> int | None:  # noqa: PLR0911, PLR0912
             return run_command(args)
         if cmd == "report":
             return _cmd_report(args)
-    except (IngestError, CompareError) as exc:
+    except (IngestError, CompareError, LoadError) as exc:
         _err(str(exc))
         return int(ExitCode.PRECONDITION)
     except QueryError as exc:

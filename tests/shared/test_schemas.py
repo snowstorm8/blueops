@@ -19,6 +19,7 @@ from shared.reporting import detect as detect_cli
 from shared.reporting.accepted import load
 from shared.reporting.contracts import (
     AUDIT_REPORT_SCHEMA_VERSION,
+    READABLE_REPORT_VERSIONS,
     SCHEMA_VERSION,
 )
 from shared.reporting.detection import RULES
@@ -158,6 +159,17 @@ def test_example_allowlist_does_not_apply_to_a_different_host_family(
     doc = _run(capsys, "2026-03-02T00:00:00Z", host="windows")
     assert doc["summary"]["accepted"] == 0
     assert doc["allowlist"]["entries"][0]["status"] == "unused"
+
+
+def test_version_lines_after_the_provenance_additions() -> None:
+    """Which documents moved with the optional provenance fields, and which did not."""
+    from shared.telemetry.model import TELEMETRY_SCHEMA_VERSION  # noqa: PLC0415
+
+    assert TELEMETRY_SCHEMA_VERSION == "1.1.0" and AUDIT_REPORT_SCHEMA_VERSION == "0.3.0"
+    for name in ("telemetry", "telemetry-comparison"):
+        schema = _json(ROOT / "shared" / "schemas" / f"{name}.schema.json")
+        assert schema["$id"].endswith(f"/{name}/{TELEMETRY_SCHEMA_VERSION}"), name
+    assert {"0.1", "0.2", "0.3"} == set(READABLE_REPORT_VERSIONS)  # older reports stay readable
 
 
 def test_older_documents_still_validate_against_the_new_minor_schemas() -> None:

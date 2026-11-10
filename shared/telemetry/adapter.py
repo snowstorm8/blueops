@@ -15,6 +15,7 @@ from pathlib import Path
 from typing import Any
 
 from shared.engine.loader import LoadError, load_assessment
+from shared.engine.provenance import entries
 from shared.findings.model import clean
 from shared.telemetry.ingest import IngestError, RawInput
 
@@ -144,9 +145,11 @@ def raw_from_assessment(path: Path, data: bytes, verify: bool = True) -> RawInpu
         doc = load_assessment(path, verify=verify)
     except LoadError as exc:
         raise IngestError(str(exc)) from None
-    return raw_from_assessment_doc(
+    raw = raw_from_assessment_doc(
         doc, name=path.name, sha256=hashlib.sha256(data).hexdigest(), size=len(data)
     )
+    raw.provenance = entries("assessment", doc, source=str(path))
+    return raw
 
 
 def raw_from_assessment_doc(
