@@ -1,0 +1,163 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://blueops.invalid/schemas/validation-scenario/1.0.0",
+  "title": "BlueOps validation scenario pack",
+  "description": "Controlled endpoint conditions with expected telemetry, detections and coverage. A scenario describes what BlueOps should observe and conclude; it never contains instructions that modify a host except the closed set of lab actions, which only run in a verified disposable lab.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema_version", "kind", "pack", "scenarios"],
+  "properties": {
+    "schema_version": {"type": "string", "pattern": "^1\\.\\d+\\.\\d+$"},
+    "kind": {"const": "scenario-pack"},
+    "pack": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["name", "version", "description"],
+      "properties": {
+        "name": {"type": "string", "pattern": "^[a-z][a-z0-9-]{1,40}$"},
+        "version": {"type": "string", "pattern": "^\\d+\\.\\d+\\.\\d+$"},
+        "description": {"type": "string", "minLength": 1, "maxLength": 600}
+      }
+    },
+    "scenarios": {"type": "array", "minItems": 1, "maxItems": 500, "items": {"$ref": "#/$defs/scenario"}}
+  },
+  "$defs": {
+    "severity": {"enum": ["info", "low", "medium", "high", "critical"]},
+    "confidence": {"enum": ["low", "medium", "high"]},
+    "count": {
+      "anyOf": [
+        {"type": "integer", "minimum": 0, "maximum": 1000},
+        {"type": "object", "additionalProperties": false, "properties": {"min": {"type": "integer", "minimum": 0, "maximum": 1000}, "max": {"type": "integer", "minimum": 0, "maximum": 1000}}}
+      ]
+    },
+    "scenario": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "title", "description", "objective", "kind", "platforms", "dataset", "expect", "limitations"],
+      "properties": {
+        "id": {"type": "string", "pattern": "^SCN-(LNX|WIN|ANY)-[A-Z]{2,5}-\\d{3}$"},
+        "title": {"type": "string", "minLength": 3, "maxLength": 160},
+        "description": {"type": "string", "minLength": 1, "maxLength": 1200},
+        "objective": {"type": "string", "minLength": 1, "maxLength": 600},
+        "kind": {"enum": ["positive", "negative", "coverage"]},
+        "platforms": {"type": "array", "minItems": 1, "uniqueItems": true, "items": {"enum": ["linux", "windows"]}},
+        "supported_versions": {"type": "array", "maxItems": 20, "items": {"type": "string", "maxLength": 60}},
+        "tags": {"type": "array", "maxItems": 20, "items": {"type": "string", "pattern": "^[a-z][a-z0-9_-]{0,30}$"}},
+        "preconditions": {
+          "type": "array",
+          "maxItems": 20,
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["kind"],
+            "properties": {
+              "kind": {"enum": ["os_family", "tool", "python", "privilege", "loopback", "lab"]},
+              "value": {"type": "string", "maxLength": 60},
+              "description": {"type": "string", "maxLength": 300}
+            }
+          }
+        },
+        "dataset": {
+          "type": "object",
+          "description": "Synthetic telemetry (spec of shared/telemetry/fixtures.py) or a recorded store; the same dataset is what a rule is evaluated on.",
+          "additionalProperties": false,
+          "properties": {
+            "platform": {"enum": ["linux", "windows"]},
+            "host": {"type": "string", "maxLength": 80},
+            "records": {"type": "array", "maxItems": 20000, "items": {"type": "object"}},
+            "coverage": {"type": "object"},
+            "started_at": {"type": "string"},
+            "ended_at": {"type": "string"},
+            "elevated": {"type": "boolean"},
+            "store": {"type": "string", "maxLength": 300},
+            "allow_rejected": {"type": "boolean"}
+          }
+        },
+        "baseline_dataset": {"type": "object"},
+        "rules_under_test": {"type": "array", "maxItems": 60, "items": {"type": "string", "pattern": "^DR-[A-Z]{2,4}-[A-Z0-9]{2,8}-\\d{3}$"}},
+        "expect": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "detections": {
+              "type": "array",
+              "maxItems": 60,
+              "items": {
+                "type": "object",
+                "additionalProperties": false,
+                "required": ["rule"],
+                "properties": {
+                  "rule": {"type": "string", "pattern": "^DR-[A-Z]{2,4}-[A-Z0-9]{2,8}-\\d{3}$"},
+                  "count": {"$ref": "#/$defs/count"},
+                  "severity": {"type": "object", "additionalProperties": false, "properties": {"min": {"$ref": "#/$defs/severity"}, "max": {"$ref": "#/$defs/severity"}}},
+                  "confidence": {"type": "object", "additionalProperties": false, "properties": {"min": {"$ref": "#/$defs/confidence"}, "max": {"$ref": "#/$defs/confidence"}}},
+                  "title_contains": {"type": "string", "maxLength": 200}
+                }
+              }
+            },
+            "absent": {"type": "array", "maxItems": 60, "items": {"type": "string", "pattern": "^DR-[A-Z]{2,4}-[A-Z0-9]{2,8}-\\d{3}$"}},
+            "indeterminate": {
+              "type": "array",
+              "maxItems": 60,
+              "items": {
+                "type": "object",
+                "additionalProperties": false,
+                "required": ["rule"],
+                "properties": {
+                  "rule": {"type": "string", "pattern": "^DR-[A-Z]{2,4}-[A-Z0-9]{2,8}-\\d{3}$"},
+                  "reason_contains": {"type": "string", "maxLength": 200}
+                }
+              }
+            },
+            "no_other_detections": {"type": "boolean"},
+            "coverage": {"type": "object", "additionalProperties": {"enum": ["complete", "partial", "unavailable", "not_applicable", "absent"]}},
+            "telemetry": {
+              "type": "array",
+              "maxItems": 40,
+              "items": {
+                "type": "object",
+                "additionalProperties": false,
+                "required": ["category"],
+                "properties": {
+                  "category": {"type": "string", "maxLength": 40},
+                  "where": {"type": "object"},
+                  "count": {"$ref": "#/$defs/count"},
+                  "description": {"type": "string", "maxLength": 200}
+                }
+              }
+            }
+          }
+        },
+        "cleanup": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {"required": {"type": "boolean"}, "description": {"type": "string", "maxLength": 300}}
+        },
+        "lab": {
+          "type": "object",
+          "description": "Live execution only: a closed set of harmless actions confined to the lab work directory and the runner's own child processes.",
+          "additionalProperties": false,
+          "properties": {
+            "collect_categories": {"type": "array", "maxItems": 20, "items": {"type": "string", "maxLength": 40}},
+            "actions": {
+              "type": "array",
+              "maxItems": 8,
+              "items": {
+                "type": "object",
+                "additionalProperties": false,
+                "required": ["action"],
+                "properties": {
+                  "action": {"enum": ["spawn_sleeper", "spawn_chain", "listen_loopback"]},
+                  "name": {"type": "string", "pattern": "^[a-z][a-z0-9_]{0,20}$"},
+                  "seconds": {"type": "integer", "minimum": 5, "maximum": 180},
+                  "depth": {"type": "integer", "minimum": 1, "maximum": 3}
+                }
+              }
+            }
+          }
+        },
+        "limitations": {"type": "array", "minItems": 1, "maxItems": 10, "items": {"type": "string", "minLength": 1, "maxLength": 400}}
+      }
+    }
+  }
+}
