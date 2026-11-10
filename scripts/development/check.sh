@@ -21,7 +21,7 @@ run() {
 have() { command -v "$1" >/dev/null 2>&1; }
 
 bash_files=()
-while IFS= read -r -d '' f; do bash_files+=("${f}"); done < <(git ls-files -z '*.sh' '*.bash' '*.bats' 2>/dev/null || true)
+while IFS= read -r -d '' f; do bash_files+=("${f}"); done < <(git ls-files -z '*.sh' '*.bash' '*.bats' blueops 2>/dev/null || true)
 
 if ((${#bash_files[@]} > 0)); then
   if have shellcheck; then run shellcheck shellcheck --external-sources "${bash_files[@]}"; else skipped+=(shellcheck); fi

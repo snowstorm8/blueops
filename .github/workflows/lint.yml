@@ -24,7 +24,7 @@ jobs:
         id: files
         shell: bash
         run: |
-          git ls-files -z '*.sh' '*.bash' '*.bats' > bash-files.txt
+          git ls-files -z '*.sh' '*.bash' '*.bats' blueops > bash-files.txt
           if [ -s bash-files.txt ]; then echo "found=true" >> "$GITHUB_OUTPUT"; fi
       - name: ShellCheck
         if: steps.files.outputs.found == 'true'
