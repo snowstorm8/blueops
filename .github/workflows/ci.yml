@@ -15,12 +15,18 @@ concurrency:
 jobs:
   python:
     name: Python tests (${{ matrix.os }}, py${{ matrix.python }})
-    runs-on: ${{ matrix.os }}
+    runs-on: ${{ matrix.runner || matrix.os }}
     strategy:
       fail-fast: false
       matrix:
         os: [ubuntu-latest, windows-latest]
         python: ["3.9", "3.12"]
+        include:
+          # setup-python has no Python 3.9 build for the Ubuntu 26.04 image behind
+          # ubuntu-latest; pin only this combination (the job name stays unchanged).
+          - os: ubuntu-latest
+            python: "3.9"
+            runner: ubuntu-24.04
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
